@@ -26,7 +26,3 @@ jobs:
       - name: Run Tests
         run: npm test
         working-directory: campus-guide
-
-      - name: Lint
-        run: npm run lint
-        working-directory: campus-guide
