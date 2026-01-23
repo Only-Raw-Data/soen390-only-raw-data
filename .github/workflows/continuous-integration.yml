@@ -1,6 +1,7 @@
 name: React Native CI
 
 on:
+  workflow_dispatch:
   push:
     branches: ['*']
   pull_request:
