@@ -46,6 +46,7 @@ body:
         - "5"
         - "8"
         - "13"
+    validations:
       required: false
 
   - type: dropdown
