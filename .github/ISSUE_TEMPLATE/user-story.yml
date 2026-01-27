@@ -27,12 +27,11 @@ body:
     attributes:
       label: Priority
       options:
-        - P0 (Must)
-        - P1 (Should)
-        - P2 (Could)
-        - P3
-        - P4
-        - P5
+        - P0 (Critical)
+        - P1 (High)
+        - P2 (Medium)
+        - P3 (Low)
+        - P4 (Optional)
     validations:
       required: true
 
@@ -65,7 +64,3 @@ body:
         - Sprint 8
     validations:
       required: true
-
-
-
-
