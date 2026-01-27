@@ -1,0 +1,66 @@
+name: User Story
+description: Create a user story with clear acceptance criteria
+title: "US-?.?: "
+labels: ["user-story"]
+
+body:
+  - type: textarea
+    id: story
+    attributes:
+      label: User story
+      description: "As a [user], I want to [functionality], so that [benefit]."
+      placeholder: "As a ..., I want to ..., so that ..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: "Crystal clear, testable criteria (bullets)."
+      placeholder: "- Given ... when ... then ..."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - P0 (Critical)
+        - P1 (High)
+        - P2 (Medium)
+        - P3 (Low)
+        - P4 (Optional)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: estimate
+    attributes:
+      label: Estimate (story points)
+      options:
+        - "1"
+        - "2"
+        - "3"
+        - "5"
+        - "8"
+        - "13"
+      required: false
+
+  - type: dropdown
+    id: sprint
+    attributes:
+      label: Sprint
+      description: "Select the sprint this story is planned for"
+      options:
+        - Sprint 1
+        - Sprint 2
+        - Sprint 3
+        - Sprint 4
+        - Sprint 5
+        - Sprint 6
+        - Sprint 7
+        - Sprint 8
+    validations:
+      required: true
