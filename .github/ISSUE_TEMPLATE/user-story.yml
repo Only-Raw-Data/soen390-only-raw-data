@@ -30,6 +30,9 @@ body:
         - P0 (Must)
         - P1 (Should)
         - P2 (Could)
+        - P3
+        - P4
+        - P5
     validations:
       required: true
 
@@ -38,8 +41,31 @@ body:
     attributes:
       label: Estimate (story points)
       options:
-        - 1
-        - 2
-        - 3
-        - 5
-        - 8
+        - "1"
+        - "2"
+        - "3"
+        - "5"
+        - "8"
+        - "13"
+      required: false
+
+  - type: dropdown
+    id: sprint
+    attributes:
+      label: Sprint
+      description: "Select the sprint this story is planned for"
+      options:
+        - Sprint 1
+        - Sprint 2
+        - Sprint 3
+        - Sprint 4
+        - Sprint 5
+        - Sprint 6
+        - Sprint 7
+        - Sprint 8
+    validations:
+      required: true
+
+
+
+
