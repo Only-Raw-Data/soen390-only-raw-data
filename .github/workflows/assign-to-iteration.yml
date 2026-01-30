@@ -6,6 +6,10 @@ on:
 jobs:
   assign-issues:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      repository-projects: write
     
     steps:
       - name: Checkout repository
