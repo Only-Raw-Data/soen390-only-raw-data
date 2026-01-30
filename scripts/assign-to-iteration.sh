@@ -14,10 +14,11 @@ ISSUES=(11 12 13 15 17 20)
 echo "Finding GitHub Project..."
 
 # Get the project ID for the repository's project board
+# Note: Limiting to first 20 projects. If you have more, consider increasing this limit.
 PROJECT_DATA=$(gh api graphql -f query='
 query($owner: String!, $repo: String!) {
   repository(owner: $owner, name: $repo) {
-    projectsV2(first: 10) {
+    projectsV2(first: 20) {
       nodes {
         id
         title
@@ -41,11 +42,12 @@ fi
 echo "Found Project ID: $PROJECT_ID"
 
 # Get the project fields to find the iteration field
+# Note: Limiting to first 50 fields. Most projects should have fewer fields.
 FIELDS_DATA=$(gh api graphql -f query='
 query($projectId: ID!) {
   node(id: $projectId) {
     ... on ProjectV2 {
-      fields(first: 20) {
+      fields(first: 50) {
         nodes {
           ... on ProjectV2Field {
             id
@@ -79,8 +81,9 @@ query($projectId: ID!) {
 echo "Fields data: $FIELDS_DATA"
 
 # Find the iteration field ID and iteration 2 ID
+# Match exact iteration names to avoid matching "Iteration 12" or "Sprint 20"
 ITERATION_FIELD_ID=$(echo "$FIELDS_DATA" | jq -r '.data.node.fields.nodes[] | select(.name == "Iteration" or .name == "Sprint") | .id')
-ITERATION_2_ID=$(echo "$FIELDS_DATA" | jq -r '.data.node.fields.nodes[] | select(.name == "Iteration" or .name == "Sprint") | .configuration.iterations[] | select(.title | test("2|Iteration 2|Sprint 2")) | .id')
+ITERATION_2_ID=$(echo "$FIELDS_DATA" | jq -r '.data.node.fields.nodes[] | select(.name == "Iteration" or .name == "Sprint") | .configuration.iterations[] | select(.title == "Iteration 2" or .title == "Sprint 2" or .title == "2") | .id' | head -1)
 
 if [ "$ITERATION_FIELD_ID" == "null" ] || [ -z "$ITERATION_FIELD_ID" ]; then
     echo "No Iteration/Sprint field found in the project."
@@ -125,6 +128,7 @@ for ISSUE_NUM in "${ISSUES[@]}"; do
         echo "  Issue #$ISSUE_NUM may already be in the project, trying to update..."
         
         # Get existing item ID
+        # Note: Limiting to first 100 items. If your project has more items, this may fail.
         ITEM_ID=$(gh api graphql -f query='
         query($projectId: ID!) {
           node(id: $projectId) {

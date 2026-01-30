@@ -38,7 +38,7 @@ Two versions are provided:
 
 2. Run the script:
    ```bash
-   ./scripts/assign-to-iteration.sh
+   bash scripts/assign-to-iteration.sh
    ```
 
 ### What it does

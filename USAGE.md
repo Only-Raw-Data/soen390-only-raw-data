@@ -90,7 +90,7 @@ The workflow will automatically:
 3. Run the bash script:
    ```bash
    cd /path/to/soen390-only-raw-data
-   ./scripts/assign-to-iteration.sh
+   bash scripts/assign-to-iteration.sh
    ```
 
 ## Troubleshooting

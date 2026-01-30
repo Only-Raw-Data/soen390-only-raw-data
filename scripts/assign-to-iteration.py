@@ -37,7 +37,7 @@ def get_project_id():
     query = """
     query($owner: String!, $repo: String!) {
       repository(owner: $owner, name: $repo) {
-        projectsV2(first: 10) {
+        projectsV2(first: 20) {
           nodes {
             id
             title
@@ -59,7 +59,7 @@ def get_project_id():
         query = """
         query($owner: String!) {
           organization(login: $owner) {
-            projectsV2(first: 10) {
+            projectsV2(first: 20) {
               nodes {
                 id
                 title
@@ -85,7 +85,7 @@ def get_iteration_info(project_id):
     query($projectId: ID!) {
       node(id: $projectId) {
         ... on ProjectV2 {
-          fields(first: 20) {
+          fields(first: 50) {
             nodes {
               ... on ProjectV2Field {
                 id
@@ -129,7 +129,8 @@ def get_iteration_info(project_id):
             iterations = field.get("configuration", {}).get("iterations", [])
             for iteration in iterations:
                 title = iteration.get("title", "")
-                if "2" in title or "Iteration 2" in title or "Sprint 2" in title:
+                # Match "Iteration 2", "Sprint 2", or just "2" as a complete word
+                if title in ["Iteration 2", "Sprint 2", "2"] or title.lower() == "iteration 2" or title.lower() == "sprint 2":
                     iteration_2_id = iteration["id"]
                     print(f"Found iteration: {title}")
                     break
@@ -181,6 +182,8 @@ def add_issue_to_project(project_id, issue_id):
 
 def get_existing_item_id(project_id, issue_num):
     """Get the item ID if the issue is already in the project."""
+    # Note: This query has a limit of 100 items. If your project has more than 100 items,
+    # consider implementing pagination or the script may not find existing items.
     query = """
     query($projectId: ID!) {
       node(id: $projectId) {
@@ -248,6 +251,11 @@ def main():
         
         # Get issue ID
         issue_id = get_issue_id(issue_num)
+        
+        if not issue_id:
+            print(f"  ✗ Issue #{issue_num} not found in repository")
+            continue
+            
         print(f"  Issue ID: {issue_id}")
         
         # Add to project or get existing item ID
