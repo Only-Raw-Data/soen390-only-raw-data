@@ -1,57 +1,61 @@
 import React from 'react';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Link, Tabs } from 'expo-router';
-import { Pressable } from 'react-native';
-
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
-import { useClientOnlyValue } from '@/components/useClientOnlyValue';
-
-// You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
-function TabBarIcon(props: {
-  name: React.ComponentProps<typeof FontAwesome>['name'];
-  color: string;
-}) {
-  return <FontAwesome size={28} style={{ marginBottom: -3 }} {...props} />;
-}
+import { Tabs, useRouter, usePathname } from 'expo-router';
+import { BottomNav } from '../components/BottomNav';
+import { Screen } from '../types/Screen';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // Map pathname to screen type
+  const getCurrentScreen = (): Screen => {
+    if (pathname.includes('index')) return 'map';
+    if (pathname.includes('two')) return 'directions';
+    return 'map';
+  };
+
+  const handleScreenChange = (screen: Screen) => {
+    // For now, we'll map screens to existing routes
+    // You can create more routes later for each screen type
+    switch (screen) {
+      case 'map':
+        router.push('/(tabs)');
+        break;
+      case 'directions':
+        router.push('/(tabs)/two');
+        break;
+      case 'schedule':
+      case 'indoor':
+      case 'poi':
+        // These can navigate to the same routes for now
+        // or you can create new screen files for each
+        router.push('/(tabs)');
+        break;
+    }
+  };
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        // Disable the static render of the header on web
-        // to prevent a hydration error in React Navigation v6.
-        headerShown: useClientOnlyValue(false, true),
-      }}>
+        headerShown: true,
+      }}
+      tabBar={(props) => (
+        <BottomNav
+          currentScreen={getCurrentScreen()}
+          onScreenChange={handleScreenChange}
+        />
+      )}
+    >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Tab One',
-          tabBarIcon: ({ color }) => <TabBarIcon name="code" color={color} />,
-          headerRight: () => (
-            <Link href="/modal" asChild>
-              <Pressable>
-                {({ pressed }) => (
-                  <FontAwesome
-                    name="info-circle"
-                    size={25}
-                    color={Colors[colorScheme ?? 'light'].text}
-                    style={{ marginRight: 15, opacity: pressed ? 0.5 : 1 }}
-                  />
-                )}
-              </Pressable>
-            </Link>
-          ),
+          title: 'Campus Guide',
         }}
       />
       <Tabs.Screen
         name="two"
         options={{
-          title: 'Tab Two',
-          tabBarIcon: ({ color }) => <TabBarIcon name="code" color={color} />,
+          title: 'Directions',
         }}
       />
     </Tabs>
