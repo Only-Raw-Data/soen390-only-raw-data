@@ -1,28 +1,28 @@
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import { MapView } from '../MapView';
+import { MapViewApp } from '../MapViewApp';
 
 describe('MapView', () => {
     it('renders without crashing', () => {
-        const { getByPlaceholderText } = render(<MapView />);
+        const { getByPlaceholderText } = render(<MapViewApp />);
         expect(getByPlaceholderText('Search buildings...')).toBeTruthy();
     });
 
     it('renders campus toggle buttons', () => {
-        const { getByText } = render(<MapView />);
+        const { getByText } = render(<MapViewApp />);
 
         expect(getByText('SGW Campus')).toBeTruthy();
         expect(getByText('Loyola Campus')).toBeTruthy();
     });
 
     it('defaults to SGW campus', () => {
-        const { getByText } = render(<MapView />);
+        const { getByText } = render(<MapViewApp />);
 
         expect(getByText('Sir George Williams Campus')).toBeTruthy();
     });
 
     it('switches back to SGW campus', () => {
-        const { getByText } = render(<MapView />);
+        const { getByText } = render(<MapViewApp />);
 
         fireEvent.press(getByText('Loyola Campus'));
         fireEvent.press(getByText('SGW Campus'));
@@ -32,7 +32,7 @@ describe('MapView', () => {
 
     describe('Search functionality', () => {
         it('filters buildings by name', () => {
-            const { getByPlaceholderText, getByText, queryByText } = render(<MapView />);
+            const { getByPlaceholderText, getByText, queryByText } = render(<MapViewApp />);
             const searchInput = getByPlaceholderText('Search buildings...');
 
             fireEvent.changeText(searchInput, 'Hall');
@@ -42,7 +42,7 @@ describe('MapView', () => {
         });
 
         it('filters buildings by code', () => {
-            const { getByPlaceholderText, getByText } = render(<MapView />);
+            const { getByPlaceholderText, getByText } = render(<MapViewApp />);
             const searchInput = getByPlaceholderText('Search buildings...');
 
             fireEvent.changeText(searchInput, 'MB');
@@ -51,7 +51,7 @@ describe('MapView', () => {
         });
 
         it('is case insensitive', () => {
-            const { getByPlaceholderText, getByText } = render(<MapView />);
+            const { getByPlaceholderText, getByText } = render(<MapViewApp />);
             const searchInput = getByPlaceholderText('Search buildings...');
 
             fireEvent.changeText(searchInput, 'engineering');
@@ -60,7 +60,7 @@ describe('MapView', () => {
         });
 
         it('clears search results when input is cleared', () => {
-            const { getByPlaceholderText, getByText } = render(<MapView />);
+            const { getByPlaceholderText, getByText } = render(<MapViewApp />);
             const searchInput = getByPlaceholderText('Search buildings...');
 
             fireEvent.changeText(searchInput, 'Hall');
@@ -75,7 +75,7 @@ describe('MapView', () => {
 
     describe('Building markers', () => {
         it('renders SGW building markers', () => {
-            const { getByText } = render(<MapView />);
+            const { getByText } = render(<MapViewApp />);
 
             expect(getByText('H')).toBeTruthy();
             expect(getByText('MB')).toBeTruthy();
@@ -86,7 +86,7 @@ describe('MapView', () => {
         });
 
         it('renders Loyola building markers when campus is switched', () => {
-            const { getByText } = render(<MapView />);
+            const { getByText } = render(<MapViewApp />);
 
             fireEvent.press(getByText('Loyola Campus'));
 
@@ -98,7 +98,7 @@ describe('MapView', () => {
         });
 
         it('shows current location indicator', () => {
-            const { getByText } = render(<MapView />);
+            const { getByText } = render(<MapViewApp />);
 
             expect(getByText('You are here')).toBeTruthy();
         });
@@ -107,7 +107,7 @@ describe('MapView', () => {
     describe('Building selection', () => {
 
         it('shows Get Directions button in building info', () => {
-            const { getByText } = render(<MapView />);
+            const { getByText } = render(<MapViewApp />);
 
             fireEvent.press(getByText('H'));
 
@@ -115,7 +115,7 @@ describe('MapView', () => {
         });
 
         it('clears selected building when switching campuses', () => {
-            const { getByText, queryByText } = render(<MapView />);
+            const { getByText, queryByText } = render(<MapViewApp />);
 
             // Select a building on SGW campus
             fireEvent.press(getByText('H'));
@@ -131,7 +131,7 @@ describe('MapView', () => {
 
     describe('Integration tests', () => {
         it('search works across campus switches', () => {
-            const { getByPlaceholderText, getByText } = render(<MapView />);
+            const { getByPlaceholderText, getByText } = render(<MapViewApp />);
             const searchInput = getByPlaceholderText('Search buildings...');
 
             // Search on SGW campus
@@ -147,7 +147,7 @@ describe('MapView', () => {
         });
 
         it('handles selecting different buildings', () => {
-            const { getByText } = render(<MapView />);
+            const { getByText } = render(<MapViewApp />);
 
             // Select first building
             fireEvent.press(getByText('H'));
