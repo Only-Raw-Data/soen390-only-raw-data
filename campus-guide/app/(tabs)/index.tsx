@@ -1,6 +1,6 @@
-import { MapViewApp } from '../components/MapViewApp';
+import { MapView } from '../components/MapView';
 
 export default function TabOneScreen() {
-  return <MapViewApp />;
+  return <MapView />;
 }
 
