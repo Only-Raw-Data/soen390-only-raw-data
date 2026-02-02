@@ -8,7 +8,7 @@ export interface Building {
     lng: number;
     campus: Campus;
     address: string;
-    x: number; // Position on visual map (percentage)
+    x: number; 
     y: number;
 }
 
@@ -28,3 +28,20 @@ export const LOYOLA_BUILDINGS: Building[] = [
     { id: 'fc', name: 'F.C. Smith Building', code: 'FC', lat: 45.4578, lng: -73.6415, campus: 'Loyola', address: '7141 Sherbrooke St W', x: 35, y: 65 },
     { id: 'pc', name: 'Perform Centre', code: 'PC', lat: 45.4583, lng: -73.6410, campus: 'Loyola', address: '7200 Sherbrooke St W', x: 55, y: 45 },
 ];
+
+export  const  All_BUILDINGS: Building[] = [...SGW_BUILDINGS, ...LOYOLA_BUILDINGS];
+
+ export const CAMPUS_REGIONS = {
+    SGW: {
+      latitude: 45.4963,
+      longitude: -73.5783,
+      latitudeDelta: 0.01,
+      longitudeDelta: 0.01,
+    },
+    Loyola: {
+      latitude: 45.4581,
+      longitude: -73.6402,
+      latitudeDelta: 0.01,
+      longitudeDelta: 0.01,
+    },
+  };

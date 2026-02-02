@@ -1,6 +1,6 @@
-import { MapView } from '../components/MapView';
+import { MapViewApp } from '../components/MapView';
 
 export default function TabOneScreen() {
-  return <MapView />;
+  return <MapViewApp showSearch googleMapsApiKey={process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY}/>;
 }
 

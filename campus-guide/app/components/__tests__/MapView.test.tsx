@@ -1,7 +1,8 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
-import { MapView } from '../MapView';
+import { MapViewApp } from '../MapView';
 import { useDirections } from '../../context/DirectionsContext';
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 
 // Mock useDirections
 jest.mock('../../context/DirectionsContext', () => ({
