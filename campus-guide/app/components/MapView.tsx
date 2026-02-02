@@ -120,7 +120,7 @@ export function MapView() {
             </View>
 
             {/* Map Area */}
-            <View style={styles.mapContainer}>
+            <View testID="mapView" style={styles.mapContainer}>
                 <View style={styles.mapBackground}>
                     {/* Street grid pattern */}
                     <View style={styles.gridContainer}>

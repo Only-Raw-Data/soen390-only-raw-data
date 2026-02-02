@@ -1,8 +1,32 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
 import { MapView } from '../MapView';
+import { useDirections } from '../../context/DirectionsContext';
+
+// Mock useDirections
+jest.mock('../../context/DirectionsContext', () => ({
+  useDirections: jest.fn(),
+}));
+
+// Mock usePathname and useRouter
+jest.mock('expo-router', () => ({
+  useRouter: () => ({ push: jest.fn() }),
+  usePathname: () => '/',
+}));
 
 describe('MapView', () => {
+  const mockSetStartBuilding = jest.fn();
+  const mockSetDestinationBuilding = jest.fn();
+
+  beforeEach(() => {
+    (useDirections as jest.Mock).mockReturnValue({
+      startBuilding: null,
+      destinationBuilding: null,
+      setStartBuilding: mockSetStartBuilding,
+      setDestinationBuilding: mockSetDestinationBuilding,
+    });
+  });
+
   it('renders without crashing', () => {
     const { getByPlaceholderText } = render(<MapView />);
     expect(getByPlaceholderText('Search buildings...')).toBeTruthy();
