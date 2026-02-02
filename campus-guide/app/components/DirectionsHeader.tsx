@@ -47,10 +47,6 @@ export function DirectionsHeader() {
 
     return (
         <View style={styles.container}>
-             <View style={styles.header}>
-                <Text style={styles.headerTitle}>Concordia Campus Guide</Text>
-            </View> 
-
             <View style={styles.content}>
                 <View style={styles.titleRow}>
                     <Text testID="directions-title" style={styles.title}>Get Directions</Text>
@@ -169,19 +165,6 @@ const styles = StyleSheet.create({
         shadowRadius: 12,
         elevation: 10,
         zIndex: 100,
-    },
-    header: {
-        backgroundColor: '#912338',
-        paddingTop: 48,
-        paddingBottom: 16,
-        paddingHorizontal: 20,
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
-    },
-    headerTitle: {
-        color: '#FFFFFF',
-        fontSize: 18,
-        fontWeight: 'bold',
     },
     content: {
         padding: 20,

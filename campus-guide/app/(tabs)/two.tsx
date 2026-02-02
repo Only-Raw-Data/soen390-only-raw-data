@@ -1,10 +1,12 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
+import Header from '../components/Header';
 import { DirectionsHeader } from '../components/DirectionsHeader';
 
 export default function TabTwoScreen() {
   return (
     <View style={styles.container}>
+      <Header />
       <DirectionsHeader />
     </View>
   );
