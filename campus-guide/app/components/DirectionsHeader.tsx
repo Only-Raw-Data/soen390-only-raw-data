@@ -47,9 +47,9 @@ export function DirectionsHeader() {
 
     return (
         <View style={styles.container}>
-            <View style={styles.header}>
+             <View style={styles.header}>
                 <Text style={styles.headerTitle}>Concordia Campus Guide</Text>
-            </View>
+            </View> 
 
             <View style={styles.content}>
                 <View style={styles.titleRow}>
