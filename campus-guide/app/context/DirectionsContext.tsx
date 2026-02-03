@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { Building } from '@/constants/buildings';
-
-export type TransportationMode = 'walk' | 'car' | 'transit' | 'shuttle';
+import { TransportationMode } from '../types/transportation';
 
 interface DirectionsContextType {
     startBuilding: Building | null;

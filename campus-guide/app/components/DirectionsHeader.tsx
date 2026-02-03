@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useDirections, TransportationMode } from '../context/DirectionsContext';
+import { useDirections} from '../context/DirectionsContext';
+import { TransportationMode } from '../types/transportation';
 import { SGW_BUILDINGS, LOYOLA_BUILDINGS, Building } from './../../constants/buildings';
 
 export function DirectionsHeader() {

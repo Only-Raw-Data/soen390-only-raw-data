@@ -28,19 +28,27 @@ describe('MapView', () => {
   });
 
   it('renders without crashing', () => {
+    // Arrange
     const { getByPlaceholderText } = render(<MapView />);
+
+    // Assert
     expect(getByPlaceholderText('Search buildings...')).toBeTruthy();
   });
 
   it('renders campus toggle buttons', () => {
+    // Arrange
     const { getByText } = render(<MapView />);
+
+    // Assert
     expect(getByText('SGW Campus')).toBeTruthy();
     expect(getByText('Loyola Campus')).toBeTruthy();
   });
 
   it('defaults to SGW campus', () => {
+    // Arrange
     const { getByText, queryByText } = render(<MapView />);
 
+    // Assert
     expect(getByText('H')).toBeTruthy();
     expect(getByText('MB')).toBeTruthy();
     expect(getByText('EV')).toBeTruthy();
@@ -49,9 +57,13 @@ describe('MapView', () => {
   });
 
   it('switches back to SGW campus', () => {
+    // Arrange
     const { getByText, queryByText } = render(<MapView />);
 
+    // Act
     fireEvent.press(getByText('Loyola Campus'));
+
+    // Assert
     expect(getByText('CC')).toBeTruthy();
     expect(queryByText('H')).toBeNull();
     fireEvent.press(getByText('SGW Campus'));
@@ -61,39 +73,51 @@ describe('MapView', () => {
 
   describe('Search functionality', () => {
     it('filters buildings by name', () => {
+      // Arrange
       const { getByPlaceholderText, getByText } = render(<MapView />);
       const searchInput = getByPlaceholderText('Search buildings...');
 
+      // Act
       fireEvent.changeText(searchInput, 'Hall');
 
+      // Assert
       expect(getByText('H')).toBeTruthy();
     });
 
     it('filters buildings by code', () => {
+      // Arrange
       const { getByPlaceholderText, getByText } = render(<MapView />);
       const searchInput = getByPlaceholderText('Search buildings...');
 
+      // Act
       fireEvent.changeText(searchInput, 'MB');
 
+      // Assert
       expect(getByText('MB')).toBeTruthy();
     });
 
     it('is case insensitive', () => {
+      // Arrange
       const { getByPlaceholderText, getByText } = render(<MapView />);
       const searchInput = getByPlaceholderText('Search buildings...');
 
+      // Act
       fireEvent.changeText(searchInput, 'engineering');
 
+      // Assert
       expect(getByText('EV')).toBeTruthy();
     });
 
     it('clears search results when input is cleared', () => {
+      // Arrange
       const { getByPlaceholderText, getByText } = render(<MapView />);
       const searchInput = getByPlaceholderText('Search buildings...');
 
+      // Act
       fireEvent.changeText(searchInput, 'Hall');
       fireEvent.changeText(searchInput, '');
 
+      // Assert
       expect(getByText('H')).toBeTruthy();
       expect(getByText('MB')).toBeTruthy();
       expect(getByText('EV')).toBeTruthy();
@@ -102,8 +126,10 @@ describe('MapView', () => {
 
   describe('Building markers', () => {
     it('renders SGW building markers', () => {
+      // Arrange
       const { getByText } = render(<MapView />);
 
+      // Assert
       expect(getByText('H')).toBeTruthy();
       expect(getByText('MB')).toBeTruthy();
       expect(getByText('EV')).toBeTruthy();
@@ -113,10 +139,13 @@ describe('MapView', () => {
     });
 
     it('renders Loyola building markers when campus is switched', () => {
+      // Arrange
       const { getByText } = render(<MapView />);
 
+      // Act
       fireEvent.press(getByText('Loyola Campus'));
 
+      // Assert
       expect(getByText('CC')).toBeTruthy();
       expect(getByText('SP')).toBeTruthy();
       expect(getByText('AD')).toBeTruthy();
@@ -125,25 +154,34 @@ describe('MapView', () => {
     });
 
     it('renders the map container', () => {
+      // Arrange
       const { getByTestId } = render(<MapView />);
 
+      // Assert
       expect(getByTestId('mapView')).toBeTruthy();
     });
   });
 
   describe('Building selection', () => {
     it('shows Get Directions button in building info', () => {
+      // Arrange
       const { getByText } = render(<MapView />);
 
+      // Act
       fireEvent.press(getByText('H'));
 
+      // Assert
       expect(getByText('Get Directions')).toBeTruthy();
     });
 
     it('clears selected building when switching campuses', () => {
+      // Arrange
       const { getByText, queryByText } = render(<MapView />);
 
+      // Act
       fireEvent.press(getByText('H'));
+
+      // Assert
       expect(getByText('Henry F. Hall Building')).toBeTruthy();
 
       fireEvent.press(getByText('Loyola Campus'));
@@ -154,22 +192,33 @@ describe('MapView', () => {
 
   describe('Integration tests', () => {
     it('search works across campus switches', () => {
+      // Arrange
       const { getByPlaceholderText, getByText } = render(<MapView />);
       const searchInput = getByPlaceholderText('Search buildings...');
 
+      // Act
       fireEvent.changeText(searchInput, 'Hall');
+
+      // Assert
       expect(getByText('H')).toBeTruthy();
 
+      // Act
       fireEvent.press(getByText('Loyola Campus'));
 
       fireEvent.changeText(searchInput, 'Central');
+
+      // Assert
       expect(getByText('CC')).toBeTruthy();
     });
 
     it('handles selecting different buildings', () => {
+      // Arrange
       const { getByText } = render(<MapView />);
 
+      // Act
       fireEvent.press(getByText('H'));
+
+      // Assert
       expect(getByText('Henry F. Hall Building')).toBeTruthy();
 
       fireEvent.press(getByText('MB'));
