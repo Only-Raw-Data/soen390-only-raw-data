@@ -39,3 +39,10 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Environment variables containing sensitive data
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local

@@ -1,40 +1,20 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-
-type Campus = 'SGW' | 'Loyola';
-
-interface Building {
-    id: string;
-    name: string;
-    code: string;
-    lat: number;
-    lng: number;
-    campus: Campus;
-    address: string;
-    x: number; // Position on visual map (percentage)
-    y: number;
-}
-
-// Real coordinates for Concordia buildings with visual positions
-const SGW_BUILDINGS: Building[] = [
-    { id: 'h', name: 'Henry F. Hall Building', code: 'H', lat: 45.4972, lng: -73.5789, campus: 'SGW', address: '1455 De Maisonneuve Blvd W', x: 50, y: 45 },
-    { id: 'mb', name: 'John Molson Building', code: 'MB', lat: 45.4952, lng: -73.5790, campus: 'SGW', address: '1450 Guy St', x: 45, y: 65 },
-    { id: 'ev', name: 'Engineering Building', code: 'EV', lat: 45.4953, lng: -73.5779, campus: 'SGW', address: '1515 Ste-Catherine St W', x: 65, y: 60 },
-    { id: 'lb', name: 'J.W. McConnell Building', code: 'LB', lat: 45.4967, lng: -73.5778, campus: 'SGW', address: '1400 De Maisonneuve Blvd W', x: 70, y: 48 },
-    { id: 'va', name: 'Visual Arts Building', code: 'VA', lat: 45.4948, lng: -73.5777, campus: 'SGW', address: '1395 René-Lévesque Blvd W', x: 55, y: 70 },
-    { id: 'gm', name: 'Guy-De Maisonneuve Building', code: 'GM', lat: 45.4967, lng: -73.5778, campus: 'SGW', address: '1550 De Maisonneuve Blvd W', x: 35, y: 50 },
-];
-
-const LOYOLA_BUILDINGS: Building[] = [
-    { id: 'cc', name: 'Central Building', code: 'CC', lat: 45.4581, lng: -73.6402, campus: 'Loyola', address: '7141 Sherbrooke St W', x: 50, y: 50 },
-    { id: 'sp', name: 'Richard J. Renaud Science Complex', code: 'SP', lat: 45.4576, lng: -73.6408, campus: 'Loyola', address: '7141 Sherbrooke St W', x: 40, y: 60 },
-    { id: 'ad', name: 'Administration Building', code: 'AD', lat: 45.4585, lng: -73.6398, campus: 'Loyola', address: '7141 Sherbrooke St W', x: 60, y: 40 },
-    { id: 'fc', name: 'F.C. Smith Building', code: 'FC', lat: 45.4578, lng: -73.6415, campus: 'Loyola', address: '7141 Sherbrooke St W', x: 35, y: 65 },
-    { id: 'pc', name: 'Perform Centre', code: 'PC', lat: 45.4583, lng: -73.6410, campus: 'Loyola', address: '7200 Sherbrooke St W', x: 55, y: 45 },
-];
+import { useRouter } from 'expo-router';
+import { Campus, Building, SGW_BUILDINGS, LOYOLA_BUILDINGS } from './../../constants/buildings';
+import { useDirections } from '../context/DirectionsContext';
 
 export function MapView() {
+    const { 
+        startBuilding, 
+        destinationBuilding, 
+        setStartBuilding, 
+        setDestinationBuilding 
+    } = useDirections();
+
+    const router = useRouter();
+
     const [selectedCampus, setSelectedCampus] = useState<Campus>('SGW');
     const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null);
     const [currentLocation] = useState<string>('h'); // Mock current location
@@ -47,9 +27,42 @@ export function MapView() {
             b.code.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
+    const isStartSelected = !!selectedBuilding && startBuilding?.id === selectedBuilding.id;
+    const isDestSelected = !!selectedBuilding && destinationBuilding?.id === selectedBuilding.id;
+
     const handleCampusChange = (campus: Campus) => {
         setSelectedCampus(campus);
         setSelectedBuilding(null);
+    };
+
+    const handleBuildingPress = (building: Building) => {
+        setSelectedBuilding(building);
+        
+        // Selection logic for Directions
+        if (!startBuilding) {
+            setStartBuilding(building);
+        } else if (building.id === startBuilding.id) {
+            // Tapping start again clears it
+            setStartBuilding(null);
+        } else if (!destinationBuilding) {
+            setDestinationBuilding(building);
+        } else if (building.id === destinationBuilding.id) {
+            // Tapping destination again clears it
+            setDestinationBuilding(null);
+        } else {
+            // If both are set and we tap a new one, replace destination
+            setDestinationBuilding(building);
+        }
+    };
+
+    const handleGetDirections = (building: Building) => {
+        // Only set if not already set, or replace destination if we want to navigate to a new one
+        if (!startBuilding) {
+            setStartBuilding(building);
+        } else if (building.id !== startBuilding.id) {
+            setDestinationBuilding(building);
+        }
+        router.push('/(tabs)/two');
     };
 
     return (
@@ -107,7 +120,7 @@ export function MapView() {
             </View>
 
             {/* Map Area */}
-            <View style={styles.mapContainer}>
+            <View testID="mapView" style={styles.mapContainer}>
                 <View style={styles.mapBackground}>
                     {/* Street grid pattern */}
                     <View style={styles.gridContainer}>
@@ -134,9 +147,11 @@ export function MapView() {
                     </View>
 
                     {/* Building Markers */}
-                    {filteredBuildings.map((building) => {
+                    {filteredBuildings.map((building: Building) => {
                         const isCurrentLocation = building.id === currentLocation;
                         const isSelected = selectedBuilding?.id === building.id;
+                        const isStart = startBuilding?.id === building.id;
+                        const isDest = destinationBuilding?.id === building.id;
 
                         return (
                             <View
@@ -146,16 +161,30 @@ export function MapView() {
                                     { left: `${building.x}%`, top: `${building.y}%` },
                                 ]}
                             >
-                                <TouchableOpacity
-                                    onPress={() => setSelectedBuilding(building)}
-                                    style={[
-                                        styles.marker,
-                                        isSelected && styles.markerSelected,
-                                        isCurrentLocation && styles.markerCurrent,
-                                    ]}
-                                >
-                                    <Text style={styles.markerText}>{building.code}</Text>
-                                </TouchableOpacity>
+                                <View style={styles.markerWrapper}>
+                                    {isStart && (
+                                        <View style={[styles.statusBadge, styles.startBadge]}>
+                                            <Text style={styles.statusBadgeText}>START</Text>
+                                        </View>
+                                    )}
+                                    {isDest && (
+                                        <View style={[styles.statusBadge, styles.destBadge]}>
+                                            <Text style={styles.statusBadgeText}>END</Text>
+                                        </View>
+                                    )}
+                                    <TouchableOpacity
+                                        onPress={() => handleBuildingPress(building)}
+                                        style={[
+                                            styles.marker,
+                                            isSelected && styles.markerSelected,
+                                            isCurrentLocation && styles.markerCurrent,
+                                            isStart && styles.markerStart,
+                                            isDest && styles.markerDest,
+                                        ]}
+                                    >
+                                        <Text style={styles.markerText}>{building.code}</Text>
+                                    </TouchableOpacity>
+                                </View>
                                 {isCurrentLocation && (
                                     <View style={styles.currentLocationLabel}>
                                         <Text style={styles.currentLocationText}>You are here</Text>
@@ -189,10 +218,25 @@ export function MapView() {
                             </View>
                         </View>
                         <View style={styles.buildingActions}>
-                            <TouchableOpacity style={styles.directionsButton}>
+                            <TouchableOpacity 
+                                style={styles.directionsButton}
+                                onPress={() => handleGetDirections(selectedBuilding!)}
+                            >
                                 <Ionicons name="navigate" size={16} color="#FFFFFF" />
                                 <Text style={styles.directionsButtonText}>Get Directions</Text>
                             </TouchableOpacity>
+                            {(isStartSelected || isDestSelected) && (
+                                <TouchableOpacity 
+                                    testID="clear-selection-button"
+                                    style={styles.infoButton}
+                                    onPress={() => {
+                                        if (isStartSelected) setStartBuilding(null);
+                                        else setDestinationBuilding(null);
+                                    }}
+                                >
+                                    <Ionicons name="trash-outline" size={20} color="#912338" />
+                                </TouchableOpacity>
+                            )}
                             <TouchableOpacity style={styles.infoButton}>
                                 <Ionicons name="information-circle-outline" size={20} color="#374151" />
                             </TouchableOpacity>
@@ -336,6 +380,28 @@ const styles = StyleSheet.create({
         zIndex: 10,
         alignItems: 'center',
     },
+    markerWrapper: {
+        alignItems: 'center',
+    },
+    statusBadge: {
+        position: 'absolute',
+        top: -18,
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 4,
+        zIndex: 30,
+    },
+    startBadge: {
+        backgroundColor: '#10B981',
+    },
+    destBadge: {
+        backgroundColor: '#912338',
+    },
+    statusBadgeText: {
+        color: '#FFFFFF',
+        fontSize: 8,
+        fontWeight: 'bold',
+    },
     marker: {
         width: 40,
         height: 40,
@@ -352,8 +418,8 @@ const styles = StyleSheet.create({
         elevation: 5,
     },
     markerSelected: {
-        width: 48,
-        height: 48,
+        width: 44,
+        height: 44,
         backgroundColor: '#912338',
         borderColor: '#6D1A2A',
         zIndex: 20,
@@ -361,6 +427,14 @@ const styles = StyleSheet.create({
     markerCurrent: {
         backgroundColor: '#3B82F6',
         borderColor: '#60A5FA',
+    },
+    markerStart: {
+        borderColor: '#10B981',
+        borderWidth: 4,
+    },
+    markerDest: {
+        borderColor: '#912338',
+        borderWidth: 4,
     },
     markerText: {
         color: '#FFFFFF',

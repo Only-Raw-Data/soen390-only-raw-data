@@ -3,6 +3,8 @@ import { Tabs, useRouter, usePathname } from 'expo-router';
 import { BottomNav } from '../components/BottomNav';
 import { Screen } from '../types/Screen';
 
+import { DirectionsProvider } from '../context/DirectionsContext';
+
 export default function TabLayout() {
   const router = useRouter();
   const pathname = usePathname();
@@ -35,29 +37,31 @@ export default function TabLayout() {
   };
 
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: true,
-      }}
-      tabBar={(props) => (
-        <BottomNav
-          currentScreen={getCurrentScreen()}
-          onScreenChange={handleScreenChange}
+    <DirectionsProvider>
+      <Tabs
+        screenOptions={{
+          headerShown: true,
+        }}
+        tabBar={(props) => (
+          <BottomNav
+            currentScreen={getCurrentScreen()}
+            onScreenChange={handleScreenChange}
+          />
+        )}
+      >
+        <Tabs.Screen
+          name="index"
+          options={{
+            title: 'Campus Guide',
+          }}
         />
-      )}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Campus Guide',
-        }}
-      />
-      <Tabs.Screen
-        name="two"
-        options={{
-          title: 'Directions',
-        }}
-      />
-    </Tabs>
+        <Tabs.Screen
+          name="two"
+          options={{
+            title: 'Directions',
+          }}
+        />
+      </Tabs>
+    </DirectionsProvider>
   );
 }
