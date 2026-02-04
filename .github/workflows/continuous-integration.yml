@@ -25,5 +25,10 @@ jobs:
         working-directory: campus-guide
 
       - name: Run Tests
-        run: npm test
         working-directory: campus-guide
+        run: npm test -- --coverage
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
