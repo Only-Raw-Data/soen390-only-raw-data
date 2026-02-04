@@ -29,6 +29,6 @@ jobs:
         run: npm test -- --coverage
 
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@<FULL_COMMIT_SHA>
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
