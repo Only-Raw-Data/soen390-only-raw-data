@@ -12,6 +12,10 @@ const OVERPASS_URL = process.env.EXPO_PUBLIC_OVERPASS_URL as string;
 const CACHE_DIR_NAME = "building_polygons";
 const CACHE_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
 
+if (!OVERPASS_URL) {
+  throw new Error("OVERPASS_URL is not defined in environment variables");
+}
+
 // Re-export BuildingPolygon for backwards compatibility
 export { BuildingPolygon } from "../types/buildingPolygon";
 
