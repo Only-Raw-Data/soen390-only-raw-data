@@ -9,14 +9,14 @@ jest.mock('react-native/src/private/animated/NativeAnimatedHelper');
 jest.mock("react-native-maps", () => {
     const React = require("react");
     const { View, Text } = require("react-native");
-  
+
     const MockMapView = (props) =>
       React.createElement(
         View,
         { ...props, testID: props.testID || "mapView" },
         props.children
       );
-  
+
     // Your tests do getByText('H'), 'MB', etc.
     // Markers don't render text in real maps, so we render the title for testability.
     const MockMarker = ({ title, onPress }) =>
@@ -25,11 +25,23 @@ jest.mock("react-native-maps", () => {
         { accessibilityRole: "button", onPress },
         title
       );
-  
+
+    // Mock Polygon for building outlines
+    const MockPolygon = ({ onPress, testID, coordinates }) =>
+      React.createElement(
+        View,
+        {
+          testID: testID || "polygon",
+          onTouchEnd: onPress,
+          accessibilityLabel: `polygon-${coordinates?.length || 0}-coords`
+        }
+      );
+
     return {
       __esModule: true,
       default: MockMapView,
       Marker: MockMarker,
+      Polygon: MockPolygon,
       PROVIDER_GOOGLE: "google",
     };
   });
