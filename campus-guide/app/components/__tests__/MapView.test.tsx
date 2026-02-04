@@ -1,11 +1,20 @@
 import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
+import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { MapViewApp } from '../MapView';
 import { useDirections } from '../../context/DirectionsContext';
+import { useBuildingPolygons } from '../../hooks/useBuildingPolygons';
 
 //Mocks
 jest.mock('../../context/DirectionsContext', () => ({
   useDirections: jest.fn(),
+}));
+
+jest.mock('../../hooks/useBuildingPolygons', () => ({
+  useBuildingPolygons: jest.fn(),
+}));
+
+jest.mock('../../../constants/mapStyle', () => ({
+  CAMPUS_MAP_STYLE: [],
 }));
 
 jest.mock('expo-router', () => ({
@@ -29,7 +38,7 @@ jest.mock('../BuildingSearchComponent', () => {
 
 jest.mock('react-native-maps', () => {
   const React = require('react');
-  const { View, Text } = require('react-native');
+  const { View, Text, TouchableOpacity } = require('react-native');
 
   const MockMapView = ({ children, ...props }: any) => (
     <View testID="mapView" {...props}>{children}</View>
@@ -39,13 +48,56 @@ jest.mock('react-native-maps', () => {
     <Text accessibilityRole="button" onPress={onPress}>{title}</Text>
   );
 
+  const MockPolygon = ({ onPress, coordinates }: any) => (
+    <TouchableOpacity
+      testID="building-polygon"
+      onPress={onPress}
+      accessibilityLabel={`polygon-${coordinates?.length || 0}-coords`}
+    />
+  );
+
   return {
     __esModule: true,
     default: MockMapView,
     Marker: MockMarker,
+    Polygon: MockPolygon,
     PROVIDER_GOOGLE: 'google',
   };
 });
+
+// Mock polygon data for tests
+const mockSGWPolygons = [
+  {
+    buildingId: 'h',
+    coordinates: [
+      { latitude: 45.497092, longitude: -73.5788 },
+      { latitude: 45.497192, longitude: -73.5788 },
+      { latitude: 45.497192, longitude: -73.5778 },
+      { latitude: 45.497092, longitude: -73.5778 },
+    ],
+  },
+  {
+    buildingId: 'mb',
+    coordinates: [
+      { latitude: 45.495304, longitude: -73.579044 },
+      { latitude: 45.495404, longitude: -73.579044 },
+      { latitude: 45.495404, longitude: -73.578044 },
+      { latitude: 45.495304, longitude: -73.578044 },
+    ],
+  },
+];
+
+const mockLoyolaPolygons = [
+  {
+    buildingId: 'cc',
+    coordinates: [
+      { latitude: 45.458204, longitude: -73.6403 },
+      { latitude: 45.458304, longitude: -73.6403 },
+      { latitude: 45.458304, longitude: -73.6393 },
+      { latitude: 45.458204, longitude: -73.6393 },
+    ],
+  },
+];
 
 describe('MapViewApp', () => {
   const mockSetStartBuilding = jest.fn();
@@ -59,6 +111,13 @@ describe('MapViewApp', () => {
       destinationBuilding: null,
       setStartBuilding: mockSetStartBuilding,
       setDestinationBuilding: mockSetDestinationBuilding,
+    });
+
+    // Default mock for building polygons - returns SGW polygons
+    (useBuildingPolygons as jest.Mock).mockReturnValue({
+      polygons: mockSGWPolygons,
+      loading: false,
+      error: null,
     });
   });
 
@@ -189,5 +248,80 @@ describe('MapViewApp', () => {
     fireEvent.changeText(input, 'Central');
     // Assert
     expect(screen.getByText('CC')).toBeTruthy();
+  });
+
+  // Polygon tests
+  describe('Building Polygons', () => {
+    it('renders polygons for current campus buildings', () => {
+      // Arrange & Act
+      const screen = render(<MapViewApp />);
+      const polygons = screen.getAllByTestId('building-polygon');
+      // Assert - should have 2 SGW polygons from mock
+      expect(polygons.length).toBe(2);
+    });
+
+    it('calls useBuildingPolygons with correct campus', () => {
+      // Arrange & Act
+      render(<MapViewApp />);
+      // Assert
+      expect(useBuildingPolygons).toHaveBeenCalledWith('SGW');
+    });
+
+    it('switches polygon data when changing campuses', () => {
+      // Arrange
+      (useBuildingPolygons as jest.Mock).mockImplementation((campus: string) => ({
+        polygons: campus === 'SGW' ? mockSGWPolygons : mockLoyolaPolygons,
+        loading: false,
+        error: null,
+      }));
+
+      const screen = render(<MapViewApp />);
+
+      // Act - switch to Loyola
+      fireEvent.press(screen.getByText('Loyola Campus'));
+
+      // Assert - useBuildingPolygons should be called with 'Loyola'
+      expect(useBuildingPolygons).toHaveBeenCalledWith('Loyola');
+    });
+
+    it('polygon tap triggers building selection', () => {
+      // Arrange
+      const screen = render(<MapViewApp />);
+      const polygons = screen.getAllByTestId('building-polygon');
+
+      // Act - tap first polygon (H building)
+      fireEvent.press(polygons[0]);
+
+      // Assert
+      expect(mockSetStartBuilding).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'h' })
+      );
+    });
+
+    it('handles empty polygon data gracefully', () => {
+      // Arrange
+      (useBuildingPolygons as jest.Mock).mockReturnValue({
+        polygons: [],
+        loading: false,
+        error: null,
+      });
+
+      // Act & Assert - should not throw
+      const screen = render(<MapViewApp />);
+      expect(screen.getByTestId('mapView')).toBeTruthy();
+    });
+
+    it('renders with loading state', () => {
+      // Arrange
+      (useBuildingPolygons as jest.Mock).mockReturnValue({
+        polygons: [],
+        loading: true,
+        error: null,
+      });
+
+      // Act & Assert - should render map even while loading
+      const screen = render(<MapViewApp />);
+      expect(screen.getByTestId('mapView')).toBeTruthy();
+    });
   });
 });

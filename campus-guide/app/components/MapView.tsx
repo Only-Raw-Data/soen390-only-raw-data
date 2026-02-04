@@ -5,7 +5,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Campus, Building, SGW_BUILDINGS, LOYOLA_BUILDINGS,CAMPUS_REGIONS } from './../../constants/buildings';
 import { useDirections } from '../context/DirectionsContext';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Marker, Polygon, PROVIDER_GOOGLE } from 'react-native-maps';
+import { useBuildingPolygons } from '../hooks/useBuildingPolygons';
+import { CAMPUS_MAP_STYLE } from '../../constants/mapStyle';
 
 interface MapViewAppProps {
     googleMapsApiKey?: string;
@@ -25,6 +27,9 @@ export function MapViewApp({showSearch, googleMapsApiKey}: MapViewAppProps ) {
     const [selectedCampus, setSelectedCampus] = useState<Campus>('SGW');
     const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
+
+    // Fetch building polygons for the current campus
+    const { polygons: buildingPolygons, loading: polygonsLoading } = useBuildingPolygons(selectedCampus);
 
     const buildings = selectedCampus === 'SGW' ? SGW_BUILDINGS : LOYOLA_BUILDINGS;
     const filteredBuildings = buildings.filter(
@@ -71,6 +76,16 @@ export function MapViewApp({showSearch, googleMapsApiKey}: MapViewAppProps ) {
         if (startBuilding?.id === building.id) return '#10B981';
         if (destinationBuilding?.id === building.id) return '#FFEA00';
         return '#912338';
+    };
+
+    const getPolygonColors = (buildingId: string) => {
+        const isStart = startBuilding?.id === buildingId;
+        const isDest = destinationBuilding?.id === buildingId;
+        return {
+            fillColor: 'rgba(145, 35, 56, 0.3)', // Maroon with transparency
+            strokeColor: isStart ? '#10B981' : isDest ? '#FFEA00' : '#912338',
+            strokeWidth: isStart || isDest ? 3 : 2,
+        };
     };
 
     const handleGetDirections = (building: Building) => {
@@ -132,7 +147,26 @@ export function MapViewApp({showSearch, googleMapsApiKey}: MapViewAppProps ) {
                 region={CAMPUS_REGIONS[selectedCampus]}
                 showsUserLocation={true}
                 showsMyLocationButton={true}
+                customMapStyle={CAMPUS_MAP_STYLE}
             >
+                {/* Render Building Polygons */}
+                {buildingPolygons.map((polygon) => {
+                    const colors = getPolygonColors(polygon.buildingId);
+                    const building = buildings.find(b => b.id === polygon.buildingId);
+                    return (
+                        <Polygon
+                            key={`polygon-${polygon.buildingId}`}
+                            coordinates={polygon.coordinates}
+                            fillColor={colors.fillColor}
+                            strokeColor={colors.strokeColor}
+                            strokeWidth={colors.strokeWidth}
+                            tappable={true}
+                            onPress={() => building && handleBuildingPress(building)}
+                        />
+                    );
+                })}
+
+                {/* Existing Markers */}
                 {filteredBuildings.map((building) => (
                     <Marker
                         key={building.id}

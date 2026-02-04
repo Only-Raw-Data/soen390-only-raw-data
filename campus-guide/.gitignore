@@ -46,3 +46,6 @@ yarn-error.*
 .env.development.local
 .env.test.local
 .env.production.local
+
+CLAUDE.md
+.claude
