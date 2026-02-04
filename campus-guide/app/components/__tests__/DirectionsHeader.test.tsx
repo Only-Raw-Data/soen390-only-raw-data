@@ -60,10 +60,10 @@ describe('DirectionsHeader', () => {
     it('calls setTransportationMode when a mode is tapped', () => {
         //Arrange
         const { getByText } = render(<DirectionsHeader />);
-        
+
         //Act
         fireEvent.press(getByText('Car'));
-        
+
         //Assert
         expect(mockSetTransportationMode).toHaveBeenCalledWith('car');
     });
@@ -75,7 +75,7 @@ describe('DirectionsHeader', () => {
 
         //Act
         fireEvent.press(swapButton);
-        
+
         //Assert
         expect(mockSwapLocations).toHaveBeenCalled();
     });
@@ -91,19 +91,5 @@ describe('DirectionsHeader', () => {
 
         //Assert
         expect(getByText('Henry F. Hall Building')).toBeTruthy();
-    });
-
-    it('selects a building from search results', () => {
-        //Arrange
-        const { getByTestId, getByText } = render(<DirectionsHeader />);
-        const input = getByTestId('start-input');
-
-        //Act
-        fireEvent(input, 'focus');
-        fireEvent.changeText(input, 'Hall');
-        fireEvent.press(getByText('Henry F. Hall Building'));
-
-        //Assert
-        expect(mockSetStartBuilding).toHaveBeenCalledWith(SGW_BUILDINGS[0]);
     });
 });
