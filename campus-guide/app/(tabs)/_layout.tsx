@@ -40,7 +40,7 @@ export default function TabLayout() {
     <DirectionsProvider>
       <Tabs
         screenOptions={{
-          headerShown: true,
+          headerShown: false,
         }}
         tabBar={(props) => (
           <BottomNav

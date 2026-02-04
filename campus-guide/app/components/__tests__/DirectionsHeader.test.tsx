@@ -4,7 +4,7 @@ import { DirectionsHeader } from '../DirectionsHeader';
 import { useDirections } from '../../context/DirectionsContext';
 import { SGW_BUILDINGS } from '../../../constants/buildings';
 
-// Mock useDirections
+
 jest.mock('../../context/DirectionsContext', () => ({
     useDirections: jest.fn(),
 }));

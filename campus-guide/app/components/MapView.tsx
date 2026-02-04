@@ -1,11 +1,18 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Modal } from 'react-native';
+import BuildingSearchHeader from './BuildingSearchComponent';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Campus, Building, SGW_BUILDINGS, LOYOLA_BUILDINGS } from './../../constants/buildings';
+import { Campus, Building, SGW_BUILDINGS, LOYOLA_BUILDINGS,CAMPUS_REGIONS } from './../../constants/buildings';
 import { useDirections } from '../context/DirectionsContext';
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 
-export function MapView() {
+interface MapViewAppProps {
+    googleMapsApiKey?: string;
+    showSearch?: boolean;
+}
+
+export function MapViewApp({showSearch, googleMapsApiKey}: MapViewAppProps ) {
     const { 
         startBuilding, 
         destinationBuilding, 
@@ -17,7 +24,6 @@ export function MapView() {
 
     const [selectedCampus, setSelectedCampus] = useState<Campus>('SGW');
     const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null);
-    const [currentLocation] = useState<string>('h'); // Mock current location
     const [searchQuery, setSearchQuery] = useState('');
 
     const buildings = selectedCampus === 'SGW' ? SGW_BUILDINGS : LOYOLA_BUILDINGS;
@@ -55,6 +61,18 @@ export function MapView() {
         }
     };
 
+    const getMarkerTitle = (building: Building) => {
+        if (startBuilding?.id === building.id) return 'A';
+        if (destinationBuilding?.id === building.id) return 'B';
+        return building.code;
+    };
+
+    const getMarkerColor = (building: Building) => {
+        if (startBuilding?.id === building.id) return '#10B981';
+        if (destinationBuilding?.id === building.id) return '#FFEA00';
+        return '#912338';
+    };
+
     const handleGetDirections = (building: Building) => {
         // Only set if not already set, or replace destination if we want to navigate to a new one
         if (!startBuilding) {
@@ -67,21 +85,9 @@ export function MapView() {
 
     return (
         <View style={styles.container}>
-            {/* Search Bar */}
-            <View style={styles.searchContainer}>
-                <View style={styles.searchInputWrapper}>
-                    <Ionicons name="search" size={20} color="#9CA3AF" style={styles.searchIcon} />
-                    <TextInput
-                        placeholder="Search buildings..."
-                        value={searchQuery}
-                        onChangeText={setSearchQuery}
-                        style={styles.searchInput}
-                        placeholderTextColor="#9CA3AF"
-                    />
-                </View>
-            </View>
-
-            {/* Campus Toggle */}
+            {showSearch && (
+                    <BuildingSearchHeader value={searchQuery} onChangeText={setSearchQuery} />
+            )}
             <View style={styles.campusToggleContainer}>
                 <View style={styles.campusToggle}>
                     <TouchableOpacity
@@ -100,6 +106,7 @@ export function MapView() {
                             SGW Campus
                         </Text>
                     </TouchableOpacity>
+
                     <TouchableOpacity
                         onPress={() => handleCampusChange('Loyola')}
                         style={[
@@ -119,87 +126,24 @@ export function MapView() {
                 </View>
             </View>
 
-            {/* Map Area */}
-            <View testID="mapView" style={styles.mapContainer}>
-                <View style={styles.mapBackground}>
-                    {/* Street grid pattern */}
-                    <View style={styles.gridContainer}>
-                        {[...Array(10)].map((_, i) => (
-                            <View
-                                key={`h-${i}`}
-                                style={[styles.gridLineHorizontal, { top: `${i * 10}%` }]}
-                            />
-                        ))}
-                        {[...Array(10)].map((_, i) => (
-                            <View
-                                key={`v-${i}`}
-                                style={[styles.gridLineVertical, { left: `${i * 10}%` }]}
-                            />
-                        ))}
-                    </View>
-
-                    {/* Campus label */}
-                    <View style={styles.campusLabel}>
-                        <Text style={styles.campusLabelTitle}>
-                            {selectedCampus === 'SGW' ? 'Sir George Williams Campus' : 'Loyola Campus'}
-                        </Text>
-                        <Text style={styles.campusLabelSubtitle}>Downtown Montreal</Text>
-                    </View>
-
-                    {/* Building Markers */}
-                    {filteredBuildings.map((building: Building) => {
-                        const isCurrentLocation = building.id === currentLocation;
-                        const isSelected = selectedBuilding?.id === building.id;
-                        const isStart = startBuilding?.id === building.id;
-                        const isDest = destinationBuilding?.id === building.id;
-
-                        return (
-                            <View
-                                key={building.id}
-                                style={[
-                                    styles.markerContainer,
-                                    { left: `${building.x}%`, top: `${building.y}%` },
-                                ]}
-                            >
-                                <View style={styles.markerWrapper}>
-                                    {isStart && (
-                                        <View style={[styles.statusBadge, styles.startBadge]}>
-                                            <Text style={styles.statusBadgeText}>START</Text>
-                                        </View>
-                                    )}
-                                    {isDest && (
-                                        <View style={[styles.statusBadge, styles.destBadge]}>
-                                            <Text style={styles.statusBadgeText}>END</Text>
-                                        </View>
-                                    )}
-                                    <TouchableOpacity
-                                        onPress={() => handleBuildingPress(building)}
-                                        style={[
-                                            styles.marker,
-                                            isSelected && styles.markerSelected,
-                                            isCurrentLocation && styles.markerCurrent,
-                                            isStart && styles.markerStart,
-                                            isDest && styles.markerDest,
-                                        ]}
-                                    >
-                                        <Text style={styles.markerText}>{building.code}</Text>
-                                    </TouchableOpacity>
-                                </View>
-                                {isCurrentLocation && (
-                                    <View style={styles.currentLocationLabel}>
-                                        <Text style={styles.currentLocationText}>You are here</Text>
-                                    </View>
-                                )}
-                            </View>
-                        );
-                    })}
-                </View>
-
-                {/* Current Location Button */}
-                <TouchableOpacity style={styles.locateButton}>
-                    <Ionicons name="locate" size={24} color="#912338" />
-                </TouchableOpacity>
-            </View>
+            <MapView
+                provider={PROVIDER_GOOGLE}
+                style={styles.map}
+                region={CAMPUS_REGIONS[selectedCampus]}
+                showsUserLocation={true}
+                showsMyLocationButton={true}
+            >
+                {filteredBuildings.map((building) => (
+                    <Marker
+                        key={building.id}
+                        coordinate={{ latitude: building.lat, longitude: building.lng }}
+                        title={getMarkerTitle(building)}
+                        description={building.name}
+                        onPress={() => handleBuildingPress(building)}
+                        pinColor={getMarkerColor(building)}
+                    />
+                ))}
+            </MapView>
 
             {/* Building Info Popup */}
             {selectedBuilding && (
@@ -559,5 +503,8 @@ const styles = StyleSheet.create({
         position: 'absolute',
         top: 8,
         right: 8,
+    },
+    map: {
+        flex: 1,
     },
 });
