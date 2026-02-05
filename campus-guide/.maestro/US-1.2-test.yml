@@ -1,0 +1,18 @@
+appId: com.anonymous.campusguide
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "SGW Campus"
+    timeout: 10000
+---
+- tapOn: "campus-guide"
+- extendedWaitUntil:
+    visible: "SGW Campus"
+    timeout: 15000
+---
+- assertVisible: "SGW Campus"
+- tapOn: "Loyola Campus"
+- waitForAnimationToEnd
+- tapOn: "SGW Campus"
+- waitForAnimationToEnd
+- assertVisible: "SGW Campus"
