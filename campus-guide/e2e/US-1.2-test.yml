@@ -1,0 +1,13 @@
+appId: com.android.chrome
+---
+- launchApp
+- inputText: "http://localhost:8081"
+- pressKey: Enter
+- waitForAnimationToEnd
+---
+- assertVisible: "SGW Campus"
+- tapOn: "Loyola Campus"
+- waitForAnimationToEnd
+- tapOn: "SGW Campus"
+- waitForAnimationToEnd
+- assertVisible: "SGW Campus"
