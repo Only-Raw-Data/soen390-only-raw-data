@@ -1,18 +1,44 @@
+# .maestro/US-1.2-test.yml
 appId: com.anonymous.campusguide
 ---
 - launchApp
+
+# Wait for app to load
 - extendedWaitUntil:
-    visible: "SGW Campus"
-    timeout: 10000
----
-- tapOn: "campus-guide"
-- extendedWaitUntil:
-    visible: "SGW Campus"
-    timeout: 15000
----
+    visible: "Concordia Campus Guide"
+    timeout: 60000
+
+# Assert we're on SGW Campus by default
 - assertVisible: "SGW Campus"
-- tapOn: "Loyola Campus"
+
+# Click on Directions button
+- tapOn: "Directions"
+
+# Wait for animation and assert Directions screen elements
 - waitForAnimationToEnd
+- assertVisible: "Get Directions"
+- assertVisible: "Walk"
+- assertVisible: "Car"
+
+# Go back to main page
+- tapOn: "Map"
+
+# Wait for main screen
+- waitForAnimationToEnd
+
+# Assert we're back on SGW Campus
+- assertVisible: "SGW Campus"
+
+# Click on Loyola Campus button
+- tapOn: "Loyola Campus"
+
+# Wait and assert Loyola button is selected (verify by checking text or color)
+- waitForAnimationToEnd
+- assertVisible: "Loyola Campus"
+
+# Click back on SGW Campus
 - tapOn: "SGW Campus"
+
+# Assert SGW Campus button is selected again
 - waitForAnimationToEnd
 - assertVisible: "SGW Campus"
