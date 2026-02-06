@@ -21,8 +21,6 @@ describe('BuildingInformation', () => {
     const screen = render(
       <BuildingInformation
         building={mockBuilding}
-        isStartSelected={false}
-        isDestSelected={false}
         onGetDirections={jest.fn()}
         onClose={jest.fn()}
       />
@@ -40,8 +38,6 @@ describe('BuildingInformation', () => {
     const screen = render(
       <BuildingInformation
         building={mockBuilding}
-        isStartSelected={false}
-        isDestSelected={false}
         onGetDirections={jest.fn()}
         onClose={onClose}
       />
@@ -61,8 +57,6 @@ describe('BuildingInformation', () => {
     const screen = render(
       <BuildingInformation
         building={mockBuilding}
-        isStartSelected={false}
-        isDestSelected={false}
         onGetDirections={onGetDirections}
         onClose={jest.fn()}
       />

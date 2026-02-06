@@ -183,8 +183,6 @@ export function MapViewApp({showSearch, googleMapsApiKey}: MapViewAppProps ) {
             {selectedBuilding && (
             <BuildingInformation
                 building={selectedBuilding}
-                isStartSelected={isStartSelected}
-                isDestSelected={isDestSelected}
                 onGetDirections={handleGetDirections}
                 onClose={() => setSelectedBuilding(null)}/>
             )}
