@@ -8,6 +8,7 @@ import { useDirections } from '../context/DirectionsContext';
 import MapView, { Marker, Polygon, PROVIDER_GOOGLE } from 'react-native-maps';
 import { useBuildingPolygons } from '../hooks/useBuildingPolygons';
 import { CAMPUS_MAP_STYLE } from '../../constants/mapStyle';
+import  BuildingInformation  from './BuildingInformation';
 
 interface MapViewAppProps {
     googleMapsApiKey?: string;
@@ -172,61 +173,18 @@ export function MapViewApp({showSearch, googleMapsApiKey}: MapViewAppProps ) {
                         key={building.id}
                         coordinate={{ latitude: building.lat, longitude: building.lng }}
                         title={getMarkerTitle(building)}
-                        description={building.name}
+                        description={building.name + "\n" + building.address}
                         onPress={() => handleBuildingPress(building)}
                         pinColor={getMarkerColor(building)}
                     />
                 ))}
             </MapView>
 
-            {/* Building Info Popup */}
             {selectedBuilding && (
-                <View style={styles.buildingInfoContainer}>
-                    <View style={styles.buildingInfo}>
-                        <View style={styles.buildingInfoHeader}>
-                            <View style={styles.buildingCodeBadge}>
-                                <Text style={styles.buildingCodeText}>{selectedBuilding.code}</Text>
-                            </View>
-                            <View style={styles.buildingDetails}>
-                                <Text style={styles.buildingName}>{selectedBuilding.name}</Text>
-                                <Text style={styles.buildingCampus}>
-                                    {selectedBuilding.campus} Campus
-                                </Text>
-                                <Text style={styles.buildingAddress}>{selectedBuilding.address}</Text>
-                            </View>
-                        </View>
-                        <View style={styles.buildingActions}>
-                            <TouchableOpacity 
-                                style={styles.directionsButton}
-                                onPress={() => handleGetDirections(selectedBuilding!)}
-                            >
-                                <Ionicons name="navigate" size={16} color="#FFFFFF" />
-                                <Text style={styles.directionsButtonText}>Get Directions</Text>
-                            </TouchableOpacity>
-                            {(isStartSelected || isDestSelected) && (
-                                <TouchableOpacity 
-                                    testID="clear-selection-button"
-                                    style={styles.infoButton}
-                                    onPress={() => {
-                                        if (isStartSelected) setStartBuilding(null);
-                                        else setDestinationBuilding(null);
-                                    }}
-                                >
-                                    <Ionicons name="trash-outline" size={20} color="#912338" />
-                                </TouchableOpacity>
-                            )}
-                            <TouchableOpacity style={styles.infoButton}>
-                                <Ionicons name="information-circle-outline" size={20} color="#374151" />
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                    <TouchableOpacity
-                        onPress={() => setSelectedBuilding(null)}
-                        style={styles.closeButton}
-                    >
-                        <Ionicons name="close" size={20} color="#9CA3AF" />
-                    </TouchableOpacity>
-                </View>
+            <BuildingInformation
+                building={selectedBuilding}
+                onGetDirections={handleGetDirections}
+                onClose={() => setSelectedBuilding(null)}/>
             )}
         </View>
     );
@@ -449,94 +407,6 @@ const styles = StyleSheet.create({
         shadowRadius: 4,
         elevation: 5,
         zIndex: 30,
-    },
-    buildingInfoContainer: {
-        position: 'absolute',
-        bottom: 16,
-        left: 16,
-        right: 16,
-        backgroundColor: '#FFFFFF',
-        borderRadius: 12,
-        padding: 16,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 10,
-        zIndex: 40,
-    },
-    buildingInfo: {
-        gap: 12,
-    },
-    buildingInfoHeader: {
-        flexDirection: 'row',
-        gap: 12,
-    },
-    buildingCodeBadge: {
-        backgroundColor: '#912338',
-        borderRadius: 8,
-        padding: 12,
-        justifyContent: 'center',
-        alignItems: 'center',
-        width: 60,
-        height: 60,
-    },
-    buildingCodeText: {
-        color: '#FFFFFF',
-        fontWeight: 'bold',
-        fontSize: 20,
-    },
-    buildingDetails: {
-        flex: 1,
-        justifyContent: 'center',
-    },
-    buildingName: {
-        fontSize: 18,
-        fontWeight: '600',
-        color: '#111827',
-    },
-    buildingCampus: {
-        fontSize: 14,
-        color: '#4B5563',
-        marginTop: 4,
-    },
-    buildingAddress: {
-        fontSize: 12,
-        color: '#6B7280',
-        marginTop: 4,
-    },
-    buildingActions: {
-        flexDirection: 'row',
-        gap: 8,
-    },
-    directionsButton: {
-        flex: 1,
-        backgroundColor: '#912338',
-        paddingVertical: 10,
-        paddingHorizontal: 16,
-        borderRadius: 8,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 8,
-    },
-    directionsButtonText: {
-        color: '#FFFFFF',
-        fontSize: 14,
-        fontWeight: '600',
-    },
-    infoButton: {
-        backgroundColor: '#F3F4F6',
-        paddingVertical: 10,
-        paddingHorizontal: 16,
-        borderRadius: 8,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    closeButton: {
-        position: 'absolute',
-        top: 8,
-        right: 8,
     },
     map: {
         flex: 1,
