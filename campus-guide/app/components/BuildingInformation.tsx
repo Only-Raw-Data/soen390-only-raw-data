@@ -6,8 +6,6 @@ import { Building } from './../../constants/buildings';
 
 interface BuildingInfoPopupProps {
     building: Building;
-    isStartSelected: boolean;
-    isDestSelected: boolean;
     onGetDirections: (building: Building) => void;
     onClose: () => void;
 }
