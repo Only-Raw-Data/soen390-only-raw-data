@@ -5,7 +5,8 @@ import { Building, All_BUILDINGS, Campus, SGW_BUILDINGS, LOYOLA_BUILDINGS } from
 // ============================================
 // DEV MODE: Set to true to simulate location
 // ============================================
-const DEV_MODE_ENABLED = __DEV__ && true; // Change to `true` to enable mock location
+const IS_TEST_ENV = typeof jest !== 'undefined';
+const DEV_MODE_ENABLED = __DEV__ && !IS_TEST_ENV && true; // Change to `true` to enable mock location
 
 // Mock location - change these coordinates to test different buildings
 // SGW Campus buildings:
