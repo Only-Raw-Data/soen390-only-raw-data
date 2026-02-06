@@ -5,8 +5,7 @@ import { Building, All_BUILDINGS, Campus, SGW_BUILDINGS, LOYOLA_BUILDINGS } from
 // ============================================
 // DEV MODE: Set to true to simulate location
 // ============================================
-const IS_TEST_ENV = typeof jest !== 'undefined';
-const DEV_MODE_ENABLED = __DEV__ && !IS_TEST_ENV && true; // Change to `true` to enable mock location
+const DEV_MODE_ENABLED = __DEV__ && false; // Change to `true` to enable mock location
 
 // Mock location - change these coordinates to test different buildings
 // SGW Campus buildings:
@@ -165,7 +164,7 @@ export function useUserLocation() {
         permissionStatus: 'granted' as Location.PermissionStatus,
       }));
       
-      console.log('🧪 DEV MODE: Using mock location', DEV_MOCK_LOCATION);
+      console.log('DEV MODE: Using mock location', DEV_MOCK_LOCATION);
       return;
     }
 
