@@ -5,7 +5,11 @@ import { SHUTTLE_SCHEDULE, ShuttleTime } from '../../constants/shuttleSchedule';
 
 type ScheduleDay = 'mondayThursday' | 'friday';
 
-export function ShuttleSchedule() {
+interface ShuttleScheduleProps {
+  compact?: boolean;
+}
+
+export function ShuttleSchedule({ compact = false }: ShuttleScheduleProps = {}) {
   const [selectedDay, setSelectedDay] = useState<ScheduleDay>('mondayThursday');
 
   const currentSchedule = SHUTTLE_SCHEDULE[selectedDay];
@@ -19,9 +23,14 @@ export function ShuttleSchedule() {
     return time !== null && time.includes('*');
   };
 
+  const containerStyle = compact 
+    ? [styles.container, styles.compactContainer]
+    : [styles.container, { flex: 0, minHeight: 600 }];
+
   return (
-    <View style={styles.container}>
+    <View style={containerStyle}>
       {/* Title */}
+      {!compact && (
       <View style={styles.titleContainer}>
         <View style={styles.titleRow}>
           <Ionicons name="bus" size={24} color="#912338" />
@@ -29,9 +38,10 @@ export function ShuttleSchedule() {
         </View>
         <Text style={styles.subtitle}>Loyola ↔ SGW Campus</Text>
       </View>
+      )}
 
       {/* Day Selector */}
-      <View style={styles.daySelector}>
+      <View style={[styles.daySelector, compact && { marginBottom: 12 }]}>
         <TouchableOpacity
           style={[
             styles.dayButton,
@@ -67,7 +77,7 @@ export function ShuttleSchedule() {
       </View>
 
       {/* Schedule Table */}
-      <View style={styles.tableContainer}>
+      <View style={[styles.tableContainer, compact && styles.compactTableContainer]}>
         <View style={styles.tableHeader}>
           <Text style={[styles.tableHeaderText, styles.loyolaColumn]}>
             LOY departures
@@ -133,6 +143,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
     padding: 20,
   },
+  compactContainer: {
+    backgroundColor: 'transparent',
+    padding: 0,
+    flex: 0,
+    minHeight: 0,
+  },
+  compactTableContainer: {
+    minHeight: 400,
+    maxHeight: 500,
+  },
   titleContainer: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
@@ -193,7 +213,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   tableContainer: {
-    flex: 1,
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     shadowColor: '#000',
@@ -203,7 +222,7 @@ const styles = StyleSheet.create({
     elevation: 10,
     marginBottom: 16,
     overflow: 'hidden',
-    minHeight: 200,
+    minHeight: 400,
   },
   tableHeader: {
     flexDirection: 'row',
@@ -220,7 +239,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   tableBody: {
-    flex: 1,
+    maxHeight: 500,
   },
   tableRow: {
     flexDirection: 'row',

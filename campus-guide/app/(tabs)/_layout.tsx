@@ -13,7 +13,6 @@ export default function TabLayout() {
   const getCurrentScreen = (): Screen => {
     if (pathname.includes('index')) return 'map';
     if (pathname.includes('two')) return 'directions';
-    if (pathname.includes('schedule')) return 'schedule';
     return 'map';
   };
 
@@ -26,7 +25,9 @@ export default function TabLayout() {
         router.push('/(tabs)/two');
         break;
       case 'schedule':
-        router.push('/(tabs)/schedule');
+        // Schedule is now integrated into directions (shuttle mode)
+        // Redirect to directions screen
+        router.push('/(tabs)/two');
         break;
       case 'indoor':
       case 'poi':
@@ -60,12 +61,6 @@ export default function TabLayout() {
           name="two"
           options={{
             title: 'Directions',
-          }}
-        />
-        <Tabs.Screen
-          name="schedule"
-          options={{
-            title: 'Schedule',
           }}
         />
       </Tabs>
