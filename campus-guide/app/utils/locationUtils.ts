@@ -1,7 +1,7 @@
 import { Building, All_BUILDINGS, Campus } from '@/constants/buildings';
 
 // Calculates the distance between two geographic coordinates using the Haversine formula.
-export function calculateDistance(
+export function haversineDistance(
   lat1: number,
   lon1: number,
   lat2: number,
@@ -35,7 +35,7 @@ export function findNearestBuilding(
   let minDistance = Infinity;
 
   for (const building of All_BUILDINGS) {
-    const distance = calculateDistance(latitude, longitude, building.lat, building.lng);
+    const distance = haversineDistance(latitude, longitude, building.lat, building.lng);
     if (distance < minDistance) {
       minDistance = distance;
       nearestBuilding = building;

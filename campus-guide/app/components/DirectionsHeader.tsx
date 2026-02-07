@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useDirections} from '../context/DirectionsContext';
 import { TransportationMode } from '../types/transportation';
 import { SGW_BUILDINGS, LOYOLA_BUILDINGS, Building } from './../../constants/buildings';
+import { useUserLocation } from '../hooks/useUserLocation';
 
 export function DirectionsHeader() {
     const {
@@ -17,9 +18,22 @@ export function DirectionsHeader() {
         clearDirections
     } = useDirections();
 
+    const { getNearestBuilding, isLoading: locationLoading, resetLoadingState } = useUserLocation();
+
     const [isSearchingStart, setIsSearchingStart] = useState(false);
     const [isSearchingDest, setIsSearchingDest] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+
+    const handleUseCurrentLocation = async () => {
+        setIsSearchingStart(false);
+        setSearchQuery('');
+        const building = await getNearestBuilding();
+        if (building) {
+            setStartBuilding(building);
+        } else {
+            Alert.alert('Location Error', 'Could not determine your nearest campus building. Please ensure location permissions are enabled.');
+        }
+    };
 
     const allBuildings = [...SGW_BUILDINGS, ...LOYOLA_BUILDINGS];
     const filteredBuildings = allBuildings.filter(b => 
@@ -50,7 +64,7 @@ export function DirectionsHeader() {
             <View style={styles.content}>
                 <View style={styles.titleRow}>
                     <Text testID="directions-title" style={styles.title}>Get Directions</Text>
-                    <TouchableOpacity onPress={clearDirections}>
+                    <TouchableOpacity onPress={() => { clearDirections(); resetLoadingState(); }}>
                         <Ionicons name="trash-outline" size={20} color="#6B7280" />
                     </TouchableOpacity>
                 </View>
@@ -69,6 +83,18 @@ export function DirectionsHeader() {
                             }}
                             onChangeText={setSearchQuery}
                         />
+                        <TouchableOpacity
+                            testID="use-current-location-button"
+                            onPress={handleUseCurrentLocation}
+                            disabled={locationLoading}
+                            style={styles.locateButton}
+                        >
+                            {locationLoading ? (
+                                <ActivityIndicator testID="location-loading" size="small" color="#912338" />
+                            ) : (
+                                <Ionicons name="navigate" size={20} color="#912338" />
+                            )}
+                        </TouchableOpacity>
                         <TouchableOpacity testID="swap-button" onPress={swapLocations}>
                             <Ionicons name="refresh-outline" size={20} color="#3B82F6" />
                         </TouchableOpacity>
@@ -195,6 +221,9 @@ const styles = StyleSheet.create({
         backgroundColor: '#F9FAFB',
     },
     inputIcon: {
+        marginRight: 8,
+    },
+    locateButton: {
         marginRight: 8,
     },
     input: {

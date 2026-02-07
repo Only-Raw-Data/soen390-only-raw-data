@@ -1,4 +1,4 @@
-import { calculateDistance, findNearestBuilding } from '../locationUtils';
+import { haversineDistance, findNearestBuilding } from '../locationUtils';
 
 // Mock building constants
 jest.mock('../../../constants/buildings', () => ({
@@ -23,21 +23,21 @@ jest.mock('../../../constants/buildings', () => ({
 }));
 
 describe('locationUtils', () => {
-  describe('calculateDistance', () => {
+  describe('haversineDistance', () => {
     it('returns 0 for same coordinates', () => {
-      const distance = calculateDistance(45.497092, -73.5788, 45.497092, -73.5788);
+      const distance = haversineDistance(45.497092, -73.5788, 45.497092, -73.5788);
       expect(distance).toBe(0);
     });
 
     it('calculates distance between two points correctly', () => {
-      const distance = calculateDistance(45.497092, -73.5788, 45.458204, -73.6403);
+      const distance = haversineDistance(45.497092, -73.5788, 45.458204, -73.6403);
       expect(distance).toBeGreaterThan(6000);
       expect(distance).toBeLessThan(7000);
     });
 
     it('returns same distance regardless of direction', () => {
-      const distance1 = calculateDistance(45.497092, -73.5788, 45.458204, -73.6403);
-      const distance2 = calculateDistance(45.458204, -73.6403, 45.497092, -73.5788);
+      const distance1 = haversineDistance(45.497092, -73.5788, 45.458204, -73.6403);
+      const distance2 = haversineDistance(45.458204, -73.6403, 45.497092, -73.5788);
       expect(distance1).toBeCloseTo(distance2, 5);
     });
   });

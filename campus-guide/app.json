@@ -17,13 +17,13 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.soen390.campusguide",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.campusguide"
+      "predictiveBackGestureEnabled": false
     },
     "web": {
       "bundler": "metro",
@@ -33,13 +33,11 @@
     "plugins": [
       "expo-router",
       [
-        "expo-build-properties",
+        "expo-location",
         {
-          "android": {
-            "usesCleartextTraffic": true
-          }
+          "locationWhenInUsePermission": "Allow Campus Guide to use your location to find the nearest building."
         }
-    ]
+      ]
     ],
     "experiments": {
       "typedRoutes": true

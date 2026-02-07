@@ -201,6 +201,30 @@ export function useUserLocation() {
     }
   }, [locationSubscription]);
 
+  // Get nearest building directly (for use in DirectionsHeader etc.)
+  const getNearestBuilding = useCallback(async (): Promise<Building | null> => {
+    const hasPermission = await requestLocationPermission();
+    if (!hasPermission) return null;
+
+    try {
+      const location = await Location.getCurrentPositionAsync({});
+      const { building } = findNearestBuilding(location.coords.latitude, location.coords.longitude);
+      return building;
+    } catch {
+      setState((prev) => ({
+        ...prev,
+        errorMsg: 'Failed to get current location',
+      }));
+      return null;
+    } finally {
+      setState((prev) => ({ ...prev, isLoading: false }));
+    }
+  }, [requestLocationPermission]);
+
+  const resetLoadingState = useCallback(() => {
+    setState((prev) => ({ ...prev, isLoading: false }));
+  }, []);
+
   useEffect(() => {
     return () => {
       if (locationSubscription) {
@@ -212,6 +236,8 @@ export function useUserLocation() {
   return {
     ...state,
     getCurrentLocation,
+    getNearestBuilding,
+    resetLoadingState,
     startLocationTracking,
     stopLocationTracking,
     requestLocationPermission,
