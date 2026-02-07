@@ -14,13 +14,8 @@ export function ShuttleSchedule({ compact = false }: ShuttleScheduleProps = {}) 
 
   const currentSchedule = SHUTTLE_SCHEDULE[selectedDay];
 
-  const formatTime = (time: string | null): string => {
-    if (!time) return '—';
-    return time;
-  };
-
-  const isLastBus = (time: string | null): boolean => {
-    return time !== null && time.includes('*');
+  const isLastBus = (time: string): boolean => {
+    return time.includes('*');
   };
 
   const containerStyle = compact 
@@ -95,7 +90,7 @@ export function ShuttleSchedule({ compact = false }: ShuttleScheduleProps = {}) 
           ) : (
             currentSchedule.map((entry: ShuttleTime, index: number) => (
             <View
-              key={`${selectedDay}-${index}-${entry.loyola}-${entry.sgw || 'null'}`}
+              key={`${selectedDay}-${index}-${entry.loyola}-${entry.sgw || 'no-sgw'}`}
               style={[
                 styles.tableRow,
                 entry.isLastBus && styles.lastBusRow,
@@ -108,18 +103,20 @@ export function ShuttleSchedule({ compact = false }: ShuttleScheduleProps = {}) 
                     isLastBus(entry.loyola) && styles.lastBusText,
                   ]}
                 >
-                  {formatTime(entry.loyola)}
+                  {entry.loyola}
                 </Text>
               </View>
               <View style={[styles.tableCell, styles.sgwColumn]}>
-                <Text
-                  style={[
-                    styles.tableCellText,
-                    isLastBus(entry.sgw) && styles.lastBusText,
-                  ]}
-                >
-                  {formatTime(entry.sgw)}
-                </Text>
+                {entry.sgw && (
+                  <Text
+                    style={[
+                      styles.tableCellText,
+                      isLastBus(entry.sgw) && styles.lastBusText,
+                    ]}
+                  >
+                    {entry.sgw}
+                  </Text>
+                )}
               </View>
             </View>
           ))

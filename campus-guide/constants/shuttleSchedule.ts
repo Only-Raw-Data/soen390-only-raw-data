@@ -1,6 +1,6 @@
 export interface ShuttleTime {
   loyola: string;  // "09:15" or "18:30*"
-  sgw: string | null;  // "09:30" or null for last bus
+  sgw?: string;  // "09:30"
   isLastBus?: boolean;
 }
 
@@ -44,7 +44,7 @@ export const SHUTTLE_SCHEDULE: ShuttleSchedule = {
     { loyola: '17:45', sgw: '18:00' },
     { loyola: '18:00', sgw: '18:15' },
     { loyola: '18:15', sgw: '18:30*', isLastBus: true },
-    { loyola: '18:30*', sgw: null, isLastBus: true },
+    { loyola: '18:30*', isLastBus: true },
   ],
   friday: [
     { loyola: '09:15', sgw: '09:45' },
@@ -69,7 +69,8 @@ export const SHUTTLE_SCHEDULE: ShuttleSchedule = {
     { loyola: '16:45', sgw: '17:15' },
     { loyola: '17:15', sgw: '17:45' },
     { loyola: '17:45', sgw: '18:15*', isLastBus: true },
-    { loyola: '18:15*', sgw: null, isLastBus: true },
+    { loyola: '18:15*', isLastBus: true },
   ],
 };
+
 
