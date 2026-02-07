@@ -9,6 +9,7 @@ jest.mock('@expo/vector-icons', () => ({
   },
 }));
 
+
 const mockBuilding = {
   id: 'h',
   name: 'Henry F. Hall Building',
@@ -17,6 +18,9 @@ const mockBuilding = {
   lng: -73.5788,
   campus: 'SGW' as const,
   address: '1455 DeMaisonneuve W',
+  department: 'Economics, Geography, Planning and Environment, Political Science, School of Community and Public Affairs, School of Irish Studies, Sociology and Anthropology, Campus Safety and Prevention Services, Concordia Student Union (CSU), First Stop, Espace Franco, IT Service Desk, NouLa Black Student Centre, Office of Student Life and Engagement, Otsenhákta Student Centre, Sexual Assault Resource Centre (SARC), Student Success Centre, Welcome Crew Office, Zen Den',
+  overview: 'Inside, the building brings together many academic departments — particularly in the social sciences — along with classrooms and engineering teaching and research labs. Beyond academics, it\'s a lively centre of student life, home to the Student Success Centre, Concordia Theatre and student spaces like the Hive Café, Reggie\'s Pub, the People\'s Potato and student association offices.',
+  accessibility: 'Accessible entrance, accessible building elevator.',
   x: 0,
   y: 0,
 };
