@@ -92,4 +92,64 @@ describe('DirectionsHeader', () => {
         //Assert
         expect(getByText('Henry F. Hall Building')).toBeTruthy();
     });
+
+    it('opens schedule modal when shuttle mode is selected', () => {
+        //Arrange
+        (useDirections as jest.Mock).mockReturnValue({
+            startBuilding: null,
+            destinationBuilding: null,
+            transportationMode: 'shuttle',
+            setStartBuilding: mockSetStartBuilding,
+            setDestinationBuilding: mockSetDestinationBuilding,
+            setTransportationMode: mockSetTransportationMode,
+            swapLocations: mockSwapLocations,
+        });
+
+        //Act
+        const { getAllByText } = render(<DirectionsHeader />);
+
+        //Assert - Modal should show schedule (may appear multiple times due to modal structure)
+        const scheduleTexts = getAllByText('Shuttle Bus Schedule');
+        expect(scheduleTexts.length).toBeGreaterThan(0);
+    });
+
+    it('displays schedule component in modal when shuttle mode is selected', () => {
+        //Arrange
+        (useDirections as jest.Mock).mockReturnValue({
+            startBuilding: null,
+            destinationBuilding: null,
+            transportationMode: 'shuttle',
+            setStartBuilding: mockSetStartBuilding,
+            setDestinationBuilding: mockSetDestinationBuilding,
+            setTransportationMode: mockSetTransportationMode,
+            swapLocations: mockSwapLocations,
+        });
+
+        //Act
+        const { getAllByText } = render(<DirectionsHeader />);
+
+        //Assert - Modal should show schedule with day selector
+        expect(getAllByText('Shuttle Bus Schedule').length).toBeGreaterThan(0);
+        expect(getAllByText('Monday — Thursday').length).toBeGreaterThan(0);
+        expect(getAllByText('Friday').length).toBeGreaterThan(0);
+    });
+
+    it('shows Get Directions button even when shuttle mode is selected', () => {
+        //Arrange
+        (useDirections as jest.Mock).mockReturnValue({
+            startBuilding: null,
+            destinationBuilding: null,
+            transportationMode: 'shuttle',
+            setStartBuilding: mockSetStartBuilding,
+            setDestinationBuilding: mockSetDestinationBuilding,
+            setTransportationMode: mockSetTransportationMode,
+            swapLocations: mockSwapLocations,
+        });
+
+        //Act
+        const { getAllByText } = render(<DirectionsHeader />);
+
+        //Assert - Button should be visible (may appear multiple times)
+        expect(getAllByText('Get Directions').length).toBeGreaterThan(0);
+    });
 });
