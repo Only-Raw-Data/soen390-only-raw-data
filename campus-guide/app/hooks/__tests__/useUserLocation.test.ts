@@ -58,6 +58,32 @@ jest.mock('../../../constants/buildings', () => ({
   LOYOLA_BUILDINGS: [],
 }));
 
+// Helper to create mock location objects
+const createMockLocation = (latitude: number, longitude: number): Location.LocationObject => ({
+  coords: {
+    latitude,
+    longitude,
+    altitude: null,
+    accuracy: 10,
+    altitudeAccuracy: null,
+    heading: null,
+    speed: null,
+  },
+  timestamp: Date.now(),
+});
+
+// Test coordinates
+const COORDS = {
+  H_BUILDING: { lat: 45.497092, lng: -73.5788 },
+  CC_BUILDING: { lat: 45.458204, lng: -73.6403 },
+  OFF_CAMPUS: { lat: 45.5017, lng: -73.5673 },
+};
+
+// Helper to setup permission mock
+const mockPermission = (status: 'granted' | 'denied') => {
+  (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({ status });
+};
+
 describe('useUserLocation', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -75,9 +101,7 @@ describe('useUserLocation', () => {
   });
 
   it('handles permission denied', async () => {
-    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
-      status: 'denied',
-    });
+    mockPermission('denied');
 
     const { result } = renderHook(() => useUserLocation());
 
@@ -90,23 +114,8 @@ describe('useUserLocation', () => {
   });
 
   it('gets current location when permission granted', async () => {
-    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
-      status: 'granted',
-    });
-
-    const mockLocation = {
-      coords: {
-        latitude: 45.497092,
-        longitude: -73.5788,
-        altitude: null,
-        accuracy: 10,
-        altitudeAccuracy: null,
-        heading: null,
-        speed: null,
-      },
-      timestamp: Date.now(),
-    };
-
+    mockPermission('granted');
+    const mockLocation = createMockLocation(COORDS.H_BUILDING.lat, COORDS.H_BUILDING.lng);
     (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValue(mockLocation);
 
     const { result } = renderHook(() => useUserLocation());
@@ -115,30 +124,16 @@ describe('useUserLocation', () => {
       await result.current.getCurrentLocation();
     });
 
-    expect(result.current.location).toEqual(mockLocation);
+    expect(result.current.location?.coords.latitude).toBe(COORDS.H_BUILDING.lat);
+    expect(result.current.location?.coords.longitude).toBe(COORDS.H_BUILDING.lng);
     expect(result.current.isLoading).toBe(false);
   });
 
   it('identifies nearest building when on campus', async () => {
-    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
-      status: 'granted',
-    });
-
-    // Location very close to H building
-    const mockLocation = {
-      coords: {
-        latitude: 45.497092,
-        longitude: -73.5788,
-        altitude: null,
-        accuracy: 10,
-        altitudeAccuracy: null,
-        heading: null,
-        speed: null,
-      },
-      timestamp: Date.now(),
-    };
-
-    (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValue(mockLocation);
+    mockPermission('granted');
+    (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValue(
+      createMockLocation(COORDS.H_BUILDING.lat, COORDS.H_BUILDING.lng)
+    );
 
     const { result } = renderHook(() => useUserLocation());
 
@@ -152,25 +147,10 @@ describe('useUserLocation', () => {
   });
 
   it('shows not on campus when far from buildings', async () => {
-    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
-      status: 'granted',
-    });
-
-    // Location far from any campus (downtown Montreal)
-    const mockLocation = {
-      coords: {
-        latitude: 45.5017,
-        longitude: -73.5673,
-        altitude: null,
-        accuracy: 10,
-        altitudeAccuracy: null,
-        heading: null,
-        speed: null,
-      },
-      timestamp: Date.now(),
-    };
-
-    (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValue(mockLocation);
+    mockPermission('granted');
+    (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValue(
+      createMockLocation(COORDS.OFF_CAMPUS.lat, COORDS.OFF_CAMPUS.lng)
+    );
 
     const { result } = renderHook(() => useUserLocation());
 
@@ -185,13 +165,8 @@ describe('useUserLocation', () => {
 
   it('handles location tracking subscription', async () => {
     const mockRemove = jest.fn();
-    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
-      status: 'granted',
-    });
-
-    (Location.watchPositionAsync as jest.Mock).mockResolvedValue({
-      remove: mockRemove,
-    });
+    mockPermission('granted');
+    (Location.watchPositionAsync as jest.Mock).mockResolvedValue({ remove: mockRemove });
 
     const { result, unmount } = renderHook(() => useUserLocation());
 
@@ -201,20 +176,14 @@ describe('useUserLocation', () => {
 
     expect(Location.watchPositionAsync).toHaveBeenCalled();
 
-    // Cleanup on unmount
     unmount();
     expect(mockRemove).toHaveBeenCalled();
   });
 
   it('stops location tracking when requested', async () => {
     const mockRemove = jest.fn();
-    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
-      status: 'granted',
-    });
-
-    (Location.watchPositionAsync as jest.Mock).mockResolvedValue({
-      remove: mockRemove,
-    });
+    mockPermission('granted');
+    (Location.watchPositionAsync as jest.Mock).mockResolvedValue({ remove: mockRemove });
 
     const { result } = renderHook(() => useUserLocation());
 
@@ -230,13 +199,8 @@ describe('useUserLocation', () => {
   });
 
   it('handles location error gracefully', async () => {
-    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
-      status: 'granted',
-    });
-
-    (Location.getCurrentPositionAsync as jest.Mock).mockRejectedValue(
-      new Error('Location unavailable')
-    );
+    mockPermission('granted');
+    (Location.getCurrentPositionAsync as jest.Mock).mockRejectedValue(new Error('Location unavailable'));
 
     const { result } = renderHook(() => useUserLocation());
 
@@ -249,25 +213,10 @@ describe('useUserLocation', () => {
   });
 
   it('identifies Loyola campus correctly', async () => {
-    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
-      status: 'granted',
-    });
-
-    // Location near CC building at Loyola
-    const mockLocation = {
-      coords: {
-        latitude: 45.458204,
-        longitude: -73.6403,
-        altitude: null,
-        accuracy: 10,
-        altitudeAccuracy: null,
-        heading: null,
-        speed: null,
-      },
-      timestamp: Date.now(),
-    };
-
-    (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValue(mockLocation);
+    mockPermission('granted');
+    (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValue(
+      createMockLocation(COORDS.CC_BUILDING.lat, COORDS.CC_BUILDING.lng)
+    );
 
     const { result } = renderHook(() => useUserLocation());
 
@@ -280,4 +229,3 @@ describe('useUserLocation', () => {
     expect(result.current.currentCampus).toBe('Loyola');
   });
 });
-

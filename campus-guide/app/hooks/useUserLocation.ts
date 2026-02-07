@@ -77,6 +77,27 @@ function findNearestBuilding(
   };
 }
 
+// Helper to create location state update from coordinates
+function createLocationStateUpdate(
+  location: Location.LocationObject,
+  offCampusMessage: string
+): Partial<UserLocationState> {
+  const { building, distance, campus } = findNearestBuilding(
+    location.coords.latitude,
+    location.coords.longitude
+  );
+  const isOnCampus = distance <= MAX_CAMPUS_DISTANCE_METERS;
+
+  return {
+    location,
+    nearestBuilding: isOnCampus ? building : null,
+    isOnCampus,
+    currentCampus: isOnCampus ? campus : null,
+    isLoading: false,
+    errorMsg: isOnCampus ? null : offCampusMessage,
+  };
+}
+
 export function useUserLocation() {
   const [state, setState] = useState<UserLocationState>({
     location: null,
@@ -144,23 +165,10 @@ export function useUserLocation() {
         timestamp: Date.now(),
       };
 
-      const { building, distance, campus } = findNearestBuilding(
-        mockLocation.coords.latitude,
-        mockLocation.coords.longitude
-      );
-
-      const isOnCampus = distance <= MAX_CAMPUS_DISTANCE_METERS;
-
+      const stateUpdate = createLocationStateUpdate(mockLocation, "You don't appear to be on campus.");
       setState((prev) => ({
         ...prev,
-        location: mockLocation,
-        nearestBuilding: isOnCampus ? building : null,
-        isOnCampus,
-        currentCampus: isOnCampus ? campus : null,
-        isLoading: false,
-        errorMsg: isOnCampus
-          ? null
-          : "You don't appear to be on campus.",
+        ...stateUpdate,
         permissionStatus: 'granted' as Location.PermissionStatus,
       }));
       
@@ -181,24 +189,11 @@ export function useUserLocation() {
         accuracy: Location.Accuracy.High,
       });
 
-      const { building, distance, campus } = findNearestBuilding(
-        location.coords.latitude,
-        location.coords.longitude
-      );
-
-      const isOnCampus = distance <= MAX_CAMPUS_DISTANCE_METERS;
-
-      setState((prev) => ({
-        ...prev,
+      const stateUpdate = createLocationStateUpdate(
         location,
-        nearestBuilding: isOnCampus ? building : null,
-        isOnCampus,
-        currentCampus: isOnCampus ? campus : null,
-        isLoading: false,
-        errorMsg: isOnCampus
-          ? null
-          : "You don't appear to be on campus. Move closer to a Concordia campus to see your nearest building.",
-      }));
+        "You don't appear to be on campus. Move closer to a Concordia campus to see your nearest building."
+      );
+      setState((prev) => ({ ...prev, ...stateUpdate }));
     } catch (error) {
       setState((prev) => ({
         ...prev,
@@ -229,24 +224,8 @@ export function useUserLocation() {
           distanceInterval: 10, // Or when moved 10 meters
         },
         (location) => {
-          const { building, distance, campus } = findNearestBuilding(
-            location.coords.latitude,
-            location.coords.longitude
-          );
-
-          const isOnCampus = distance <= MAX_CAMPUS_DISTANCE_METERS;
-
-          setState((prev) => ({
-            ...prev,
-            location,
-            nearestBuilding: isOnCampus ? building : null,
-            isOnCampus,
-            currentCampus: isOnCampus ? campus : null,
-            isLoading: false,
-            errorMsg: isOnCampus
-              ? null
-              : "You don't appear to be on campus.",
-          }));
+          const stateUpdate = createLocationStateUpdate(location, "You don't appear to be on campus.");
+          setState((prev) => ({ ...prev, ...stateUpdate }));
         }
       );
 
