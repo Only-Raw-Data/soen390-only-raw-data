@@ -1,9 +1,9 @@
 import React from "react";
 import { render, fireEvent, act } from "@testing-library/react-native";
-import { MapViewApp } from "../MapView";
+import MapViewApp from "../MapView";
 import { useDirections } from "../../context/DirectionsContext";
-import { useBuildingPolygons } from "../../hooks/useBuildingPolygons";
-import { useUserLocation } from "../../hooks/useUserLocation";
+import useBuildingPolygons from "../../hooks/useBuildingPolygons";
+import useUserLocation from "../../hooks/useUserLocation";
 
 //Mocks
 jest.mock("../../context/DirectionsContext", () => ({

@@ -21,7 +21,7 @@ interface LocateMeButtonProps {
   readonly onBuildingHighlight?: (buildingId: string | null) => void;
 }
 
-export function LocateMeButton({
+export default function LocateMeButton({
   onLocate,
   isLoading,
   nearestBuilding,

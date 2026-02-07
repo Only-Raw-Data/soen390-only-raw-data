@@ -24,7 +24,7 @@ const DirectionsContext = createContext<DirectionsContextType | undefined>(
   undefined,
 );
 
-export function DirectionsProvider({
+export default function DirectionsProvider({
   children,
 }: {
   readonly children: ReactNode;

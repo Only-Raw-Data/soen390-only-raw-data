@@ -8,7 +8,7 @@ interface BottomNavProps {
   readonly onScreenChange: (screen: Screen) => void;
 }
 
-export function BottomNav({ currentScreen, onScreenChange }: BottomNavProps) {
+export default function BottomNav({ currentScreen, onScreenChange }: BottomNavProps) {
   const navItems = [
     { id: "map" as Screen, icon: "map-outline" as const, label: "Map" },
     {

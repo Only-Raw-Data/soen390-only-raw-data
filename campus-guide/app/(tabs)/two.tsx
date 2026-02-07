@@ -1,8 +1,8 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import Header from '../components/Header';
-import { DirectionsHeader } from '../components/DirectionsHeader';
-import { MapViewApp } from '../components/MapView';
+import DirectionsHeader from '../components/DirectionsHeader';
+import MapViewApp from '../components/MapView';
 
 export default function TabTwoScreen() {
   return (

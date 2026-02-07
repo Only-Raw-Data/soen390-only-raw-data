@@ -205,7 +205,7 @@ async function fetchPolygonsFromOSM(
   }
 }
 
-export function useBuildingPolygons(campus: Campus) {
+export default function useBuildingPolygons(campus: Campus) {
   const [polygons, setPolygons] = useState<BuildingPolygon[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);

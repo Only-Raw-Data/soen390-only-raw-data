@@ -1,6 +1,6 @@
 import { renderHook, act } from "@testing-library/react-native";
 import * as Location from "expo-location";
-import { useUserLocation } from "../useUserLocation";
+import useUserLocation from "../useUserLocation";
 import { findNearestBuilding } from "../../utils/locationUtils";
 
 // Mock expo-location

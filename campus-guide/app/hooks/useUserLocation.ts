@@ -53,7 +53,7 @@ function createLocationStateUpdate(
   };
 }
 
-export function useUserLocation() {
+export default function useUserLocation() {
   const [state, setState] = useState<UserLocationState>({
     location: null,
     errorMsg: null,

@@ -49,3 +49,5 @@ export function findNearestBuilding(
   };
 }
 
+export default { haversineDistance, findNearestBuilding };
+

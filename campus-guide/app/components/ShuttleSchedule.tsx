@@ -9,7 +9,7 @@ interface ShuttleScheduleProps {
   compact?: boolean;
 }
 
-export function ShuttleSchedule({ compact = false }: ShuttleScheduleProps = {}) {
+export default function ShuttleSchedule({ compact = false }: ShuttleScheduleProps = {}) {
   const [selectedDay, setSelectedDay] = useState<ScheduleDay>('mondayThursday');
 
   const currentSchedule = SHUTTLE_SCHEDULE[selectedDay];

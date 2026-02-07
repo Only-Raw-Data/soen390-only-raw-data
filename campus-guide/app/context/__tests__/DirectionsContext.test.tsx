@@ -1,6 +1,6 @@
 import React from 'react';
 import { renderHook, act } from '@testing-library/react-native';
-import { DirectionsProvider, useDirections } from '../DirectionsContext';
+import DirectionsProvider, { useDirections } from '../DirectionsContext';
 import { SGW_BUILDINGS } from '../../../constants/buildings';
 
 describe('DirectionsContext', () => {
