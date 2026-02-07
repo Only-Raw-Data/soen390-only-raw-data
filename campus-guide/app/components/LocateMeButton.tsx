@@ -1,25 +1,24 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   TouchableOpacity,
   StyleSheet,
-  View,
   Text,
   Animated,
   ActivityIndicator,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { Building, Campus } from '@/constants/buildings';
-import { ToastType } from '../types/ToastType';
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { Building, Campus } from "@/constants/buildings";
+import { ToastType } from "../types/ToastType";
 
 interface LocateMeButtonProps {
-  onLocate: () => Promise<void>;
-  isLoading: boolean;
-  nearestBuilding: Building | null;
-  isOnCampus: boolean;
-  errorMsg: string | null;
-  currentCampus: Campus | null;
-  onCampusDetected?: (campus: Campus) => void;
-  onBuildingHighlight?: (buildingId: string | null) => void;
+  readonly onLocate: () => Promise<void>;
+  readonly isLoading: boolean;
+  readonly nearestBuilding: Building | null;
+  readonly isOnCampus: boolean;
+  readonly errorMsg: string | null;
+  readonly currentCampus: Campus | null;
+  readonly onCampusDetected?: (campus: Campus) => void;
+  readonly onBuildingHighlight?: (buildingId: string | null) => void;
 }
 
 export function LocateMeButton({
@@ -33,9 +32,9 @@ export function LocateMeButton({
   onBuildingHighlight,
 }: LocateMeButtonProps) {
   const [showToast, setShowToast] = useState(false);
-  const [toastMessage, setToastMessage] = useState('');
-  const [toastType, setToastType] = useState<ToastType>('info');
-  const fadeAnim = useState(new Animated.Value(0))[0];
+  const [toastMessage, setToastMessage] = useState("");
+  const [toastType, setToastType] = useState<ToastType>("info");
+  const [fadeAnim] = useState(new Animated.Value(0));
 
   useEffect(() => {
     if (showToast) {
@@ -64,18 +63,20 @@ export function LocateMeButton({
     if (!isLoading) {
       if (errorMsg) {
         setToastMessage(errorMsg);
-        setToastType('error');
+        setToastType("error");
         setShowToast(true);
         onBuildingHighlight?.(null);
       } else if (isOnCampus && nearestBuilding) {
-        setToastMessage(`You are near ${nearestBuilding.name} (${nearestBuilding.code})`);
-        setToastType('success');
+        setToastMessage(
+          `You are near ${nearestBuilding.name} (${nearestBuilding.code})`,
+        );
+        setToastType("success");
         setShowToast(true);
-        
+
         if (currentCampus) {
           onCampusDetected?.(currentCampus);
         }
-        
+
         // Highlight the nearest building
         onBuildingHighlight?.(nearestBuilding.id);
       }
@@ -89,9 +90,9 @@ export function LocateMeButton({
 
   const getToastStyle = () => {
     switch (toastType) {
-      case 'success':
+      case "success":
         return styles.toastSuccess;
-      case 'error':
+      case "error":
         return styles.toastError;
       default:
         return styles.toastInfo;
@@ -100,12 +101,12 @@ export function LocateMeButton({
 
   const getToastIcon = () => {
     switch (toastType) {
-      case 'success':
-        return 'location';
-      case 'error':
-        return 'warning-outline';
+      case "success":
+        return "location";
+      case "error":
+        return "warning-outline";
       default:
-        return 'information-circle-outline';
+        return "information-circle-outline";
     }
   };
 
@@ -159,16 +160,16 @@ export function LocateMeButton({
 
 const styles = StyleSheet.create({
   button: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 24,
     right: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     width: 48,
     height: 48,
     borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
@@ -179,16 +180,16 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   toastContainer: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 88,
     left: 16,
     right: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 12,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
@@ -196,22 +197,22 @@ const styles = StyleSheet.create({
     zIndex: 101,
   },
   toastSuccess: {
-    backgroundColor: '#10B981',
+    backgroundColor: "#10B981",
   },
   toastError: {
-    backgroundColor: '#EF4444',
+    backgroundColor: "#EF4444",
   },
   toastInfo: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: "#3B82F6",
   },
   toastIcon: {
     marginRight: 10,
   },
   toastText: {
     flex: 1,
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: "500",
     lineHeight: 20,
   },
   toastCloseButton: {
@@ -219,4 +220,3 @@ const styles = StyleSheet.create({
     padding: 4,
   },
 });
-
