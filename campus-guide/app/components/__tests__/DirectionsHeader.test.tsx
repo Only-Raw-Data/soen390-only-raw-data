@@ -1,7 +1,9 @@
 import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
+import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { Alert } from 'react-native';
 import { DirectionsHeader } from '../DirectionsHeader';
 import { useDirections } from '../../context/DirectionsContext';
+import { useUserLocation } from '../../hooks/useUserLocation';
 import { SGW_BUILDINGS } from '../../../constants/buildings';
 
 
@@ -9,13 +11,21 @@ jest.mock('../../context/DirectionsContext', () => ({
     useDirections: jest.fn(),
 }));
 
+jest.mock('../../hooks/useUserLocation', () => ({
+    useUserLocation: jest.fn(),
+}));
+
+jest.spyOn(Alert, 'alert');
+
 describe('DirectionsHeader', () => {
     const mockSetTransportationMode = jest.fn();
     const mockSwapLocations = jest.fn();
     const mockSetStartBuilding = jest.fn();
     const mockSetDestinationBuilding = jest.fn();
+    const mockGetNearestBuilding = jest.fn();
 
     beforeEach(() => {
+        jest.clearAllMocks();
         (useDirections as jest.Mock).mockReturnValue({
             startBuilding: null,
             destinationBuilding: null,
@@ -24,6 +34,10 @@ describe('DirectionsHeader', () => {
             setDestinationBuilding: mockSetDestinationBuilding,
             setTransportationMode: mockSetTransportationMode,
             swapLocations: mockSwapLocations,
+        });
+        (useUserLocation as jest.Mock).mockReturnValue({
+            getNearestBuilding: mockGetNearestBuilding,
+            isLoading: false,
         });
     });
 
@@ -93,63 +107,56 @@ describe('DirectionsHeader', () => {
         expect(getByText('Henry F. Hall Building')).toBeTruthy();
     });
 
-    it('opens schedule modal when shuttle mode is selected', () => {
+    it('renders the Use Current Location button', () => {
         //Arrange
-        (useDirections as jest.Mock).mockReturnValue({
-            startBuilding: null,
-            destinationBuilding: null,
-            transportationMode: 'shuttle',
-            setStartBuilding: mockSetStartBuilding,
-            setDestinationBuilding: mockSetDestinationBuilding,
-            setTransportationMode: mockSetTransportationMode,
-            swapLocations: mockSwapLocations,
-        });
+        const { getByTestId } = render(<DirectionsHeader />);
 
-        //Act
-        const { getAllByText } = render(<DirectionsHeader />);
-
-        //Assert - Modal should show schedule (may appear multiple times due to modal structure)
-        const scheduleTexts = getAllByText('Shuttle Bus Schedule');
-        expect(scheduleTexts.length).toBeGreaterThan(0);
+        //Assert
+        expect(getByTestId('use-current-location-button')).toBeTruthy();
     });
 
-    it('displays schedule component in modal when shuttle mode is selected', () => {
+    it('sets start building when Use Current Location succeeds', async () => {
         //Arrange
-        (useDirections as jest.Mock).mockReturnValue({
-            startBuilding: null,
-            destinationBuilding: null,
-            transportationMode: 'shuttle',
-            setStartBuilding: mockSetStartBuilding,
-            setDestinationBuilding: mockSetDestinationBuilding,
-            setTransportationMode: mockSetTransportationMode,
-            swapLocations: mockSwapLocations,
-        });
+        mockGetNearestBuilding.mockResolvedValue(SGW_BUILDINGS[0]);
+        const { getByTestId } = render(<DirectionsHeader />);
 
         //Act
-        const { getAllByText } = render(<DirectionsHeader />);
+        fireEvent.press(getByTestId('use-current-location-button'));
 
-        //Assert - Modal should show schedule with day selector
-        expect(getAllByText('Shuttle Bus Schedule').length).toBeGreaterThan(0);
-        expect(getAllByText('Monday — Thursday').length).toBeGreaterThan(0);
-        expect(getAllByText('Friday').length).toBeGreaterThan(0);
+        //Assert
+        await waitFor(() => {
+            expect(mockSetStartBuilding).toHaveBeenCalledWith(SGW_BUILDINGS[0]);
+        });
     });
 
-    it('shows Get Directions button even when shuttle mode is selected', () => {
+    it('shows alert when Use Current Location fails', async () => {
         //Arrange
-        (useDirections as jest.Mock).mockReturnValue({
-            startBuilding: null,
-            destinationBuilding: null,
-            transportationMode: 'shuttle',
-            setStartBuilding: mockSetStartBuilding,
-            setDestinationBuilding: mockSetDestinationBuilding,
-            setTransportationMode: mockSetTransportationMode,
-            swapLocations: mockSwapLocations,
+        mockGetNearestBuilding.mockResolvedValue(null);
+        const { getByTestId } = render(<DirectionsHeader />);
+
+        //Act
+        fireEvent.press(getByTestId('use-current-location-button'));
+
+        //Assert
+        await waitFor(() => {
+            expect(Alert.alert).toHaveBeenCalledWith(
+                'Location Error',
+                'Could not determine your nearest campus building. Please ensure location permissions are enabled.',
+            );
+        });
+    });
+
+    it('shows loading indicator while fetching location', () => {
+        //Arrange
+        (useUserLocation as jest.Mock).mockReturnValue({
+            getNearestBuilding: mockGetNearestBuilding,
+            isLoading: true,
         });
 
         //Act
-        const { getAllByText } = render(<DirectionsHeader />);
+        const { getByTestId } = render(<DirectionsHeader />);
 
-        //Assert - Button should be visible (may appear multiple times)
-        expect(getAllByText('Get Directions').length).toBeGreaterThan(0);
+        //Assert
+        expect(getByTestId('location-loading')).toBeTruthy();
     });
 });
