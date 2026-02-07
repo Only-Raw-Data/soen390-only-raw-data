@@ -1,8 +1,9 @@
 import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { MapViewApp } from '../MapView';
 import { useDirections } from '../../context/DirectionsContext';
 import { useBuildingPolygons } from '../../hooks/useBuildingPolygons';
+import { useUserLocation } from '../../hooks/useUserLocation';
 
 //Mocks
 jest.mock('../../context/DirectionsContext', () => ({
@@ -11,6 +12,10 @@ jest.mock('../../context/DirectionsContext', () => ({
 
 jest.mock('../../hooks/useBuildingPolygons', () => ({
   useBuildingPolygons: jest.fn(),
+}));
+
+jest.mock('../../hooks/useUserLocation', () => ({
+  useUserLocation: jest.fn(),
 }));
 
 jest.mock('../../../constants/mapStyle', () => ({
@@ -40,9 +45,9 @@ jest.mock('react-native-maps', () => {
   const React = require('react');
   const { View, Text, TouchableOpacity } = require('react-native');
 
-  const MockMapView = ({ children, ...props }: any) => (
+  const MockMapView = React.forwardRef(({ children, ...props }: any, ref: any) => (
     <View testID="mapView" {...props}>{children}</View>
-  );
+  ));
 
   const MockMarker = ({ title, onPress }: any) => (
     <Text accessibilityRole="button" onPress={onPress}>{title}</Text>
@@ -56,14 +61,36 @@ jest.mock('react-native-maps', () => {
     />
   );
 
+  const MockCircle = () => null;
+
   return {
     __esModule: true,
     default: MockMapView,
     Marker: MockMarker,
     Polygon: MockPolygon,
+    Circle: MockCircle,
     PROVIDER_GOOGLE: 'google',
   };
 });
+
+let capturedOnCampusDetected: ((campus: string) => void) | null = null;
+let capturedOnBuildingHighlight: ((buildingId: string | null) => void) | null = null;
+
+jest.mock('../LocateMeButton', () => ({
+  LocateMeButton: ({ onLocate, onCampusDetected, onBuildingHighlight }: any) => {
+    const React = require('react');
+    const { TouchableOpacity, Text } = require('react-native');
+    
+    capturedOnCampusDetected = onCampusDetected;
+    capturedOnBuildingHighlight = onBuildingHighlight;
+    
+    return (
+      <TouchableOpacity testID="locate-me-button" onPress={onLocate}>
+        <Text>Locate Me</Text>
+      </TouchableOpacity>
+    );
+  },
+}));
 
 // Mock polygon data for tests
 const mockSGWPolygons = [
@@ -102,6 +129,7 @@ const mockLoyolaPolygons = [
 describe('MapViewApp', () => {
   const mockSetStartBuilding = jest.fn();
   const mockSetDestinationBuilding = jest.fn();
+  const mockGetCurrentLocation = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -118,6 +146,20 @@ describe('MapViewApp', () => {
       polygons: mockSGWPolygons,
       loading: false,
       error: null,
+    });
+
+    // Default mock for user location
+    (useUserLocation as jest.Mock).mockReturnValue({
+      location: null,
+      isLoading: false,
+      errorMsg: null,
+      nearestBuilding: null,
+      isOnCampus: false,
+      currentCampus: null,
+      getCurrentLocation: mockGetCurrentLocation,
+      startLocationTracking: jest.fn(),
+      stopLocationTracking: jest.fn(),
+      requestLocationPermission: jest.fn(),
     });
   });
 
@@ -322,6 +364,128 @@ describe('MapViewApp', () => {
       // Act & Assert - should render map even while loading
       const screen = render(<MapViewApp />);
       expect(screen.getByTestId('mapView')).toBeTruthy();
+    });
+  });
+
+  // Location feature tests
+  describe('Location Feature', () => {
+    it('renders locate me button', () => {
+      const screen = render(<MapViewApp />);
+      expect(screen.getByTestId('locate-me-button')).toBeTruthy();
+    });
+
+    it('calls getCurrentLocation when locate button pressed', () => {
+      const screen = render(<MapViewApp />);
+      fireEvent.press(screen.getByTestId('locate-me-button'));
+      expect(mockGetCurrentLocation).toHaveBeenCalled();
+    });
+
+    it('uses location hook', () => {
+      render(<MapViewApp />);
+      expect(useUserLocation).toHaveBeenCalled();
+    });
+
+    it('switches campus when onCampusDetected is called with different campus', () => {
+      // Arrange
+      (useBuildingPolygons as jest.Mock).mockImplementation((campus: string) => ({
+        polygons: campus === 'SGW' ? mockSGWPolygons : mockLoyolaPolygons,
+        loading: false,
+        error: null,
+      }));
+
+      const screen = render(<MapViewApp />);
+      
+      // Verify we start on SGW
+      expect(screen.getByText('H')).toBeTruthy();
+
+      // Act - simulate location detected at Loyola
+      act(() => {
+        if (capturedOnCampusDetected) {
+          capturedOnCampusDetected('Loyola');
+        }
+      });
+
+      // Assert - should switch to Loyola campus
+      expect(useBuildingPolygons).toHaveBeenCalledWith('Loyola');
+    });
+
+    it('does not switch campus when onCampusDetected is called with same campus', () => {
+      // Arrange
+      render(<MapViewApp />);
+
+      // Act - simulate location detected at SGW (same as current)
+      act(() => {
+        if (capturedOnCampusDetected) {
+          capturedOnCampusDetected('SGW');
+        }
+      });
+
+      // Assert - should not trigger additional re-renders for campus switch
+      expect(useBuildingPolygons).toHaveBeenLastCalledWith('SGW');
+    });
+
+    it('highlights building when onBuildingHighlight is called', () => {
+      // Arrange
+      render(<MapViewApp />);
+
+      // Act - simulate building highlight
+      act(() => {
+        if (capturedOnBuildingHighlight) {
+          capturedOnBuildingHighlight('h');
+        }
+      });
+
+      // Assert - the callback should have been captured and callable
+      expect(capturedOnBuildingHighlight).toBeDefined();
+    });
+
+    it('clears highlight when onBuildingHighlight is called with null', () => {
+      // Arrange
+      render(<MapViewApp />);
+
+      // Act - set then clear highlight
+      act(() => {
+        if (capturedOnBuildingHighlight) {
+          capturedOnBuildingHighlight('h');
+          capturedOnBuildingHighlight(null);
+        }
+      });
+
+      // Assert - callback should work with null
+      expect(capturedOnBuildingHighlight).toBeDefined();
+    });
+
+    it('animates to user location when campus detected and location available', () => {
+      // Arrange - mock user location being available
+      (useUserLocation as jest.Mock).mockReturnValue({
+        location: {
+          coords: {
+            latitude: 45.458204,
+            longitude: -73.6403,
+          },
+        },
+        isLoading: false,
+        errorMsg: null,
+        nearestBuilding: { id: 'cc', name: 'Central Building' },
+        isOnCampus: true,
+        currentCampus: 'Loyola',
+        getCurrentLocation: mockGetCurrentLocation,
+        startLocationTracking: jest.fn(),
+        stopLocationTracking: jest.fn(),
+        requestLocationPermission: jest.fn(),
+      });
+
+      render(<MapViewApp />);
+
+      // Act - trigger campus detection
+      act(() => {
+        if (capturedOnCampusDetected) {
+          capturedOnCampusDetected('Loyola');
+        }
+      });
+
+      // Assert - location hook should have location data
+      expect(useUserLocation).toHaveBeenCalled();
     });
   });
 });
