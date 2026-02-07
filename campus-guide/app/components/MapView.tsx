@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Campus, Building, SGW_BUILDINGS, LOYOLA_BUILDINGS,CAMPUS_REGIONS } from './../../constants/buildings';
 import { useDirections } from '../context/DirectionsContext';
-import MapView, { Marker, Polygon, PROVIDER_GOOGLE, Circle } from 'react-native-maps';
+import MapView, { Callout, Marker, Polygon, PROVIDER_GOOGLE, Circle  } from 'react-native-maps';
 import { useBuildingPolygons } from '../hooks/useBuildingPolygons';
 import { CAMPUS_MAP_STYLE } from '../../constants/mapStyle';
 import  BuildingInformation  from './BuildingInformation';
@@ -32,6 +32,7 @@ export function MapViewApp({showSearch, googleMapsApiKey}: MapViewAppProps ) {
     const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [highlightedBuildingId, setHighlightedBuildingId] = useState<string | null>(null);
+    const [infoBuilding, setInfoBuilding] = useState<Building | null>(null); 
 
     // Fetch building polygons for the current campus
     const { polygons: buildingPolygons, loading: polygonsLoading } = useBuildingPolygons(selectedCampus);
@@ -222,10 +223,20 @@ export function MapViewApp({showSearch, googleMapsApiKey}: MapViewAppProps ) {
                         key={building.id}
                         coordinate={{ latitude: building.lat, longitude: building.lng }}
                         title={getMarkerTitle(building)}
-                        description={building.name + "\n" + building.address}
                         onPress={() => handleBuildingPress(building)}
-                        pinColor={getMarkerColor(building)}
-                    />
+                        pinColor={getMarkerColor(building)} 
+                        >
+                        <Callout tooltip onPress={() => setInfoBuilding(building)}>
+                            <View style={styles.icontainer}>
+                                <Text style={styles.ititle}>{building.name}</Text>
+                                <Text style={styles.isubtitle}>{building.address}</Text>
+                                <View style={styles.ibutton}>
+                                    <Text style={styles.ibuttonText}>Open details</Text>
+                                </View>
+                            </View>
+                        </Callout>
+                    </Marker>
+                    
                 ))}
             </MapView>
 
@@ -240,13 +251,47 @@ export function MapViewApp({showSearch, googleMapsApiKey}: MapViewAppProps ) {
                 onBuildingHighlight={handleBuildingHighlight}
             />
 
-            {selectedBuilding && (
+            <LocateMeButton
+                onLocate={getCurrentLocation}
+                isLoading={locationLoading}
+                nearestBuilding={nearestBuilding}
+                isOnCampus={isOnCampus}
+                errorMsg={locationError}
+                currentCampus={currentCampus}
+                onCampusDetected={handleCampusDetected}
+                onBuildingHighlight={handleBuildingHighlight}
+            />
+
+            {infoBuilding && (
             <BuildingInformation
-                building={selectedBuilding}
+                building={infoBuilding}
                 onGetDirections={handleGetDirections}
-                onClose={() => setSelectedBuilding(null)}/>
+                onClose={() => setInfoBuilding(null)}/>
             )}
-        </View>
+
+            {selectedBuilding && (
+                <View style={styles.bottomBar}>
+                    <View style={styles.bottomBarInfo}>
+                        <Text style={styles.bottomBarCode}>
+                            {selectedBuilding.code}
+                        </Text>
+                        <Text style={styles.bottomBarName} numberOfLines={1}>
+                            {selectedBuilding.name}
+                        </Text>
+                        <Text style={styles.bottomBarAddress} numberOfLines={1}>
+                            {selectedBuilding.address}
+                        </Text>
+                    </View>
+                    <View style={styles.bottomBarActions}>
+                        <TouchableOpacity style={styles.bottomBarButtonSecondary} onPress={() => setSelectedBuilding(null)}>
+                            <Text style={styles.bottomBarButtonSecondaryText}>Clear</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.bottomBarButtonPrimary} onPress={() => handleGetDirections(selectedBuilding)}>
+                            <Text style={styles.bottomBarButtonPrimaryText}>Get directions</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>)}
+    </View>
     );
 }
 
@@ -471,4 +516,91 @@ const styles = StyleSheet.create({
     map: {
         flex: 1,
     },
+    icontainer: {
+        width: 220,
+        padding: 12,
+        borderRadius: 12,
+        backgroundColor: 'white',
+      },
+      ititle: {
+        fontSize: 14,
+        fontWeight: '700',
+        marginBottom: 4,
+      },
+      isubtitle: {
+        fontSize: 12,
+        color: '#6B7280',
+        marginBottom: 10,
+      },
+      ibutton: {
+        paddingVertical: 8,
+        borderRadius: 10,
+        backgroundColor: '#912338',
+        alignItems: 'center',
+      },
+      ibuttonText: {
+        color: 'white',
+        fontWeight: '700',
+        fontSize: 12,
+      },
+      bottomBar: {
+        position: 'absolute',
+        left: 12,
+        right: 12,
+        bottom: 12,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 16,
+        padding: 12,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.15,
+        shadowRadius: 10,
+        elevation: 8,
+      },
+      bottomBarInfo: {
+        marginBottom: 10,
+      },
+      bottomBarCode: {
+        fontSize: 20,
+        fontWeight: '800',
+        color: '#912338',
+      },
+      bottomBarName: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#111827',
+        marginTop: 2,
+      },
+      bottomBarAddress: {
+        fontSize: 12,
+        color: '#6B7280',
+        marginTop: 2,
+      },
+      bottomBarActions: {
+        flexDirection: 'row',
+        gap: 10,
+      },
+      bottomBarButtonPrimary: {
+        flex: 1,
+        backgroundColor: '#912338',
+        paddingVertical: 10,
+        borderRadius: 12,
+        alignItems: 'center',
+      },
+      bottomBarButtonPrimaryText: {
+        color: '#FFFFFF',
+        fontWeight: '800',
+      },
+      bottomBarButtonSecondary: {
+        width: 90,
+        backgroundColor: '#F3F4F6',
+        paddingVertical: 10,
+        borderRadius: 12,
+        alignItems: 'center',
+      },
+      bottomBarButtonSecondaryText: {
+        color: '#374151',
+        fontWeight: '800',
+      },
+      
 });
