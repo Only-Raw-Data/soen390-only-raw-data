@@ -1,7 +1,9 @@
 import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
+import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { Alert } from 'react-native';
 import { DirectionsHeader } from '../DirectionsHeader';
 import { useDirections } from '../../context/DirectionsContext';
+import { useCurrentLocation } from '../../hooks/useCurrentLocation';
 import { SGW_BUILDINGS } from '../../../constants/buildings';
 
 
@@ -9,13 +11,21 @@ jest.mock('../../context/DirectionsContext', () => ({
     useDirections: jest.fn(),
 }));
 
+jest.mock('../../hooks/useCurrentLocation', () => ({
+    useCurrentLocation: jest.fn(),
+}));
+
+jest.spyOn(Alert, 'alert');
+
 describe('DirectionsHeader', () => {
     const mockSetTransportationMode = jest.fn();
     const mockSwapLocations = jest.fn();
     const mockSetStartBuilding = jest.fn();
     const mockSetDestinationBuilding = jest.fn();
+    const mockGetNearestBuilding = jest.fn();
 
     beforeEach(() => {
+        jest.clearAllMocks();
         (useDirections as jest.Mock).mockReturnValue({
             startBuilding: null,
             destinationBuilding: null,
@@ -24,6 +34,11 @@ describe('DirectionsHeader', () => {
             setDestinationBuilding: mockSetDestinationBuilding,
             setTransportationMode: mockSetTransportationMode,
             swapLocations: mockSwapLocations,
+        });
+        (useCurrentLocation as jest.Mock).mockReturnValue({
+            getNearestBuilding: mockGetNearestBuilding,
+            loading: false,
+            error: null,
         });
     });
 
@@ -91,5 +106,59 @@ describe('DirectionsHeader', () => {
 
         //Assert
         expect(getByText('Henry F. Hall Building')).toBeTruthy();
+    });
+
+    it('renders the Use Current Location button', () => {
+        //Arrange
+        const { getByTestId } = render(<DirectionsHeader />);
+
+        //Assert
+        expect(getByTestId('use-current-location-button')).toBeTruthy();
+    });
+
+    it('sets start building when Use Current Location succeeds', async () => {
+        //Arrange
+        mockGetNearestBuilding.mockResolvedValue(SGW_BUILDINGS[0]);
+        const { getByTestId } = render(<DirectionsHeader />);
+
+        //Act
+        fireEvent.press(getByTestId('use-current-location-button'));
+
+        //Assert
+        await waitFor(() => {
+            expect(mockSetStartBuilding).toHaveBeenCalledWith(SGW_BUILDINGS[0]);
+        });
+    });
+
+    it('shows alert when Use Current Location fails', async () => {
+        //Arrange
+        mockGetNearestBuilding.mockResolvedValue(null);
+        const { getByTestId } = render(<DirectionsHeader />);
+
+        //Act
+        fireEvent.press(getByTestId('use-current-location-button'));
+
+        //Assert
+        await waitFor(() => {
+            expect(Alert.alert).toHaveBeenCalledWith(
+                'Location Error',
+                'Could not determine your nearest campus building. Please ensure location permissions are enabled.',
+            );
+        });
+    });
+
+    it('shows loading indicator while fetching location', () => {
+        //Arrange
+        (useCurrentLocation as jest.Mock).mockReturnValue({
+            getNearestBuilding: mockGetNearestBuilding,
+            loading: true,
+            error: null,
+        });
+
+        //Act
+        const { getByTestId } = render(<DirectionsHeader />);
+
+        //Assert
+        expect(getByTestId('location-loading')).toBeTruthy();
     });
 });
