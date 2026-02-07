@@ -247,4 +247,197 @@ describe('useUserLocation', () => {
     expect(result.current.nearestBuilding?.id).toBe('cc');
     expect(result.current.currentCampus).toBe('Loyola');
   });
+
+  it('handles requestLocationPermission throwing an error', async () => {
+    //Arrange
+    (Location.requestForegroundPermissionsAsync as jest.Mock).mockRejectedValue(
+      new Error('Permission request failed')
+    );
+    const { result } = renderHook(() => useUserLocation());
+
+    //Act
+    await act(async () => {
+      await result.current.getCurrentLocation();
+    });
+
+    //Assert
+    expect(result.current.errorMsg).toContain('Failed to request location permission');
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it('returns nearest building via getNearestBuilding on success', async () => {
+    //Arrange
+    mockPermission('granted');
+    (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValue(
+      createMockLocation(COORDS.H_BUILDING.lat, COORDS.H_BUILDING.lng)
+    );
+    const { result } = renderHook(() => useUserLocation());
+
+    //Act
+    let building: any;
+    await act(async () => {
+      building = await result.current.getNearestBuilding();
+    });
+
+    //Assert
+    expect(building).not.toBeNull();
+    expect(building.id).toBe('h');
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it('returns null from getNearestBuilding when permission denied', async () => {
+    //Arrange
+    mockPermission('denied');
+    const { result } = renderHook(() => useUserLocation());
+
+    //Act
+    let building: any;
+    await act(async () => {
+      building = await result.current.getNearestBuilding();
+    });
+
+    //Assert
+    expect(building).toBeNull();
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it('returns null and sets error from getNearestBuilding when location fails', async () => {
+    //Arrange
+    mockPermission('granted');
+    (Location.getCurrentPositionAsync as jest.Mock).mockRejectedValue(
+      new Error('Location unavailable')
+    );
+    const { result } = renderHook(() => useUserLocation());
+
+    //Act
+    let building: any;
+    await act(async () => {
+      building = await result.current.getNearestBuilding();
+    });
+
+    //Assert
+    expect(building).toBeNull();
+    expect(result.current.errorMsg).toBe('Failed to get current location');
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it('resets loading state via resetLoadingState', async () => {
+    //Arrange
+    mockPermission('denied');
+    const { result } = renderHook(() => useUserLocation());
+    await act(async () => {
+      await result.current.requestLocationPermission();
+    });
+
+    //Act
+    act(() => {
+      result.current.resetLoadingState();
+    });
+
+    //Assert
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it('denies permission for startLocationTracking and returns early', async () => {
+    //Arrange
+    mockPermission('denied');
+    const { result } = renderHook(() => useUserLocation());
+
+    //Act
+    await act(async () => {
+      await result.current.startLocationTracking();
+    });
+
+    //Assert
+    expect(Location.watchPositionAsync).not.toHaveBeenCalled();
+    expect(result.current.errorMsg).toContain('Location permission denied');
+  });
+
+  it('removes existing subscription before starting a new one', async () => {
+    //Arrange
+    const mockRemoveFirst = jest.fn();
+    const mockRemoveSecond = jest.fn();
+    mockPermission('granted');
+    (Location.watchPositionAsync as jest.Mock)
+      .mockResolvedValueOnce({ remove: mockRemoveFirst })
+      .mockResolvedValueOnce({ remove: mockRemoveSecond });
+    const { result } = renderHook(() => useUserLocation());
+
+    //Act
+    await act(async () => {
+      await result.current.startLocationTracking();
+    });
+    await act(async () => {
+      await result.current.startLocationTracking();
+    });
+
+    //Assert
+    expect(mockRemoveFirst).toHaveBeenCalled();
+  });
+
+  it('handles startLocationTracking error gracefully', async () => {
+    //Arrange
+    mockPermission('granted');
+    (Location.watchPositionAsync as jest.Mock).mockRejectedValue(
+      new Error('Tracking failed')
+    );
+    const { result } = renderHook(() => useUserLocation());
+
+    //Act
+    await act(async () => {
+      await result.current.startLocationTracking();
+    });
+
+    //Assert
+    expect(result.current.errorMsg).toContain('Failed to start location tracking');
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it('updates state when location tracking callback fires', async () => {
+    //Arrange
+    mockPermission('granted');
+    let trackingCallback: (location: Location.LocationObject) => void;
+    (Location.watchPositionAsync as jest.Mock).mockImplementation(
+      (_options: any, callback: (location: Location.LocationObject) => void) => {
+        trackingCallback = callback;
+        return Promise.resolve({ remove: jest.fn() });
+      }
+    );
+    const { result } = renderHook(() => useUserLocation());
+    await act(async () => {
+      await result.current.startLocationTracking();
+    });
+
+    //Act - simulate a location update on campus
+    act(() => {
+      trackingCallback!(createMockLocation(COORDS.H_BUILDING.lat, COORDS.H_BUILDING.lng));
+    });
+
+    //Assert
+    expect(result.current.isOnCampus).toBe(true);
+    expect(result.current.nearestBuilding?.id).toBe('h');
+
+    //Act - simulate a location update off campus
+    act(() => {
+      trackingCallback!(createMockLocation(COORDS.OFF_CAMPUS.lat, COORDS.OFF_CAMPUS.lng));
+    });
+
+    //Assert
+    expect(result.current.isOnCampus).toBe(false);
+    expect(result.current.nearestBuilding).toBeNull();
+    expect(result.current.errorMsg).toContain("don't appear to be on campus");
+  });
+
+  it('does nothing when stopLocationTracking is called without active subscription', () => {
+    //Arrange
+    const { result } = renderHook(() => useUserLocation());
+
+    //Act
+    act(() => {
+      result.current.stopLocationTracking();
+    });
+
+    //Assert
+    expect(result.current.isLoading).toBe(false);
+  });
 });
