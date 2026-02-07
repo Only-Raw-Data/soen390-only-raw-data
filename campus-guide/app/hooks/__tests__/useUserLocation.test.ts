@@ -1,6 +1,6 @@
 import { renderHook, act, waitFor } from '@testing-library/react-native';
 import * as Location from 'expo-location';
-import { useUserLocation } from '../useUserLocation';
+import { useUserLocation, findNearestBuilding } from '../useUserLocation';
 
 // Mock expo-location
 jest.mock('expo-location', () => ({
@@ -83,6 +83,25 @@ const COORDS = {
 const mockPermission = (status: 'granted' | 'denied') => {
   (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({ status });
 };
+
+describe('findNearestBuilding', () => {
+  it('returns the nearest building to given coordinates', () => {
+    const result = findNearestBuilding(45.497092, -73.5788);
+    expect(result).not.toBeNull();
+    expect(result!.id).toBe('h');
+  });
+
+  it('returns null for an empty buildings list', () => {
+    const result = findNearestBuilding(45.495, -73.578, []);
+    expect(result).toBeNull();
+  });
+
+  it('returns the closest building among candidates', () => {
+    const result = findNearestBuilding(45.497, -73.579);
+    expect(result).not.toBeNull();
+    expect(result!.id).toBe('h');
+  });
+});
 
 describe('useUserLocation', () => {
   beforeEach(() => {

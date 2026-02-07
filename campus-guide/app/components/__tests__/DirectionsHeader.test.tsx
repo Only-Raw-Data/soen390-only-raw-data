@@ -3,7 +3,7 @@ import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 import { DirectionsHeader } from '../DirectionsHeader';
 import { useDirections } from '../../context/DirectionsContext';
-import { useCurrentLocation } from '../../hooks/useCurrentLocation';
+import { useUserLocation } from '../../hooks/useUserLocation';
 import { SGW_BUILDINGS } from '../../../constants/buildings';
 
 
@@ -11,8 +11,8 @@ jest.mock('../../context/DirectionsContext', () => ({
     useDirections: jest.fn(),
 }));
 
-jest.mock('../../hooks/useCurrentLocation', () => ({
-    useCurrentLocation: jest.fn(),
+jest.mock('../../hooks/useUserLocation', () => ({
+    useUserLocation: jest.fn(),
 }));
 
 jest.spyOn(Alert, 'alert');
@@ -35,10 +35,9 @@ describe('DirectionsHeader', () => {
             setTransportationMode: mockSetTransportationMode,
             swapLocations: mockSwapLocations,
         });
-        (useCurrentLocation as jest.Mock).mockReturnValue({
+        (useUserLocation as jest.Mock).mockReturnValue({
             getNearestBuilding: mockGetNearestBuilding,
-            loading: false,
-            error: null,
+            isLoading: false,
         });
     });
 
@@ -149,10 +148,9 @@ describe('DirectionsHeader', () => {
 
     it('shows loading indicator while fetching location', () => {
         //Arrange
-        (useCurrentLocation as jest.Mock).mockReturnValue({
+        (useUserLocation as jest.Mock).mockReturnValue({
             getNearestBuilding: mockGetNearestBuilding,
-            loading: true,
-            error: null,
+            isLoading: true,
         });
 
         //Act

@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useDirections} from '../context/DirectionsContext';
 import { TransportationMode } from '../types/transportation';
 import { SGW_BUILDINGS, LOYOLA_BUILDINGS, Building } from './../../constants/buildings';
-import { useCurrentLocation } from '../hooks/useCurrentLocation';
+import { useUserLocation } from '../hooks/useUserLocation';
 
 export function DirectionsHeader() {
     const {
@@ -18,7 +18,7 @@ export function DirectionsHeader() {
         clearDirections
     } = useDirections();
 
-    const { getNearestBuilding, loading: locationLoading } = useCurrentLocation();
+    const { getNearestBuilding, isLoading: locationLoading } = useUserLocation();
 
     const [isSearchingStart, setIsSearchingStart] = useState(false);
     const [isSearchingDest, setIsSearchingDest] = useState(false);

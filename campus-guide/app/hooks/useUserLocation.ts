@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import * as Location from 'expo-location';
-import { Building, All_BUILDINGS, Campus, SGW_BUILDINGS, LOYOLA_BUILDINGS } from '@/constants/buildings';
+import { All_BUILDINGS, Building, Campus } from '@/constants/buildings';
+import { haversineDistance } from '../utils/haversine';
 
 // DEV MODE to mock location for testing. Setting to false will use users real location and changing to true will use mock location defined.
 const DEV_MODE_ENABLED = __DEV__ && false;
@@ -28,68 +29,47 @@ export interface UserLocationState {
   currentCampus: Campus | null;
 }
 
-// Maximum distance (in meters) to be considered "on campus"
-const MAX_CAMPUS_DISTANCE_METERS = 200;
-
-// Haversine formula to calculate distance between two coordinates
-function calculateDistance(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number
-): number {
-  const R = 6371000; // Earth's radius in meters
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
-
-// Find the nearest building to a given location
-function findNearestBuilding(
+export function findNearestBuilding(
   latitude: number,
-  longitude: number
-): { building: Building | null; distance: number; campus: Campus | null } {
-  let nearestBuilding: Building | null = null;
+  longitude: number,
+  buildings: Building[] = All_BUILDINGS,
+): Building | null {
+  if (buildings.length === 0) return null;
+
+  let nearest: Building | null = null;
   let minDistance = Infinity;
 
-  for (const building of All_BUILDINGS) {
-    const distance = calculateDistance(latitude, longitude, building.lat, building.lng);
+  for (const building of buildings) {
+    const distance = haversineDistance(latitude, longitude, building.lat, building.lng);
     if (distance < minDistance) {
       minDistance = distance;
-      nearestBuilding = building;
+      nearest = building;
     }
   }
 
-  return {
-    building: nearestBuilding,
-    distance: minDistance,
-    campus: nearestBuilding?.campus || null,
-  };
+  return nearest;
 }
+
+// Maximum distance (in meters) to be considered "on campus"
+const MAX_CAMPUS_DISTANCE_METERS = 200;
 
 // Helper to create location state update from coordinates
 function createLocationStateUpdate(
   location: Location.LocationObject,
   offCampusMessage: string
 ): Partial<UserLocationState> {
-  const { building, distance, campus } = findNearestBuilding(
-    location.coords.latitude,
-    location.coords.longitude
-  );
+  const { latitude, longitude } = location.coords;
+  const building = findNearestBuilding(latitude, longitude);
+  const distance = building
+    ? haversineDistance(latitude, longitude, building.lat, building.lng)
+    : Infinity;
   const isOnCampus = distance <= MAX_CAMPUS_DISTANCE_METERS;
 
   return {
     location,
     nearestBuilding: isOnCampus ? building : null,
     isOnCampus,
-    currentCampus: isOnCampus ? campus : null,
+    currentCampus: isOnCampus ? building?.campus || null : null,
     isLoading: false,
     errorMsg: isOnCampus ? null : offCampusMessage,
   };
@@ -243,6 +223,24 @@ export function useUserLocation() {
     }
   }, [locationSubscription]);
 
+  // Get nearest building directly (for use in DirectionsHeader etc.)
+  const getNearestBuilding = useCallback(async (): Promise<Building | null> => {
+    const hasPermission = await requestLocationPermission();
+    if (!hasPermission) return null;
+
+    try {
+      const location = await Location.getCurrentPositionAsync({});
+      return findNearestBuilding(location.coords.latitude, location.coords.longitude);
+    } catch {
+      setState((prev) => ({
+        ...prev,
+        isLoading: false,
+        errorMsg: 'Failed to get current location',
+      }));
+      return null;
+    }
+  }, [requestLocationPermission]);
+
   useEffect(() => {
     return () => {
       if (locationSubscription) {
@@ -254,6 +252,7 @@ export function useUserLocation() {
   return {
     ...state,
     getCurrentLocation,
+    getNearestBuilding,
     startLocationTracking,
     stopLocationTracking,
     requestLocationPermission,
