@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
-import * as Location from 'expo-location';
-import { Building, Campus } from '@/constants/buildings';
-import { findNearestBuilding } from '../utils/locationUtils';
+import { useState, useEffect, useCallback } from "react";
+import * as Location from "expo-location";
+import { Building, Campus } from "@/constants/buildings";
+import { findNearestBuilding } from "../utils/locationUtils";
 
-// DEV MODE to mock location for testing. Setting to false will use users real location and changing to true will use mock location defined.
-const DEV_MODE_ENABLED = __DEV__ && false;
+// DEV MODE to mock location for testing. Change to `true` to use mock location defined below.
+const DEV_MODE_ENABLED = false;
 
 // Example mock locations for testing:
 // SGW Campus buildings:
@@ -15,7 +15,7 @@ const DEV_MODE_ENABLED = __DEV__ && false;
 //   CC Building: { latitude: 45.458204, longitude: -73.6403 }
 //   VL Building: { latitude: 45.459026, longitude: -73.638606 }
 const DEV_MOCK_LOCATION = {
-  latitude: 45.497092, 
+  latitude: 45.497092,
   longitude: -73.5788,
 };
 
@@ -35,11 +35,11 @@ const MAX_CAMPUS_DISTANCE_METERS = 200;
 // Helper to create location state update from coordinates
 function createLocationStateUpdate(
   location: Location.LocationObject,
-  offCampusMessage: string
+  offCampusMessage: string,
 ): Partial<UserLocationState> {
   const { building, distance, campus } = findNearestBuilding(
     location.coords.latitude,
-    location.coords.longitude
+    location.coords.longitude,
   );
   const isOnCampus = distance <= MAX_CAMPUS_DISTANCE_METERS;
 
@@ -64,7 +64,8 @@ export function useUserLocation() {
     currentCampus: null,
   });
 
-  const [locationSubscription, setLocationSubscription] = useState<Location.LocationSubscription | null>(null);
+  const [locationSubscription, setLocationSubscription] =
+    useState<Location.LocationSubscription | null>(null);
 
   // Request permission and start location tracking
   const requestLocationPermission = useCallback(async () => {
@@ -72,27 +73,29 @@ export function useUserLocation() {
 
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
-      
+
       setState((prev) => ({
         ...prev,
         permissionStatus: status,
       }));
 
-      if (status !== 'granted') {
+      if (status !== "granted") {
         setState((prev) => ({
           ...prev,
           isLoading: false,
-          errorMsg: 'Location permission denied. Please enable location access in your device settings to use this feature.',
+          errorMsg:
+            "Location permission denied. Please enable location access in your device settings to use this feature.",
         }));
         return false;
       }
 
       return true;
     } catch (error) {
+      console.warn("Failed to request location permission:", error);
       setState((prev) => ({
         ...prev,
         isLoading: false,
-        errorMsg: 'Failed to request location permission.',
+        errorMsg: "Failed to request location permission.",
       }));
       return false;
     }
@@ -103,10 +106,10 @@ export function useUserLocation() {
     // DEV MODE: Use mock location for testing
     if (DEV_MODE_ENABLED) {
       setState((prev) => ({ ...prev, isLoading: true }));
-      
+
       // Simulate a small delay like real location fetch
       await new Promise((resolve) => setTimeout(resolve, 500));
-      
+
       const mockLocation: Location.LocationObject = {
         coords: {
           latitude: DEV_MOCK_LOCATION.latitude,
@@ -120,19 +123,22 @@ export function useUserLocation() {
         timestamp: Date.now(),
       };
 
-      const stateUpdate = createLocationStateUpdate(mockLocation, "You don't appear to be on campus.");
+      const stateUpdate = createLocationStateUpdate(
+        mockLocation,
+        "You don't appear to be on campus.",
+      );
       setState((prev) => ({
         ...prev,
         ...stateUpdate,
-        permissionStatus: 'granted' as Location.PermissionStatus,
+        permissionStatus: "granted" as Location.PermissionStatus,
       }));
-      
-      console.log('DEV MODE: Using mock location', DEV_MOCK_LOCATION);
+
+      console.log("DEV MODE: Using mock location", DEV_MOCK_LOCATION);
       return;
     }
 
     const hasPermission = await requestLocationPermission();
-    
+
     if (!hasPermission) {
       return;
     }
@@ -146,14 +152,15 @@ export function useUserLocation() {
 
       const stateUpdate = createLocationStateUpdate(
         location,
-        "You don't appear to be on campus. Move closer to a Concordia campus to see your nearest building."
+        "You don't appear to be on campus. Move closer to a Concordia campus to see your nearest building.",
       );
       setState((prev) => ({ ...prev, ...stateUpdate }));
     } catch (error) {
+      console.warn("Failed to get current location:", error);
       setState((prev) => ({
         ...prev,
         isLoading: false,
-        errorMsg: 'Failed to get your location. Please try again.',
+        errorMsg: "Failed to get your location. Please try again.",
       }));
     }
   }, [requestLocationPermission]);
@@ -161,7 +168,7 @@ export function useUserLocation() {
   // Start continuous location tracking
   const startLocationTracking = useCallback(async () => {
     const hasPermission = await requestLocationPermission();
-    
+
     if (!hasPermission) {
       return;
     }
@@ -179,17 +186,21 @@ export function useUserLocation() {
           distanceInterval: 10, // Or when moved 10 meters
         },
         (location) => {
-          const stateUpdate = createLocationStateUpdate(location, "You don't appear to be on campus.");
+          const stateUpdate = createLocationStateUpdate(
+            location,
+            "You don't appear to be on campus.",
+          );
           setState((prev) => ({ ...prev, ...stateUpdate }));
-        }
+        },
       );
 
       setLocationSubscription(subscription);
     } catch (error) {
+      console.warn("Failed to start location tracking:", error);
       setState((prev) => ({
         ...prev,
         isLoading: false,
-        errorMsg: 'Failed to start location tracking.',
+        errorMsg: "Failed to start location tracking.",
       }));
     }
   }, [requestLocationPermission, locationSubscription]);
@@ -208,12 +219,16 @@ export function useUserLocation() {
 
     try {
       const location = await Location.getCurrentPositionAsync({});
-      const { building } = findNearestBuilding(location.coords.latitude, location.coords.longitude);
+      const { building } = findNearestBuilding(
+        location.coords.latitude,
+        location.coords.longitude,
+      );
       return building;
-    } catch {
+    } catch (error) {
+      console.warn("Failed to get nearest building:", error);
       setState((prev) => ({
         ...prev,
-        errorMsg: 'Failed to get current location',
+        errorMsg: "Failed to get current location",
       }));
       return null;
     } finally {
@@ -243,4 +258,3 @@ export function useUserLocation() {
     requestLocationPermission,
   };
 }
-
