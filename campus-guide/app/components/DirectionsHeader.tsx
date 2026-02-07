@@ -18,7 +18,7 @@ export function DirectionsHeader() {
         clearDirections
     } = useDirections();
 
-    const { getNearestBuilding, isLoading: locationLoading } = useUserLocation();
+    const { getNearestBuilding, isLoading: locationLoading, resetLoadingState } = useUserLocation();
 
     const [isSearchingStart, setIsSearchingStart] = useState(false);
     const [isSearchingDest, setIsSearchingDest] = useState(false);
@@ -64,7 +64,7 @@ export function DirectionsHeader() {
             <View style={styles.content}>
                 <View style={styles.titleRow}>
                     <Text testID="directions-title" style={styles.title}>Get Directions</Text>
-                    <TouchableOpacity onPress={clearDirections}>
+                    <TouchableOpacity onPress={() => { clearDirections(); resetLoadingState(); }}>
                         <Ionicons name="trash-outline" size={20} color="#6B7280" />
                     </TouchableOpacity>
                 </View>

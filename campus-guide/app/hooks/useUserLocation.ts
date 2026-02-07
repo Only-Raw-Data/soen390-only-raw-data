@@ -234,12 +234,17 @@ export function useUserLocation() {
     } catch {
       setState((prev) => ({
         ...prev,
-        isLoading: false,
         errorMsg: 'Failed to get current location',
       }));
       return null;
+    } finally {
+      setState((prev) => ({ ...prev, isLoading: false }));
     }
   }, [requestLocationPermission]);
+
+  const resetLoadingState = useCallback(() => {
+    setState((prev) => ({ ...prev, isLoading: false }));
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -253,6 +258,7 @@ export function useUserLocation() {
     ...state,
     getCurrentLocation,
     getNearestBuilding,
+    resetLoadingState,
     startLocationTracking,
     stopLocationTracking,
     requestLocationPermission,
