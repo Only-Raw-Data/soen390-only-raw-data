@@ -73,7 +73,6 @@ jest.mock('react-native-maps', () => {
   };
 });
 
-// Mock LocateMeButton - capture callbacks for testing
 let capturedOnCampusDetected: ((campus: string) => void) | null = null;
 let capturedOnBuildingHighlight: ((buildingId: string | null) => void) | null = null;
 
@@ -82,7 +81,6 @@ jest.mock('../LocateMeButton', () => ({
     const React = require('react');
     const { TouchableOpacity, Text } = require('react-native');
     
-    // Capture callbacks for testing
     capturedOnCampusDetected = onCampusDetected;
     capturedOnBuildingHighlight = onBuildingHighlight;
     
@@ -423,7 +421,6 @@ describe('MapViewApp', () => {
       });
 
       // Assert - should not trigger additional re-renders for campus switch
-      // The hook will be called again due to React rendering, but campus stays same
       expect(useBuildingPolygons).toHaveBeenLastCalledWith('SGW');
     });
 

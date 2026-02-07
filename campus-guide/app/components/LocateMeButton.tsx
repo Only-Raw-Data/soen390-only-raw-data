@@ -38,7 +38,6 @@ export function LocateMeButton({
 
   useEffect(() => {
     if (showToast) {
-      // Fade in
       Animated.timing(fadeAnim, {
         toValue: 1,
         duration: 300,
@@ -60,7 +59,6 @@ export function LocateMeButton({
     }
   }, [showToast, fadeAnim]);
 
-  // Show toast when location result changes
   useEffect(() => {
     if (!isLoading) {
       if (errorMsg) {
@@ -73,7 +71,6 @@ export function LocateMeButton({
         setToastType('success');
         setShowToast(true);
         
-        // Notify parent about detected campus
         if (currentCampus) {
           onCampusDetected?.(currentCampus);
         }
@@ -85,7 +82,6 @@ export function LocateMeButton({
   }, [isLoading, isOnCampus, nearestBuilding, errorMsg, currentCampus]);
 
   const handlePress = async () => {
-    // Clear previous highlight
     onBuildingHighlight?.(null);
     await onLocate();
   };
@@ -114,7 +110,6 @@ export function LocateMeButton({
 
   return (
     <>
-      {/* Toast Message */}
       {showToast && (
         <Animated.View
           style={[
@@ -145,7 +140,6 @@ export function LocateMeButton({
         </Animated.View>
       )}
 
-      {/* Locate Me Button */}
       <TouchableOpacity
         style={[styles.button, isLoading && styles.buttonDisabled]}
         onPress={handlePress}

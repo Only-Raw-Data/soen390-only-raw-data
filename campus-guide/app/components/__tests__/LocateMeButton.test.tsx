@@ -2,7 +2,6 @@ import React from 'react';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { LocateMeButton } from '../LocateMeButton';
 
-// Mock Ionicons
 jest.mock('@expo/vector-icons', () => ({
   Ionicons: ({ name, testID }: any) => {
     const { Text } = require('react-native');
@@ -10,7 +9,6 @@ jest.mock('@expo/vector-icons', () => ({
   },
 }));
 
-// Mock building
 const mockBuilding = {
   id: 'h',
   name: 'Henry F. Hall Building',
@@ -47,7 +45,6 @@ describe('LocateMeButton', () => {
   it('renders locate button', () => {
     const { getByText } = render(<LocateMeButton {...defaultProps} />);
     
-    // Button should render with locate icon
     expect(getByText('locate')).toBeTruthy();
   });
 
@@ -69,7 +66,6 @@ describe('LocateMeButton', () => {
       <LocateMeButton {...defaultProps} isLoading={true} />
     );
 
-    // Should not show locate icon when loading
     expect(queryByText('locate')).toBeNull();
   });
 
@@ -79,9 +75,6 @@ describe('LocateMeButton', () => {
       <LocateMeButton {...defaultProps} isLoading={true} onLocate={onLocate} />
     );
 
-    // The button should be disabled, so pressing shouldn't call onLocate
-    // We can't easily test disabled state in RN testing library,
-    // but we can verify the loading indicator is shown
     expect(onLocate).not.toHaveBeenCalled();
   });
 
@@ -90,7 +83,6 @@ describe('LocateMeButton', () => {
       <LocateMeButton {...defaultProps} isLoading={true} />
     );
 
-    // Simulate location found
     rerender(
       <LocateMeButton
         {...defaultProps}
@@ -112,7 +104,6 @@ describe('LocateMeButton', () => {
       <LocateMeButton {...defaultProps} isLoading={true} />
     );
 
-    // Simulate error
     rerender(
       <LocateMeButton
         {...defaultProps}
@@ -136,7 +127,6 @@ describe('LocateMeButton', () => {
       />
     );
 
-    // Simulate location found
     rerender(
       <LocateMeButton
         {...defaultProps}
@@ -163,7 +153,6 @@ describe('LocateMeButton', () => {
       />
     );
 
-    // Simulate location found
     rerender(
       <LocateMeButton
         {...defaultProps}
@@ -208,7 +197,6 @@ describe('LocateMeButton', () => {
       />
     );
 
-    // Simulate error
     rerender(
       <LocateMeButton
         {...defaultProps}
@@ -228,7 +216,6 @@ describe('LocateMeButton', () => {
       <LocateMeButton {...defaultProps} isLoading={true} />
     );
 
-    // Simulate location found
     rerender(
       <LocateMeButton
         {...defaultProps}
@@ -239,23 +226,19 @@ describe('LocateMeButton', () => {
       />
     );
 
-    // Wait for toast to appear
     await waitFor(() => {
       expect(getByText(/You are near/)).toBeTruthy();
     });
 
-    // Press close button
     const closeButton = getByText('close');
     await act(async () => {
       fireEvent.press(closeButton);
     });
 
-    // Fast-forward animation
     act(() => {
       jest.advanceTimersByTime(300);
     });
 
-    // Toast should be gone
     await waitFor(() => {
       expect(queryByText(/You are near/)).toBeNull();
     });

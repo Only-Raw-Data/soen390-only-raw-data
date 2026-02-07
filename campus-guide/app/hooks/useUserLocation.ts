@@ -2,12 +2,10 @@ import { useState, useEffect, useCallback } from 'react';
 import * as Location from 'expo-location';
 import { Building, All_BUILDINGS, Campus, SGW_BUILDINGS, LOYOLA_BUILDINGS } from '@/constants/buildings';
 
-// ============================================
-// DEV MODE: Set to true to simulate location
-// ============================================
-const DEV_MODE_ENABLED = __DEV__ && false; // Change to `true` to enable mock location
+// DEV MODE to mock location for testing. Setting to false will use users real location and changing to true will use mock location defined.
+const DEV_MODE_ENABLED = __DEV__ && false;
 
-// Mock location - change these coordinates to test different buildings
+// Example mock locations for testing:
 // SGW Campus buildings:
 //   H Building: { latitude: 45.497092, longitude: -73.5788 }
 //   MB Building: { latitude: 45.495304, longitude: -73.579044 }
@@ -16,10 +14,9 @@ const DEV_MODE_ENABLED = __DEV__ && false; // Change to `true` to enable mock lo
 //   CC Building: { latitude: 45.458204, longitude: -73.6403 }
 //   VL Building: { latitude: 45.459026, longitude: -73.638606 }
 const DEV_MOCK_LOCATION = {
-  latitude: 45.497092,  // H Building (SGW)
+  latitude: 45.497092, 
   longitude: -73.5788,
 };
-// ============================================
 
 export interface UserLocationState {
   location: Location.LocationObject | null;
@@ -239,7 +236,6 @@ export function useUserLocation() {
     }
   }, [requestLocationPermission, locationSubscription]);
 
-  // Stop location tracking
   const stopLocationTracking = useCallback(() => {
     if (locationSubscription) {
       locationSubscription.remove();
@@ -247,7 +243,6 @@ export function useUserLocation() {
     }
   }, [locationSubscription]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (locationSubscription) {

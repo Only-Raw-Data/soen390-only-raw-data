@@ -229,7 +229,6 @@ export function MapViewApp({showSearch, googleMapsApiKey}: MapViewAppProps ) {
                 ))}
             </MapView>
 
-            {/* Locate Me Button */}
             <LocateMeButton
                 onLocate={getCurrentLocation}
                 isLoading={locationLoading}
