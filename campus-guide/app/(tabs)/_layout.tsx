@@ -17,6 +17,8 @@ export default function TabLayout() {
   };
 
   const handleScreenChange = (screen: Screen) => {
+    // For now, we'll map screens to existing routes
+    // You can create more routes later for each screen type
     switch (screen) {
       case 'map':
         router.push('/(tabs)');
@@ -25,10 +27,6 @@ export default function TabLayout() {
         router.push('/(tabs)/two');
         break;
       case 'schedule':
-        // Schedule is now integrated into directions (shuttle mode)
-        // Redirect to directions screen
-        router.push('/(tabs)/two');
-        break;
       case 'indoor':
       case 'poi':
         // These can navigate to the same routes for now
