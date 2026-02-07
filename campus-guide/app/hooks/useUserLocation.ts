@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import * as Location from 'expo-location';
-import { Building, All_BUILDINGS, Campus, SGW_BUILDINGS, LOYOLA_BUILDINGS } from '@/constants/buildings';
+import { Building, Campus } from '@/constants/buildings';
+import { findNearestBuilding } from '../utils/locationUtils';
 
 // DEV MODE to mock location for testing. Setting to false will use users real location and changing to true will use mock location defined.
 const DEV_MODE_ENABLED = __DEV__ && false;
@@ -30,49 +31,6 @@ export interface UserLocationState {
 
 // Maximum distance (in meters) to be considered "on campus"
 const MAX_CAMPUS_DISTANCE_METERS = 200;
-
-// Haversine formula to calculate distance between two coordinates
-function calculateDistance(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number
-): number {
-  const R = 6371000; // Earth's radius in meters
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
-
-// Find the nearest building to a given location
-function findNearestBuilding(
-  latitude: number,
-  longitude: number
-): { building: Building | null; distance: number; campus: Campus | null } {
-  let nearestBuilding: Building | null = null;
-  let minDistance = Infinity;
-
-  for (const building of All_BUILDINGS) {
-    const distance = calculateDistance(latitude, longitude, building.lat, building.lng);
-    if (distance < minDistance) {
-      minDistance = distance;
-      nearestBuilding = building;
-    }
-  }
-
-  return {
-    building: nearestBuilding,
-    distance: minDistance,
-    campus: nearestBuilding?.campus || null,
-  };
-}
 
 // Helper to create location state update from coordinates
 function createLocationStateUpdate(
