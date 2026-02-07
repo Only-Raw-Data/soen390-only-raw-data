@@ -23,6 +23,14 @@ export function DirectionsHeader() {
     const [isSearchingStart, setIsSearchingStart] = useState(false);
     const [isSearchingDest, setIsSearchingDest] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const [showScheduleModal, setShowScheduleModal] = useState(false);
+
+    // Show modal when shuttle mode is selected
+    useEffect(() => {
+        if (transportationMode === 'shuttle') {
+            setShowScheduleModal(true);
+        }
+    }, [transportationMode]);
 
     const handleUseCurrentLocation = async () => {
         setIsSearchingStart(false);
@@ -60,6 +68,7 @@ export function DirectionsHeader() {
     ];
 
     return (
+        <>
         <View style={styles.container}>
             <View style={styles.content}>
                 <View style={styles.titleRow}>
@@ -177,6 +186,39 @@ export function DirectionsHeader() {
                 </TouchableOpacity>
             </View>
         </View>
+
+        {/* Shuttle Schedule Modal */}
+        <Modal
+            visible={showScheduleModal}
+            animationType="slide"
+            transparent={true}
+            onRequestClose={() => setShowScheduleModal(false)}
+        >
+            <View style={styles.modalOverlay}>
+                <View style={styles.modalContent}>
+                    <View style={styles.modalHeader}>
+                        <View style={styles.modalTitleRow}>
+                            <Ionicons name="bus" size={24} color="#912338" />
+                            <Text style={styles.modalTitle}>Shuttle Bus Schedule</Text>
+                        </View>
+                        <TouchableOpacity
+                            onPress={() => setShowScheduleModal(false)}
+                            style={styles.closeButton}
+                        >
+                            <Ionicons name="close" size={24} color="#6B7280" />
+                        </TouchableOpacity>
+                    </View>
+                    <ScrollView 
+                        style={styles.modalScheduleContainer}
+                        contentContainerStyle={{ flexGrow: 1 }}
+                        showsVerticalScrollIndicator={true}
+                    >
+                        <ShuttleSchedule compact={false} />
+                    </ScrollView>
+                </View>
+            </View>
+        </Modal>
+        </>
     );
 }
 
@@ -320,5 +362,48 @@ const styles = StyleSheet.create({
     resultCampus: {
         fontSize: 12,
         color: '#6B7280',
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'flex-end',
+    },
+    modalContent: {
+        backgroundColor: '#F3F4F6',
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        height: '90%',
+        flexDirection: 'column',
+    },
+    modalScheduleContainer: {
+        flex: 1,
+        paddingHorizontal: 20,
+        paddingTop: 20,
+        paddingBottom: 100,
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 20,
+        paddingBottom: 16,
+        backgroundColor: '#FFFFFF',
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        borderBottomWidth: 1,
+        borderBottomColor: '#E5E7EB',
+    },
+    modalTitleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    modalTitle: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#111827',
+    },
+    closeButton: {
+        padding: 4,
     },
 });
