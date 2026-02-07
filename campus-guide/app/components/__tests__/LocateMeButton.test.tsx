@@ -21,6 +21,8 @@ const mockBuilding = {
   y: 0,
 };
 
+const TOAST_ANIMATION_DURATION_MS = 300;
+
 describe('LocateMeButton', () => {
   const defaultProps = {
     onLocate: jest.fn().mockResolvedValue(undefined),
@@ -236,7 +238,7 @@ describe('LocateMeButton', () => {
     });
 
     act(() => {
-      jest.advanceTimersByTime(300);
+      jest.advanceTimersByTime(TOAST_ANIMATION_DURATION_MS);
     });
 
     await waitFor(() => {

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import * as Location from 'expo-location';
-import { All_BUILDINGS, Building, Campus } from '@/constants/buildings';
-import { haversineDistance } from '../utils/haversine';
+import { Building, Campus } from '@/constants/buildings';
+import { findNearestBuilding } from '../utils/locationUtils';
 
 // DEV MODE to mock location for testing. Setting to false will use users real location and changing to true will use mock location defined.
 const DEV_MODE_ENABLED = __DEV__ && false;
@@ -29,27 +29,6 @@ export interface UserLocationState {
   currentCampus: Campus | null;
 }
 
-export function findNearestBuilding(
-  latitude: number,
-  longitude: number,
-  buildings: Building[] = All_BUILDINGS,
-): Building | null {
-  if (buildings.length === 0) return null;
-
-  let nearest: Building | null = null;
-  let minDistance = Infinity;
-
-  for (const building of buildings) {
-    const distance = haversineDistance(latitude, longitude, building.lat, building.lng);
-    if (distance < minDistance) {
-      minDistance = distance;
-      nearest = building;
-    }
-  }
-
-  return nearest;
-}
-
 // Maximum distance (in meters) to be considered "on campus"
 const MAX_CAMPUS_DISTANCE_METERS = 200;
 
@@ -58,18 +37,17 @@ function createLocationStateUpdate(
   location: Location.LocationObject,
   offCampusMessage: string
 ): Partial<UserLocationState> {
-  const { latitude, longitude } = location.coords;
-  const building = findNearestBuilding(latitude, longitude);
-  const distance = building
-    ? haversineDistance(latitude, longitude, building.lat, building.lng)
-    : Infinity;
+  const { building, distance, campus } = findNearestBuilding(
+    location.coords.latitude,
+    location.coords.longitude
+  );
   const isOnCampus = distance <= MAX_CAMPUS_DISTANCE_METERS;
 
   return {
     location,
     nearestBuilding: isOnCampus ? building : null,
     isOnCampus,
-    currentCampus: isOnCampus ? building?.campus || null : null,
+    currentCampus: isOnCampus ? campus : null,
     isLoading: false,
     errorMsg: isOnCampus ? null : offCampusMessage,
   };
@@ -230,7 +208,8 @@ export function useUserLocation() {
 
     try {
       const location = await Location.getCurrentPositionAsync({});
-      return findNearestBuilding(location.coords.latitude, location.coords.longitude);
+      const { building } = findNearestBuilding(location.coords.latitude, location.coords.longitude);
+      return building;
     } catch {
       setState((prev) => ({
         ...prev,

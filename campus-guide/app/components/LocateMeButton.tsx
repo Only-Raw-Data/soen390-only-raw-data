@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Building, Campus } from '@/constants/buildings';
+import { ToastType } from '../types/ToastType';
 
 interface LocateMeButtonProps {
   onLocate: () => Promise<void>;
@@ -33,7 +34,7 @@ export function LocateMeButton({
 }: LocateMeButtonProps) {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
-  const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
+  const [toastType, setToastType] = useState<ToastType>('info');
   const fadeAnim = useState(new Animated.Value(0))[0];
 
   useEffect(() => {

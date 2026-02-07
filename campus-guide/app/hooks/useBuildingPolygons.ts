@@ -93,7 +93,7 @@ async function cachePolygons(
   }
 }
 
-import { haversineDistance } from "../utils/haversine";
+import { haversineDistance } from "../utils/locationUtils";
 
 function matchBuildingsToPolygons(
   buildings: Building[],

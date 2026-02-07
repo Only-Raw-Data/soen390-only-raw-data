@@ -1,6 +1,7 @@
 import { renderHook, act, waitFor } from '@testing-library/react-native';
 import * as Location from 'expo-location';
-import { useUserLocation, findNearestBuilding } from '../useUserLocation';
+import { useUserLocation } from '../useUserLocation';
+import { findNearestBuilding } from '../../utils/locationUtils';
 
 // Mock expo-location
 jest.mock('expo-location', () => ({
@@ -17,46 +18,42 @@ jest.mock('expo-location', () => ({
   },
 }));
 
-// Mock building constants
+// Mock building constants (needed by locationUtils)
 jest.mock('../../../constants/buildings', () => ({
-  All_BUILDINGS: [
-    {
-      id: 'h',
-      name: 'Henry F. Hall Building',
-      code: 'H',
-      lat: 45.497092,
-      lng: -73.5788,
-      campus: 'SGW',
-      address: '1455 DeMaisonneuve W',
-      x: 0,
-      y: 0,
-    },
-    {
-      id: 'mb',
-      name: 'John Molson Building',
-      code: 'MB',
-      lat: 45.495304,
-      lng: -73.579044,
-      campus: 'SGW',
-      address: '1450 Guy Street',
-      x: 0,
-      y: 0,
-    },
-    {
-      id: 'cc',
-      name: 'Central Building',
-      code: 'CC',
-      lat: 45.458204,
-      lng: -73.6403,
-      campus: 'Loyola',
-      address: '7141 Sherbrooke West',
-      x: 0,
-      y: 0,
-    },
-  ],
+  All_BUILDINGS: [],
   SGW_BUILDINGS: [],
   LOYOLA_BUILDINGS: [],
 }));
+
+// Mock locationUtils
+jest.mock('../../utils/locationUtils', () => ({
+  findNearestBuilding: jest.fn(),
+}));
+
+// Test building fixtures
+const H_BUILDING = {
+  id: 'h',
+  name: 'Henry F. Hall Building',
+  code: 'H',
+  lat: 45.497092,
+  lng: -73.5788,
+  campus: 'SGW',
+  address: '1455 DeMaisonneuve W',
+  x: 0,
+  y: 0,
+};
+
+const CC_BUILDING = {
+  id: 'cc',
+  name: 'Central Building',
+  code: 'CC',
+  lat: 45.458204,
+  lng: -73.6403,
+  campus: 'Loyola',
+  address: '7141 Sherbrooke West',
+  x: 0,
+  y: 0,
+};
 
 // Helper to create mock location objects
 const createMockLocation = (latitude: number, longitude: number): Location.LocationObject => ({
@@ -84,24 +81,23 @@ const mockPermission = (status: 'granted' | 'denied') => {
   (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({ status });
 };
 
-describe('findNearestBuilding', () => {
-  it('returns the nearest building to given coordinates', () => {
-    const result = findNearestBuilding(45.497092, -73.5788);
-    expect(result).not.toBeNull();
-    expect(result!.id).toBe('h');
+// Helper to setup findNearestBuilding mock for on-campus
+const mockFindOnCampus = (building: any) => {
+  (findNearestBuilding as jest.Mock).mockReturnValue({
+    building,
+    distance: 0,
+    campus: building.campus,
   });
+};
 
-  it('returns null for an empty buildings list', () => {
-    const result = findNearestBuilding(45.495, -73.578, []);
-    expect(result).toBeNull();
+// Helper to setup findNearestBuilding mock for off-campus
+const mockFindOffCampus = () => {
+  (findNearestBuilding as jest.Mock).mockReturnValue({
+    building: H_BUILDING,
+    distance: 5000,
+    campus: 'SGW',
   });
-
-  it('returns the closest building among candidates', () => {
-    const result = findNearestBuilding(45.497, -73.579);
-    expect(result).not.toBeNull();
-    expect(result!.id).toBe('h');
-  });
-});
+};
 
 describe('useUserLocation', () => {
   beforeEach(() => {
@@ -120,129 +116,147 @@ describe('useUserLocation', () => {
   });
 
   it('handles permission denied', async () => {
+    //Arrange
     mockPermission('denied');
-
     const { result } = renderHook(() => useUserLocation());
 
+    //Act
     await act(async () => {
       await result.current.getCurrentLocation();
     });
 
+    //Assert
     expect(result.current.errorMsg).toContain('Location permission denied');
     expect(result.current.isLoading).toBe(false);
   });
 
   it('gets current location when permission granted', async () => {
+    //Arrange
     mockPermission('granted');
+    mockFindOnCampus(H_BUILDING);
     const mockLocation = createMockLocation(COORDS.H_BUILDING.lat, COORDS.H_BUILDING.lng);
     (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValue(mockLocation);
-
     const { result } = renderHook(() => useUserLocation());
 
+    //Act
     await act(async () => {
       await result.current.getCurrentLocation();
     });
 
+    //Assert
     expect(result.current.location?.coords.latitude).toBe(COORDS.H_BUILDING.lat);
     expect(result.current.location?.coords.longitude).toBe(COORDS.H_BUILDING.lng);
     expect(result.current.isLoading).toBe(false);
   });
 
   it('identifies nearest building when on campus', async () => {
+    //Arrange
     mockPermission('granted');
+    mockFindOnCampus(H_BUILDING);
     (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValue(
       createMockLocation(COORDS.H_BUILDING.lat, COORDS.H_BUILDING.lng)
     );
-
     const { result } = renderHook(() => useUserLocation());
 
+    //Act
     await act(async () => {
       await result.current.getCurrentLocation();
     });
 
+    //Assert
     expect(result.current.isOnCampus).toBe(true);
     expect(result.current.nearestBuilding?.id).toBe('h');
     expect(result.current.currentCampus).toBe('SGW');
   });
 
   it('shows not on campus when far from buildings', async () => {
+    //Arrange
     mockPermission('granted');
+    mockFindOffCampus();
     (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValue(
       createMockLocation(COORDS.OFF_CAMPUS.lat, COORDS.OFF_CAMPUS.lng)
     );
-
     const { result } = renderHook(() => useUserLocation());
 
+    //Act
     await act(async () => {
       await result.current.getCurrentLocation();
     });
 
+    //Assert
     expect(result.current.isOnCampus).toBe(false);
     expect(result.current.nearestBuilding).toBeNull();
     expect(result.current.errorMsg).toContain("don't appear to be on campus");
   });
 
   it('handles location tracking subscription', async () => {
+    //Arrange
     const mockRemove = jest.fn();
     mockPermission('granted');
     (Location.watchPositionAsync as jest.Mock).mockResolvedValue({ remove: mockRemove });
-
     const { result, unmount } = renderHook(() => useUserLocation());
 
+    //Act
     await act(async () => {
       await result.current.startLocationTracking();
     });
 
+    //Assert
     expect(Location.watchPositionAsync).toHaveBeenCalled();
-
     unmount();
     expect(mockRemove).toHaveBeenCalled();
   });
 
   it('stops location tracking when requested', async () => {
+    //Arrange
     const mockRemove = jest.fn();
     mockPermission('granted');
     (Location.watchPositionAsync as jest.Mock).mockResolvedValue({ remove: mockRemove });
-
     const { result } = renderHook(() => useUserLocation());
-
     await act(async () => {
       await result.current.startLocationTracking();
     });
 
+    //Act
     act(() => {
       result.current.stopLocationTracking();
     });
 
+    //Assert
     expect(mockRemove).toHaveBeenCalled();
   });
 
   it('handles location error gracefully', async () => {
+    //Arrange
     mockPermission('granted');
     (Location.getCurrentPositionAsync as jest.Mock).mockRejectedValue(new Error('Location unavailable'));
-
     const { result } = renderHook(() => useUserLocation());
 
+    //Act
     await act(async () => {
       await result.current.getCurrentLocation();
     });
 
+    //Assert
     expect(result.current.errorMsg).toContain('Failed to get your location');
     expect(result.current.isLoading).toBe(false);
   });
 
   it('identifies Loyola campus correctly', async () => {
+    //Arrange
     mockPermission('granted');
+    mockFindOnCampus(CC_BUILDING);
     (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValue(
       createMockLocation(COORDS.CC_BUILDING.lat, COORDS.CC_BUILDING.lng)
     );
-
     const { result } = renderHook(() => useUserLocation());
 
+    //Act
     await act(async () => {
       await result.current.getCurrentLocation();
     });
 
+    //Assert
     expect(result.current.isOnCampus).toBe(true);
     expect(result.current.nearestBuilding?.id).toBe('cc');
     expect(result.current.currentCampus).toBe('Loyola');
@@ -268,6 +282,11 @@ describe('useUserLocation', () => {
   it('returns nearest building via getNearestBuilding on success', async () => {
     //Arrange
     mockPermission('granted');
+    (findNearestBuilding as jest.Mock).mockReturnValue({
+      building: H_BUILDING,
+      distance: 0,
+      campus: 'SGW',
+    });
     (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValue(
       createMockLocation(COORDS.H_BUILDING.lat, COORDS.H_BUILDING.lng)
     );
@@ -409,6 +428,7 @@ describe('useUserLocation', () => {
     });
 
     //Act - simulate a location update on campus
+    mockFindOnCampus(H_BUILDING);
     act(() => {
       trackingCallback!(createMockLocation(COORDS.H_BUILDING.lat, COORDS.H_BUILDING.lng));
     });
@@ -418,6 +438,7 @@ describe('useUserLocation', () => {
     expect(result.current.nearestBuilding?.id).toBe('h');
 
     //Act - simulate a location update off campus
+    mockFindOffCampus();
     act(() => {
       trackingCallback!(createMockLocation(COORDS.OFF_CAMPUS.lat, COORDS.OFF_CAMPUS.lng));
     });
