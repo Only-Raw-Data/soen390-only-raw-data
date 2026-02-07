@@ -5,17 +5,18 @@ import { useDirections } from "../../context/DirectionsContext";
 import useBuildingPolygons from "../../hooks/useBuildingPolygons";
 import useUserLocation from "../../hooks/useUserLocation";
 
-//Mocks
 jest.mock("../../context/DirectionsContext", () => ({
   useDirections: jest.fn(),
 }));
 
 jest.mock("../../hooks/useBuildingPolygons", () => ({
-  useBuildingPolygons: jest.fn(),
+  __esModule: true,
+  default: jest.fn(),
 }));
 
 jest.mock("../../hooks/useUserLocation", () => ({
-  useUserLocation: jest.fn(),
+  __esModule: true,
+  default: jest.fn(),
 }));
 
 jest.mock("../../../constants/mapStyle", () => ({
@@ -78,28 +79,40 @@ jest.mock("react-native-maps", () => {
   };
 });
 
-let capturedOnCampusDetected: ((campus: string) => void) | null = null;
-let capturedOnBuildingHighlight: ((buildingId: string | null) => void) | null =
-  null;
+// Captured callbacks storage
+const mockCallbacks = {
+  onCampusDetected: null as ((campus: string) => void) | null,
+  onBuildingHighlight: null as ((buildingId: string | null) => void) | null,
+};
 
-jest.mock("../LocateMeButton", () => ({
-  LocateMeButton: ({
-    onLocate,
-    onCampusDetected,
-    onBuildingHighlight,
-  }: any) => {
-    const { TouchableOpacity, Text } = require("react-native");
+jest.mock("../LocateMeButton", () => {
+  const React = require("react");
+  const { TouchableOpacity, Text } = require("react-native");
 
-    capturedOnCampusDetected = onCampusDetected;
-    capturedOnBuildingHighlight = onBuildingHighlight;
+  return {
+    __esModule: true,
+    default: function MockLocateMeButton({
+      onLocate,
+      onCampusDetected,
+      onBuildingHighlight,
+    }: any) {
+      React.useEffect(() => {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const { mockCallbacks } = require("./MapView.test");
+        mockCallbacks.onCampusDetected = onCampusDetected;
+        mockCallbacks.onBuildingHighlight = onBuildingHighlight;
+      }, [onCampusDetected, onBuildingHighlight]);
 
-    return (
-      <TouchableOpacity testID="locate-me-button" onPress={onLocate}>
-        <Text>Locate Me</Text>
-      </TouchableOpacity>
-    );
-  },
-}));
+      return (
+        <TouchableOpacity testID="locate-me-button" onPress={onLocate}>
+          <Text>Locate Me</Text>
+        </TouchableOpacity>
+      );
+    },
+  };
+});
+
+export { mockCallbacks };
 
 // Mock polygon data for tests
 const mockSGWPolygons = [
@@ -414,8 +427,8 @@ describe("MapViewApp", () => {
 
       // Act - simulate location detected at Loyola
       act(() => {
-        if (capturedOnCampusDetected) {
-          capturedOnCampusDetected("Loyola");
+        if (mockCallbacks.onCampusDetected) {
+          mockCallbacks.onCampusDetected("Loyola");
         }
       });
 
@@ -429,8 +442,8 @@ describe("MapViewApp", () => {
 
       // Act - simulate location detected at SGW (same as current)
       act(() => {
-        if (capturedOnCampusDetected) {
-          capturedOnCampusDetected("SGW");
+        if (mockCallbacks.onCampusDetected) {
+          mockCallbacks.onCampusDetected("SGW");
         }
       });
 
@@ -444,13 +457,13 @@ describe("MapViewApp", () => {
 
       // Act - simulate building highlight
       act(() => {
-        if (capturedOnBuildingHighlight) {
-          capturedOnBuildingHighlight("h");
+        if (mockCallbacks.onBuildingHighlight) {
+          mockCallbacks.onBuildingHighlight("h");
         }
       });
 
       // Assert - the callback should have been captured and callable
-      expect(capturedOnBuildingHighlight).toBeDefined();
+      expect(mockCallbacks.onBuildingHighlight).toBeDefined();
     });
 
     it("clears highlight when onBuildingHighlight is called with null", () => {
@@ -459,14 +472,14 @@ describe("MapViewApp", () => {
 
       // Act - set then clear highlight
       act(() => {
-        if (capturedOnBuildingHighlight) {
-          capturedOnBuildingHighlight("h");
-          capturedOnBuildingHighlight(null);
+        if (mockCallbacks.onBuildingHighlight) {
+          mockCallbacks.onBuildingHighlight("h");
+          mockCallbacks.onBuildingHighlight(null);
         }
       });
 
       // Assert - callback should work with null
-      expect(capturedOnBuildingHighlight).toBeDefined();
+      expect(mockCallbacks.onBuildingHighlight).toBeDefined();
     });
 
     it("animates to user location when campus detected and location available", () => {
@@ -493,8 +506,8 @@ describe("MapViewApp", () => {
 
       // Act - trigger campus detection
       act(() => {
-        if (capturedOnCampusDetected) {
-          capturedOnCampusDetected("Loyola");
+        if (mockCallbacks.onCampusDetected) {
+          mockCallbacks.onCampusDetected("Loyola");
         }
       });
 
