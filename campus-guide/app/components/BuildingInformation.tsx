@@ -1,4 +1,3 @@
-// BuildingInfoPopup.tsx
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -27,7 +26,8 @@ export default function BuildingInformation({
                 <View style={styles.content}>
                     {BUILDING_IMAGES[building.id] && (
                         <View style={styles.imageContainer}>
-                            <Image 
+                            <Image
+                                testID="building-image" 
                                 source={BUILDING_IMAGES[building.id]}
                                 style={styles.buildingImage}
                                 resizeMode="cover"
