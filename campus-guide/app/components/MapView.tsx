@@ -270,17 +270,6 @@ export function MapViewApp({showSearch, googleMapsApiKey}: MapViewAppProps ) {
                 onBuildingHighlight={handleBuildingHighlight}
             />
 
-            <LocateMeButton
-                onLocate={getCurrentLocation}
-                isLoading={locationLoading}
-                nearestBuilding={nearestBuilding}
-                isOnCampus={isOnCampus}
-                errorMsg={locationError}
-                currentCampus={currentCampus}
-                onCampusDetected={handleCampusDetected}
-                onBuildingHighlight={handleBuildingHighlight}
-            />
-
             {infoBuilding&& (
             <BuildingInformation
                 building={infoBuilding}
