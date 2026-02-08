@@ -294,7 +294,10 @@ export default function MapViewApp({
         {(startBuilding || destinationBuilding) && (
           <TouchableOpacity
             style={styles.clearSelectionButton}
-            onPress={clearDirections}
+            onPress={() => {
+              clearDirections();
+              setSelectedBuilding(null);
+            }}
           >
             <Ionicons name="close-circle" size={24} color="#FFFFFF" />
           </TouchableOpacity>
