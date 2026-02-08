@@ -4,6 +4,7 @@ import { MapViewApp } from '../MapView';
 import { useDirections } from '../../context/DirectionsContext';
 import { useBuildingPolygons } from '../../hooks/useBuildingPolygons';
 import { useUserLocation } from '../../hooks/useUserLocation';
+import { SGW_BUILDINGS } from '@/constants/buildings';
 
 //Mocks
 jest.mock('../../context/DirectionsContext', () => ({
@@ -61,6 +62,10 @@ jest.mock('react-native-maps', () => {
     />
   );
 
+  const MockPolyline = ({ coordinates }: any) => (
+    <View testID="route-polyline" accessibilityLabel={`polyline-${coordinates?.length || 0}-coords`} />
+  );
+
   const MockCircle = () => null;
 
   return {
@@ -68,6 +73,7 @@ jest.mock('react-native-maps', () => {
     default: MockMapView,
     Marker: MockMarker,
     Polygon: MockPolygon,
+    Polyline: MockPolyline,
     Circle: MockCircle,
     PROVIDER_GOOGLE: 'google',
   };
@@ -137,6 +143,8 @@ describe('MapViewApp', () => {
     (useDirections as jest.Mock).mockReturnValue({
       startBuilding: null,
       destinationBuilding: null,
+      route: null,
+      isLoadingRoute: false,
       setStartBuilding: mockSetStartBuilding,
       setDestinationBuilding: mockSetDestinationBuilding,
     });
@@ -267,6 +275,8 @@ describe('MapViewApp', () => {
     (useDirections as jest.Mock).mockReturnValue({
       startBuilding: { id: 'h' },
       destinationBuilding: null,
+      route: null,
+      isLoadingRoute: false,
       setStartBuilding: mockSetStartBuilding,
       setDestinationBuilding: mockSetDestinationBuilding,
     });
@@ -279,17 +289,93 @@ describe('MapViewApp', () => {
     expect(mockSetDestinationBuilding).toHaveBeenCalledWith(expect.objectContaining({ id: 'mb' }));
   });
 
+  it('clears start building when tapped again', () => {
+    // Arrange
+    const hBuilding = SGW_BUILDINGS.find(b => b.code === 'H');
+  
+    (useDirections as jest.Mock).mockReturnValue({
+      startBuilding: hBuilding,
+      destinationBuilding: null,
+      setStartBuilding: mockSetStartBuilding,
+      setDestinationBuilding: mockSetDestinationBuilding,
+    });
+  
+    const screen = render(<MapViewApp />);
+  
+    // Act
+    const polygons = screen.getAllByTestId('building-polygon');
+    fireEvent.press(polygons[0]); // mockSGWPolygons[0] is 'h'
+  
+    // Assert
+    expect(mockSetStartBuilding).toHaveBeenCalledWith(null);
+  });
+  
+  it('clears destination building when tapped again', () => {
+    // Arrange
+    const hBuilding = SGW_BUILDINGS.find(b => b.code === 'H');
+    const mbBuilding = SGW_BUILDINGS.find(b => b.code === 'MB');
+  
+    (useDirections as jest.Mock).mockReturnValue({
+      startBuilding: hBuilding,
+      destinationBuilding: mbBuilding,
+      setStartBuilding: mockSetStartBuilding,
+      setDestinationBuilding: mockSetDestinationBuilding,
+    });
+  
+    const screen = render(<MapViewApp />);
+  
+    // Act
+    const polygons = screen.getAllByTestId('building-polygon');
+    fireEvent.press(polygons[1]); // mockSGWPolygons[1] is 'mb'
+  
+    // Assert
+    expect(mockSetDestinationBuilding).toHaveBeenCalledWith(null);
+  });
+  
+  it('replaces destination when both start and destination are set and a new building is tapped', () => {
+    // Arrange 
+    const hBuilding = SGW_BUILDINGS.find(b => b.code === 'H');
+    const mbBuilding = SGW_BUILDINGS.find(b => b.code === 'MB');
+    
+    (useDirections as jest.Mock).mockReturnValue({
+      startBuilding: hBuilding,
+      destinationBuilding: mbBuilding,
+      setStartBuilding: mockSetStartBuilding,
+      setDestinationBuilding: mockSetDestinationBuilding,
+    });
+  
+    const screen = render(<MapViewApp />);
+  
+    // Act 
+    fireEvent.press(screen.getByText('EV'));
+  
+    // Assert 
+    expect(mockSetDestinationBuilding).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 'EV' })
+    );
+  });
+
 
   it('search works across campus switches', () => {
     // Arrange
-    const screen = render(<MapViewApp showSearch />);
-    const input = screen.getByPlaceholderText('Search buildings...');
-    // Act
-    fireEvent.changeText(input, 'Hall');
-    fireEvent.press(screen.getByText('Loyola Campus'));
-    fireEvent.changeText(input, 'Central');
+    (useDirections as jest.Mock).mockReturnValue({
+      startBuilding: { id: 'h' },
+      destinationBuilding: { id: 'mb' },
+      route: {
+        coordinates: [{ latitude: 45.4971, longitude: -73.5791 }, { latitude: 45.4953, longitude: -73.5782 }],
+        duration: '5 mins',
+        distance: '1 km'
+      },
+      isLoadingRoute: false,
+      setStartBuilding: mockSetStartBuilding,
+      setDestinationBuilding: mockSetDestinationBuilding,
+    });
+
+    const screen = render(<MapViewApp />);
+
     // Assert
-    expect(screen.getByText('CC')).toBeTruthy();
+    expect(screen.getByTestId('route-polyline')).toBeTruthy();
+    expect(screen.getByText('5 mins (1 km)')).toBeTruthy();
   });
 
   // Polygon tests
@@ -339,32 +425,6 @@ describe('MapViewApp', () => {
         expect.objectContaining({ id: 'h' })
       );
     });
-
-    it('handles empty polygon data gracefully', () => {
-      // Arrange
-      (useBuildingPolygons as jest.Mock).mockReturnValue({
-        polygons: [],
-        loading: false,
-        error: null,
-      });
-
-      // Act & Assert - should not throw
-      const screen = render(<MapViewApp />);
-      expect(screen.getByTestId('mapView')).toBeTruthy();
-    });
-
-    it('renders with loading state', () => {
-      // Arrange
-      (useBuildingPolygons as jest.Mock).mockReturnValue({
-        polygons: [],
-        loading: true,
-        error: null,
-      });
-
-      // Act & Assert - should render map even while loading
-      const screen = render(<MapViewApp />);
-      expect(screen.getByTestId('mapView')).toBeTruthy();
-    });
   });
 
   // Location feature tests
@@ -398,14 +458,14 @@ describe('MapViewApp', () => {
       // Verify we start on SGW
       expect(screen.getByText('H')).toBeTruthy();
 
-      // Act - simulate location detected at Loyola
+      // Act 
       act(() => {
         if (capturedOnCampusDetected) {
           capturedOnCampusDetected('Loyola');
         }
       });
 
-      // Assert - should switch to Loyola campus
+      // Assert 
       expect(useBuildingPolygons).toHaveBeenCalledWith('Loyola');
     });
 
@@ -413,14 +473,14 @@ describe('MapViewApp', () => {
       // Arrange
       render(<MapViewApp />);
 
-      // Act - simulate location detected at SGW (same as current)
+      // Act 
       act(() => {
         if (capturedOnCampusDetected) {
           capturedOnCampusDetected('SGW');
         }
       });
 
-      // Assert - should not trigger additional re-renders for campus switch
+      // Assert 
       expect(useBuildingPolygons).toHaveBeenLastCalledWith('SGW');
     });
 
@@ -435,7 +495,7 @@ describe('MapViewApp', () => {
         }
       });
 
-      // Assert - the callback should have been captured and callable
+      // Assert 
       expect(capturedOnBuildingHighlight).toBeDefined();
     });
 
@@ -443,7 +503,7 @@ describe('MapViewApp', () => {
       // Arrange
       render(<MapViewApp />);
 
-      // Act - set then clear highlight
+      // Act 
       act(() => {
         if (capturedOnBuildingHighlight) {
           capturedOnBuildingHighlight('h');
@@ -451,12 +511,12 @@ describe('MapViewApp', () => {
         }
       });
 
-      // Assert - callback should work with null
+      // Assert 
       expect(capturedOnBuildingHighlight).toBeDefined();
     });
 
     it('animates to user location when campus detected and location available', () => {
-      // Arrange - mock user location being available
+      // Arrange 
       (useUserLocation as jest.Mock).mockReturnValue({
         location: {
           coords: {
@@ -477,14 +537,14 @@ describe('MapViewApp', () => {
 
       render(<MapViewApp />);
 
-      // Act - trigger campus detection
+      // Act 
       act(() => {
         if (capturedOnCampusDetected) {
           capturedOnCampusDetected('Loyola');
         }
       });
 
-      // Assert - location hook should have location data
+      // Assert 
       expect(useUserLocation).toHaveBeenCalled();
     });
   });

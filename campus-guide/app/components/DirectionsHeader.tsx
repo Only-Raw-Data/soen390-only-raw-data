@@ -16,7 +16,10 @@ export function DirectionsHeader() {
         setDestinationBuilding,
         setTransportationMode,
         swapLocations,
-        clearDirections
+        clearDirections,
+        fetchRoute,
+        route,
+        isLoadingRoute
     } = useDirections();
 
     const { getNearestBuilding, isLoading: locationLoading, resetLoadingState } = useUserLocation();
@@ -32,6 +35,13 @@ export function DirectionsHeader() {
             setShowScheduleModal(true);
         }
     }, [transportationMode]);
+
+    // Auto-update route when inputs change if a route already exists
+    useEffect(() => {
+        if (startBuilding && destinationBuilding && route) {
+            fetchRoute();
+        }
+    }, [startBuilding, destinationBuilding, transportationMode]);
 
     const handleUseCurrentLocation = async () => {
         setIsSearchingStart(false);
@@ -178,12 +188,19 @@ export function DirectionsHeader() {
                     testID="get-directions-button"
                     style={[
                         styles.getDirectionsButton,
-                        (!startBuilding || !destinationBuilding) && styles.getDirectionsButtonDisabled
+                        (!startBuilding || !destinationBuilding || isLoadingRoute) && styles.getDirectionsButtonDisabled
                     ]}
-                    disabled={!startBuilding || !destinationBuilding}
+                    disabled={!startBuilding || !destinationBuilding || isLoadingRoute}
+                    onPress={fetchRoute}
                 >
-                    <Ionicons name="paper-plane-outline" size={20} color="#FFFFFF" />
-                    <Text style={styles.getDirectionsButtonText}>Get Directions</Text>
+                    {isLoadingRoute ? (
+                        <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                        <>
+                            <Ionicons name="paper-plane-outline" size={20} color="#FFFFFF" />
+                            <Text style={styles.getDirectionsButtonText}>Get Directions</Text>
+                        </>
+                    )}
                 </TouchableOpacity>
             </View>
         </View>
