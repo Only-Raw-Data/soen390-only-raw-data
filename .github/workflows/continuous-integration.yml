@@ -37,7 +37,7 @@ jobs:
           args: >
             -Dsonar.projectKey= ${{ secrets.project_KEY }}
             -Dsonar.organization=only-raw-data
-            -Dsonar.host.url=https://sonarcloud.io/organizations/only-raw-data/projects
+            -Dsonar.host.url=https://sonarcloud.io
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
          
 
