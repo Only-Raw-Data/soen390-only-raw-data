@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
-import { LocateMeButton } from '../LocateMeButton';
+import LocateMeButton from '../LocateMeButton';
 
 jest.mock('@expo/vector-icons', () => ({
   Ionicons: ({ name, testID }: any) => {

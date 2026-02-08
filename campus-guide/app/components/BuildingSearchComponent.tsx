@@ -1,22 +1,27 @@
-import React from 'react';
-import { View, TextInput, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import React from "react";
+import { View, TextInput, StyleSheet } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 
 type Props = {
-  value: string;
-  onChangeText: (text: string) => void;
-  placeholder?: string;
+  readonly value: string;
+  readonly onChangeText: (text: string) => void;
+  readonly placeholder?: string;
 };
 
 export default function BuildingSearchHeader({
   value,
   onChangeText,
-  placeholder = 'Search buildings...',
+  placeholder = "Search buildings...",
 }: Props) {
   return (
     <View style={styles.searchContainer}>
       <View style={styles.searchInputWrapper}>
-        <Ionicons name="search" size={20} color="#9CA3AF" style={styles.searchIcon} />
+        <Ionicons
+          name="search"
+          size={20}
+          color="#9CA3AF"
+          style={styles.searchIcon}
+        />
         <TextInput
           placeholder={placeholder}
           value={value}
@@ -32,16 +37,16 @@ export default function BuildingSearchHeader({
 const styles = StyleSheet.create({
   searchContainer: {
     padding: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: "#E5E7EB",
     zIndex: 10,
   },
   searchInputWrapper: {
-    position: 'relative',
+    position: "relative",
   },
   searchIcon: {
-    position: 'absolute',
+    position: "absolute",
     left: 12,
     top: 10,
     zIndex: 1,
@@ -51,7 +56,7 @@ const styles = StyleSheet.create({
     paddingRight: 16,
     paddingVertical: 8,
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: "#D1D5DB",
     borderRadius: 8,
     fontSize: 16,
   },

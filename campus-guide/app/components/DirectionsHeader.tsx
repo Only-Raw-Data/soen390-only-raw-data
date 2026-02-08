@@ -4,10 +4,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { useDirections} from '../context/DirectionsContext';
 import { TransportationMode } from '../types/transportation';
 import { SGW_BUILDINGS, LOYOLA_BUILDINGS, Building } from './../../constants/buildings';
-import { useUserLocation } from '../hooks/useUserLocation';
-import { ShuttleSchedule } from './ShuttleSchedule';
+import useUserLocation from '../hooks/useUserLocation';
+import ShuttleSchedule from './ShuttleSchedule';
 
-export function DirectionsHeader() {
+export default function DirectionsHeader() {
     const {
         startBuilding,
         destinationBuilding,

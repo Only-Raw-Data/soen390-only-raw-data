@@ -1,9 +1,9 @@
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { Alert } from 'react-native';
-import { DirectionsHeader } from '../DirectionsHeader';
+import DirectionsHeader from '../DirectionsHeader';
 import { useDirections } from '../../context/DirectionsContext';
-import { useUserLocation } from '../../hooks/useUserLocation';
+import useUserLocation from '../../hooks/useUserLocation';
 import { SGW_BUILDINGS } from '../../../constants/buildings';
 
 
@@ -12,7 +12,8 @@ jest.mock('../../context/DirectionsContext', () => ({
 }));
 
 jest.mock('../../hooks/useUserLocation', () => ({
-    useUserLocation: jest.fn(),
+    __esModule: true,
+    default: jest.fn(),
 }));
 
 jest.spyOn(Alert, 'alert');

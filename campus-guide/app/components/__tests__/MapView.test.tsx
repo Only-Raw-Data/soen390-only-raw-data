@@ -1,9 +1,9 @@
 import React from 'react';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
-import { MapViewApp } from '../MapView';
+import MapViewApp from '../MapView';
 import { useDirections } from '../../context/DirectionsContext';
-import { useBuildingPolygons } from '../../hooks/useBuildingPolygons';
-import { useUserLocation } from '../../hooks/useUserLocation';
+import useBuildingPolygons from '../../hooks/useBuildingPolygons';
+import useUserLocation from '../../hooks/useUserLocation';
 import { SGW_BUILDINGS } from '@/constants/buildings';
 
 //Mocks
@@ -12,11 +12,13 @@ jest.mock('../../context/DirectionsContext', () => ({
 }));
 
 jest.mock('../../hooks/useBuildingPolygons', () => ({
-  useBuildingPolygons: jest.fn(),
+  __esModule: true,
+  default: jest.fn(),
 }));
 
 jest.mock('../../hooks/useUserLocation', () => ({
-  useUserLocation: jest.fn(),
+  __esModule: true,
+  default: jest.fn(),
 }));
 
 jest.mock('../../../constants/mapStyle', () => ({
@@ -82,21 +84,24 @@ jest.mock('react-native-maps', () => {
 let capturedOnCampusDetected: ((campus: string) => void) | null = null;
 let capturedOnBuildingHighlight: ((buildingId: string | null) => void) | null = null;
 
-jest.mock('../LocateMeButton', () => ({
-  LocateMeButton: ({ onLocate, onCampusDetected, onBuildingHighlight }: any) => {
-    const React = require('react');
-    const { TouchableOpacity, Text } = require('react-native');
-    
-    capturedOnCampusDetected = onCampusDetected;
-    capturedOnBuildingHighlight = onBuildingHighlight;
-    
-    return (
-      <TouchableOpacity testID="locate-me-button" onPress={onLocate}>
-        <Text>Locate Me</Text>
-      </TouchableOpacity>
-    );
-  },
-}));
+jest.mock('../LocateMeButton', () => {
+  const React = require('react');
+  const { TouchableOpacity, Text } = require('react-native');
+  
+  return {
+    __esModule: true,
+    default: function MockLocateMeButton({ onLocate, onCampusDetected, onBuildingHighlight }: any) {
+      capturedOnCampusDetected = onCampusDetected;
+      capturedOnBuildingHighlight = onBuildingHighlight;
+      
+      return (
+        <TouchableOpacity testID="locate-me-button" onPress={onLocate}>
+          <Text>Locate Me</Text>
+        </TouchableOpacity>
+      );
+    },
+  };
+});
 
 // Mock polygon data for tests
 const mockSGWPolygons = [
