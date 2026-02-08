@@ -149,43 +149,66 @@ const mockLoyolaPolygons = [
   },
 ];
 
+// Helper functions to reduce mock setup duplication
+const createDirectionsMock = (overrides = {}) => ({
+  startBuilding: null,
+  destinationBuilding: null,
+  route: null,
+  isLoadingRoute: false,
+  setStartBuilding: jest.fn(),
+  setDestinationBuilding: jest.fn(),
+  ...overrides,
+});
+
+const createUserLocationMock = (overrides = {}) => ({
+  location: null,
+  isLoading: false,
+  errorMsg: null,
+  nearestBuilding: null,
+  isOnCampus: false,
+  currentCampus: null,
+  getCurrentLocation: jest.fn(),
+  startLocationTracking: jest.fn(),
+  stopLocationTracking: jest.fn(),
+  requestLocationPermission: jest.fn(),
+  ...overrides,
+});
+
+const setupCampusSwitchingPolygonMock = () => {
+  (useBuildingPolygons as jest.Mock).mockImplementation((campus: string) => ({
+    polygons: campus === "SGW" ? mockSGWPolygons : mockLoyolaPolygons,
+    loading: false,
+    error: null,
+  }));
+};
+
 describe("MapViewApp", () => {
   const mockSetStartBuilding = jest.fn();
   const mockSetDestinationBuilding = jest.fn();
   const mockGetCurrentLocation = jest.fn();
 
-  beforeEach(() => {
-    jest.clearAllMocks();
+  const setupDefaultMocks = () => {
+    (useDirections as jest.Mock).mockReturnValue(
+      createDirectionsMock({
+        setStartBuilding: mockSetStartBuilding,
+        setDestinationBuilding: mockSetDestinationBuilding,
+      }),
+    );
 
-    (useDirections as jest.Mock).mockReturnValue({
-      startBuilding: null,
-      destinationBuilding: null,
-      route: null,
-      isLoadingRoute: false,
-      setStartBuilding: mockSetStartBuilding,
-      setDestinationBuilding: mockSetDestinationBuilding,
-    });
-
-    // Default mock for building polygons - returns SGW polygons
     (useBuildingPolygons as jest.Mock).mockReturnValue({
       polygons: mockSGWPolygons,
       loading: false,
       error: null,
     });
 
-    // Default mock for user location
-    (useUserLocation as jest.Mock).mockReturnValue({
-      location: null,
-      isLoading: false,
-      errorMsg: null,
-      nearestBuilding: null,
-      isOnCampus: false,
-      currentCampus: null,
-      getCurrentLocation: mockGetCurrentLocation,
-      startLocationTracking: jest.fn(),
-      stopLocationTracking: jest.fn(),
-      requestLocationPermission: jest.fn(),
-    });
+    (useUserLocation as jest.Mock).mockReturnValue(
+      createUserLocationMock({ getCurrentLocation: mockGetCurrentLocation }),
+    );
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    setupDefaultMocks();
   });
 
   it("renders search when showSearch=true", () => {
@@ -289,14 +312,13 @@ describe("MapViewApp", () => {
 
   it("sets destination building when start exists", () => {
     // Arrange
-    (useDirections as jest.Mock).mockReturnValue({
-      startBuilding: { id: "h" },
-      destinationBuilding: null,
-      route: null,
-      isLoadingRoute: false,
-      setStartBuilding: mockSetStartBuilding,
-      setDestinationBuilding: mockSetDestinationBuilding,
-    });
+    (useDirections as jest.Mock).mockReturnValue(
+      createDirectionsMock({
+        startBuilding: { id: "h" },
+        setStartBuilding: mockSetStartBuilding,
+        setDestinationBuilding: mockSetDestinationBuilding,
+      }),
+    );
 
     const screen = render(<MapViewApp />);
 
@@ -312,12 +334,13 @@ describe("MapViewApp", () => {
     // Arrange
     const hBuilding = SGW_BUILDINGS.find((b) => b.code === "H");
 
-    (useDirections as jest.Mock).mockReturnValue({
-      startBuilding: hBuilding,
-      destinationBuilding: null,
-      setStartBuilding: mockSetStartBuilding,
-      setDestinationBuilding: mockSetDestinationBuilding,
-    });
+    (useDirections as jest.Mock).mockReturnValue(
+      createDirectionsMock({
+        startBuilding: hBuilding,
+        setStartBuilding: mockSetStartBuilding,
+        setDestinationBuilding: mockSetDestinationBuilding,
+      }),
+    );
 
     const screen = render(<MapViewApp />);
 
@@ -334,12 +357,14 @@ describe("MapViewApp", () => {
     const hBuilding = SGW_BUILDINGS.find((b) => b.code === "H");
     const mbBuilding = SGW_BUILDINGS.find((b) => b.code === "MB");
 
-    (useDirections as jest.Mock).mockReturnValue({
-      startBuilding: hBuilding,
-      destinationBuilding: mbBuilding,
-      setStartBuilding: mockSetStartBuilding,
-      setDestinationBuilding: mockSetDestinationBuilding,
-    });
+    (useDirections as jest.Mock).mockReturnValue(
+      createDirectionsMock({
+        startBuilding: hBuilding,
+        destinationBuilding: mbBuilding,
+        setStartBuilding: mockSetStartBuilding,
+        setDestinationBuilding: mockSetDestinationBuilding,
+      }),
+    );
 
     const screen = render(<MapViewApp />);
 
@@ -356,12 +381,14 @@ describe("MapViewApp", () => {
     const hBuilding = SGW_BUILDINGS.find((b) => b.code === "H");
     const mbBuilding = SGW_BUILDINGS.find((b) => b.code === "MB");
 
-    (useDirections as jest.Mock).mockReturnValue({
-      startBuilding: hBuilding,
-      destinationBuilding: mbBuilding,
-      setStartBuilding: mockSetStartBuilding,
-      setDestinationBuilding: mockSetDestinationBuilding,
-    });
+    (useDirections as jest.Mock).mockReturnValue(
+      createDirectionsMock({
+        startBuilding: hBuilding,
+        destinationBuilding: mbBuilding,
+        setStartBuilding: mockSetStartBuilding,
+        setDestinationBuilding: mockSetDestinationBuilding,
+      }),
+    );
 
     const screen = render(<MapViewApp />);
 
@@ -376,21 +403,22 @@ describe("MapViewApp", () => {
 
   it("search works across campus switches", () => {
     // Arrange
-    (useDirections as jest.Mock).mockReturnValue({
-      startBuilding: { id: "h" },
-      destinationBuilding: { id: "mb" },
-      route: {
-        coordinates: [
-          { latitude: 45.4971, longitude: -73.5791 },
-          { latitude: 45.4953, longitude: -73.5782 },
-        ],
-        duration: "5 mins",
-        distance: "1 km",
-      },
-      isLoadingRoute: false,
-      setStartBuilding: mockSetStartBuilding,
-      setDestinationBuilding: mockSetDestinationBuilding,
-    });
+    (useDirections as jest.Mock).mockReturnValue(
+      createDirectionsMock({
+        startBuilding: { id: "h" },
+        destinationBuilding: { id: "mb" },
+        route: {
+          coordinates: [
+            { latitude: 45.4971, longitude: -73.5791 },
+            { latitude: 45.4953, longitude: -73.5782 },
+          ],
+          duration: "5 mins",
+          distance: "1 km",
+        },
+        setStartBuilding: mockSetStartBuilding,
+        setDestinationBuilding: mockSetDestinationBuilding,
+      }),
+    );
 
     const screen = render(<MapViewApp />);
 
@@ -418,13 +446,7 @@ describe("MapViewApp", () => {
 
     it("switches polygon data when changing campuses", () => {
       // Arrange
-      (useBuildingPolygons as jest.Mock).mockImplementation(
-        (campus: string) => ({
-          polygons: campus === "SGW" ? mockSGWPolygons : mockLoyolaPolygons,
-          loading: false,
-          error: null,
-        }),
-      );
+      setupCampusSwitchingPolygonMock();
 
       const screen = render(<MapViewApp />);
 
@@ -470,13 +492,7 @@ describe("MapViewApp", () => {
 
     it("switches campus when onCampusDetected is called with different campus", () => {
       // Arrange
-      (useBuildingPolygons as jest.Mock).mockImplementation(
-        (campus: string) => ({
-          polygons: campus === "SGW" ? mockSGWPolygons : mockLoyolaPolygons,
-          loading: false,
-          error: null,
-        }),
-      );
+      setupCampusSwitchingPolygonMock();
 
       const screen = render(<MapViewApp />);
 
@@ -542,23 +558,15 @@ describe("MapViewApp", () => {
 
     it("animates to user location when campus detected and location available", () => {
       // Arrange
-      (useUserLocation as jest.Mock).mockReturnValue({
-        location: {
-          coords: {
-            latitude: 45.458204,
-            longitude: -73.6403,
-          },
-        },
-        isLoading: false,
-        errorMsg: null,
-        nearestBuilding: { id: "cc", name: "Central Building" },
-        isOnCampus: true,
-        currentCampus: "Loyola",
-        getCurrentLocation: mockGetCurrentLocation,
-        startLocationTracking: jest.fn(),
-        stopLocationTracking: jest.fn(),
-        requestLocationPermission: jest.fn(),
-      });
+      (useUserLocation as jest.Mock).mockReturnValue(
+        createUserLocationMock({
+          location: { coords: { latitude: 45.458204, longitude: -73.6403 } },
+          nearestBuilding: { id: "cc", name: "Central Building" },
+          isOnCampus: true,
+          currentCampus: "Loyola",
+          getCurrentLocation: mockGetCurrentLocation,
+        }),
+      );
 
       render(<MapViewApp />);
 
