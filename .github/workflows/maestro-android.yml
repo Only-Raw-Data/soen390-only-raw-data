@@ -9,6 +9,7 @@ on:
 jobs:
   acceptance-android:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     steps:
       - name: Checkout
@@ -86,16 +87,41 @@ jobs:
       - name: Run Maestro tests on Android emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 33
-          arch: x86_64
+          api-level: 29
+          arch: arm64-v8a
+          target: default
+          profile: pixel_6
+          ram-size: 2048M
+          heap-size: 512M
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
           script: |
+            # Install Maestro
             curl -fsSL "https://get.maestro.mobile.dev" | bash
             export PATH="$PATH:$HOME/.maestro/bin"
-
-            adb devices
-
+            
+            # Wait for device to be fully ready
+            echo "Waiting for device to be ready..."
+            adb wait-for-device
+            sleep 10
+            
+            # Show device info
+            echo "Device information:"
+            adb devices -l
+            adb shell getprop ro.build.version.release
+            
+            # Uninstall old version if exists
+            echo "Uninstalling old app version..."
             adb uninstall com.campus.campusguide || true
+            
+            # Install APK
+            echo "Installing APK..."
             adb install -r app.apk
-
+            
+            # Verify installation
+            adb shell pm list packages | grep campus.campusguide
+            
+            # Run Maestro tests
+            echo "Running Maestro tests..."
             maestro --version
-            maestro test campus-guide/.maestro --verbose
+            maestro test campus-guide/.maestro --format junit --output report.xml
