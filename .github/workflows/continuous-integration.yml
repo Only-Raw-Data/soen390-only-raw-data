@@ -35,7 +35,7 @@ jobs:
         with:
           projectBaseDir: campus-guide
           args: >
-            -Dsonar.projectKey= ${{ secrets.project_KEY }}
+            -Dsonar.projectKey=${{ secrets.project_KEY }}
             -Dsonar.organization=only-raw-data
             -Dsonar.host.url=https://sonarcloud.io
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
