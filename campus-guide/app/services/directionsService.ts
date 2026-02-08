@@ -1,4 +1,5 @@
 import { TransportationMode } from '../types/transportation';
+import { decode } from '@googlemaps/polyline-codec';
 
 export interface RouteData {
   coordinates: { latitude: number; longitude: number }[];
@@ -12,44 +13,6 @@ const modeMapping: Record<TransportationMode, string> = {
   transit: 'TRANSIT',
   shuttle: 'TRANSIT',
 };
-
-/**
- * Decodes Google Maps Encoded Polyline
- * @param encoded 
- * @returns 
- */
-function decodePolyline(encoded: string) {
-  const points = [];
-  let index = 0, len = encoded.length;
-  let lat = 0, lng = 0;
-
-  while (index < len) {
-    let b, shift = 0, result = 0;
-    do {
-      b = encoded.charCodeAt(index++) - 63;
-      result |= (b & 0x1f) << shift;
-      shift += 5;
-    } while (b >= 0x20);
-    let dlat = ((result & 1) ? ~(result >> 1) : (result >> 1));
-    lat += dlat;
-
-    shift = 0;
-    result = 0;
-    do {
-      b = encoded.charCodeAt(index++) - 63;
-      result |= (b & 0x1f) << shift;
-      shift += 5;
-    } while (b >= 0x20);
-    let dlng = ((result & 1) ? ~(result >> 1) : (result >> 1));
-    lng += dlng;
-
-    points.push({
-      latitude: (lat / 1e5),
-      longitude: (lng / 1e5),
-    });
-  }
-  return points;
-}
 
 export const fetchDirections = async (
   origin: { lat: number; lng: number },
@@ -129,8 +92,14 @@ export const fetchDirections = async (
     const distanceKm = (route.distanceMeters / 1000).toFixed(1);
     const distanceText = `${distanceKm} km`;
 
+    const decodedCoordinates = decode(route.polyline.encodedPolyline)
+    const formattetCoordinates = decodedCoordinates.map(([lat, lng]) => ({
+      latitude: lat,
+      longitude: lng,
+    }));
+
     return {
-      coordinates: decodePolyline(route.polyline.encodedPolyline),
+      coordinates: formattetCoordinates,
       duration: durationText,
       distance: distanceText,
     };
