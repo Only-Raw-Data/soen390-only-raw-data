@@ -28,10 +28,17 @@ jobs:
         working-directory: campus-guide
         run: npm test -- --coverage
 
-      - name: SonarCloud Scan
+       - name: SonarCloud Scan
         uses: SonarSource/sonarqube-scan-action@v7
-        with:
+        env:
           SONAR_TOKEN: ${{ secrets.SONARCLOUD_TOKEN }}
+        with:
+          projectBaseDir: campus-guide
+          args: >
+            -Dsonar.projectKey= ${{ secrets.project_KEY }}
+            -Dsonar.organization=only-raw-data
+            -Dsonar.host.url=https://sonarcloud.io/organizations/only-raw-data/projects
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
          
 
 
