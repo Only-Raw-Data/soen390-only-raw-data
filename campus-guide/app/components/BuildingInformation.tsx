@@ -4,18 +4,26 @@ import { Ionicons } from '@expo/vector-icons';
 import { Building } from './../../constants/buildings';
 import { BUILDING_IMAGES } from './../../constants/buildingImages';
 
-interface BuildingInfoPopupProps {
+interface BuildingInformationProps {
     building: Building;
     onGetDirections: (building: Building) => void;
     onClose: () => void;
 }
 
+const hasValidContent = (value: string | undefined | null): boolean => {
+    return Boolean(value && value !== 'NA' && value !== '');
+};
+
 export default function BuildingInformation({
     building,
     onGetDirections,
     onClose,
-}: BuildingInfoPopupProps) {
+}: BuildingInformationProps) {
     const [showOverview, setShowOverview] = useState(false);
+
+    const toggleOverview = () => {
+        setShowOverview(prev => !prev);
+    };
 
     return (
         <View style={styles.container}>
@@ -48,7 +56,7 @@ export default function BuildingInformation({
                     </View>
 
                     {/* Department Section */}
-                    {Boolean(building.department && building.department !== 'NA' && building.department !== '') && (
+                    {hasValidContent(building.department) && (
                         <View style={styles.section}>
                             <View style={styles.sectionHeader}>
                                 <Ionicons name="business-outline" size={16} color="#912338" />
@@ -59,7 +67,7 @@ export default function BuildingInformation({
                     )}
 
                     {/* Accessibility Section */}
-                    {Boolean(building.accessibility && building.accessibility !== 'NA' && building.accessibility !== '') && (
+                    {hasValidContent(building.accessibility) && (
                         <View style={styles.section}>
                             <View style={styles.sectionHeader}>
                                 <Ionicons name="accessibility-outline" size={16} color="#912338" />
@@ -70,11 +78,11 @@ export default function BuildingInformation({
                     )}
 
                     {/* Overview Section */}
-                    {Boolean(building.overview && building.overview !== 'NA' && building.overview !== '') && (
+                    {hasValidContent(building.overview) && (
                         <View style={styles.section}>
                             <TouchableOpacity 
                                 style={styles.overviewHeader}
-                                onPress={() => setShowOverview(!showOverview)}
+                                onPress={toggleOverview}
                             >
                                 <View style={styles.sectionHeader}>
                                     <Ionicons name="information-circle-outline" size={16} color="#912338" />

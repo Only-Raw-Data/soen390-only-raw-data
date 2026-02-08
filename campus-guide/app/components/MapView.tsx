@@ -31,9 +31,11 @@ export function MapViewApp({showSearch, googleMapsApiKey}: MapViewAppProps ) {
     const mapRef = useRef<MapView>(null);
 
     const [selectedCampus, setSelectedCampus] = useState<Campus>('SGW');
+    // Building pressed on the map - used for showing details and getting directions
     const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [highlightedBuildingId, setHighlightedBuildingId] = useState<string | null>(null);
+    // State for building info modal
     const [infoBuilding, setInfoBuilding] = useState<Building | null>(null); 
 
     // Fetch building polygons for the current campus
