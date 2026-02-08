@@ -163,104 +163,45 @@ describe("directionsService", () => {
     expect(result?.duration).toBe("45 secs");
   });
 
-  it("uses DRIVE mode for car transportation", async () => {
-    // Arrange
-    const mockResponse = {
-      routes: [
-        {
-          polyline: { encodedPolyline: "a~l~Fjk~uOnA?jxD" },
-          duration: "300s",
-          distanceMeters: 5000,
-        },
-      ],
-    };
+  it.each([
+    { mode: "car" as const, expectedTravelMode: "DRIVE" },
+    { mode: "transit" as const, expectedTravelMode: "TRANSIT" },
+    { mode: "shuttle" as const, expectedTravelMode: "TRANSIT" },
+  ])(
+    "uses $expectedTravelMode mode for $mode transportation",
+    async ({ mode, expectedTravelMode }) => {
+      // Arrange
+      const mockResponse = {
+        routes: [
+          {
+            polyline: { encodedPolyline: "a~l~Fjk~uOnA?jxD" },
+            duration: "300s",
+            distanceMeters: 5000,
+          },
+        ],
+      };
 
-    (globalThis.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: jest.fn().mockResolvedValue(mockResponse),
-    });
+      (globalThis.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: jest.fn().mockResolvedValue(mockResponse),
+      });
 
-    // Act
-    await fetchDirections(
-      { lat: 45.4971, lng: -73.5791 },
-      { lat: 45.4953, lng: -73.5782 },
-      "car",
-    );
+      // Act
+      await fetchDirections(
+        { lat: 45.4971, lng: -73.5791 },
+        { lat: 45.4953, lng: -73.5782 },
+        mode,
+      );
 
-    // Assert
-    expect(globalThis.fetch).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.objectContaining({
-        body: expect.stringContaining('"travelMode":"DRIVE"'),
-      }),
-    );
-  });
-
-  it("uses TRANSIT mode for transit transportation", async () => {
-    // Arrange
-    const mockResponse = {
-      routes: [
-        {
-          polyline: { encodedPolyline: "a~l~Fjk~uOnA?jxD" },
-          duration: "900s",
-          distanceMeters: 8000,
-        },
-      ],
-    };
-
-    (globalThis.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: jest.fn().mockResolvedValue(mockResponse),
-    });
-
-    // Act
-    await fetchDirections(
-      { lat: 45.4971, lng: -73.5791 },
-      { lat: 45.4953, lng: -73.5782 },
-      "transit",
-    );
-
-    // Assert
-    expect(globalThis.fetch).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.objectContaining({
-        body: expect.stringContaining('"travelMode":"TRANSIT"'),
-      }),
-    );
-  });
-
-  it("uses TRANSIT mode for shuttle transportation", async () => {
-    // Arrange
-    const mockResponse = {
-      routes: [
-        {
-          polyline: { encodedPolyline: "a~l~Fjk~uOnA?jxD" },
-          duration: "1200s",
-          distanceMeters: 10000,
-        },
-      ],
-    };
-
-    (globalThis.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: jest.fn().mockResolvedValue(mockResponse),
-    });
-
-    // Act
-    await fetchDirections(
-      { lat: 45.4971, lng: -73.5791 },
-      { lat: 45.4953, lng: -73.5782 },
-      "shuttle",
-    );
-
-    // Assert
-    expect(globalThis.fetch).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.objectContaining({
-        body: expect.stringContaining('"travelMode":"TRANSIT"'),
-      }),
-    );
-  });
+      // Assert
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          body: expect.stringContaining(`"travelMode":"${expectedTravelMode}"`),
+        }),
+      );
+    },
+  );
 
   it("returns null when routes array is undefined", async () => {
     // Arrange
