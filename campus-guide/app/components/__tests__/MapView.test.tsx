@@ -465,14 +465,14 @@ describe('MapViewApp', () => {
       // Verify we start on SGW
       expect(screen.getByText('H')).toBeTruthy();
 
-      // Act - simulate location detected at Loyola
+      // Act 
       act(() => {
         if (capturedOnCampusDetected) {
           capturedOnCampusDetected('Loyola');
         }
       });
 
-      // Assert - should switch to Loyola campus
+      // Assert 
       expect(useBuildingPolygons).toHaveBeenCalledWith('Loyola');
     });
 
@@ -480,14 +480,14 @@ describe('MapViewApp', () => {
       // Arrange
       render(<MapViewApp />);
 
-      // Act - simulate location detected at SGW (same as current)
+      // Act 
       act(() => {
         if (capturedOnCampusDetected) {
           capturedOnCampusDetected('SGW');
         }
       });
 
-      // Assert - should not trigger additional re-renders for campus switch
+      // Assert 
       expect(useBuildingPolygons).toHaveBeenLastCalledWith('SGW');
     });
 
@@ -502,7 +502,7 @@ describe('MapViewApp', () => {
         }
       });
 
-      // Assert - the callback should have been captured and callable
+      // Assert 
       expect(capturedOnBuildingHighlight).toBeDefined();
     });
 
@@ -510,7 +510,7 @@ describe('MapViewApp', () => {
       // Arrange
       render(<MapViewApp />);
 
-      // Act - set then clear highlight
+      // Act 
       act(() => {
         if (capturedOnBuildingHighlight) {
           capturedOnBuildingHighlight('h');
@@ -518,12 +518,12 @@ describe('MapViewApp', () => {
         }
       });
 
-      // Assert - callback should work with null
+      // Assert 
       expect(capturedOnBuildingHighlight).toBeDefined();
     });
 
     it('animates to user location when campus detected and location available', () => {
-      // Arrange - mock user location being available
+      // Arrange 
       (useUserLocation as jest.Mock).mockReturnValue({
         location: {
           coords: {
@@ -544,14 +544,14 @@ describe('MapViewApp', () => {
 
       render(<MapViewApp />);
 
-      // Act - trigger campus detection
+      // Act 
       act(() => {
         if (capturedOnCampusDetected) {
           capturedOnCampusDetected('Loyola');
         }
       });
 
-      // Assert - location hook should have location data
+      // Assert 
       expect(useUserLocation).toHaveBeenCalled();
     });
   });

@@ -72,6 +72,7 @@ describe('BuildingInformation Component', () => {
 
     describe('Image Rendering', () => {
       it('renders building image when available', () => {
+        // Arrange
           const { getByTestId } = render(
               <BuildingInformation
                   building={mockBuildingWithImage}
@@ -79,13 +80,15 @@ describe('BuildingInformation Component', () => {
                   onClose={mockOnClose}
               />
           );
-
+            // Act
           const image = getByTestId('building-image');
+          // Assert
           expect(image).toBeTruthy();
           expect(image.props.source).toBeDefined();
       });
 
       it('does not render image container when building has no image', () => {
+        // Arrange
           const { queryByTestId } = render(
               <BuildingInformation
                   building={mockBuilding}
@@ -93,14 +96,16 @@ describe('BuildingInformation Component', () => {
                   onClose={mockOnClose}
               />
           );
-
+            // Act
           const image = queryByTestId('building-image');
+          // Assert
           expect(image).toBeNull();
       });
 
   });
 
     it('should render building information correctly', () => {
+      // Arrange & Act
         const { getByText } = render(
             <BuildingInformation
                 building={mockBuilding}
@@ -108,14 +113,15 @@ describe('BuildingInformation Component', () => {
                 onClose={mockOnClose}
             />
         );
-
+          // Assert
         expect(getByText('H-110')).toBeTruthy();
         expect(getByText('Henry F. Hall Building')).toBeTruthy();
         expect(getByText('Sir George Williams Campus')).toBeTruthy();
         expect(getByText('1455 De Maisonneuve Blvd. W.')).toBeTruthy();
     });
-
+    //
     it('should hide sections when values are empty or "NA"', () => {
+      // Arrange & Act
         const { queryByText } = render(
             <BuildingInformation
                 building={mockBuildingMinimal}
@@ -123,13 +129,14 @@ describe('BuildingInformation Component', () => {
                 onClose={mockOnClose}
             />
         );
-
+          // Assert
         expect(queryByText('Departments')).toBeNull();
         expect(queryByText('Accessibility')).toBeNull();
         expect(queryByText('Overview')).toBeNull();
     });
 
     it('should show sections when values are present', () => {
+      // Arrange & Act
         const { getByText } = render(
             <BuildingInformation
                 building={mockBuilding}
@@ -137,7 +144,7 @@ describe('BuildingInformation Component', () => {
                 onClose={mockOnClose}
             />
         );
-
+          // Assert
         expect(getByText('Departments')).toBeTruthy();
         expect(getByText('Engineering and Computer Science')).toBeTruthy();
         expect(getByText('Accessibility')).toBeTruthy();
@@ -145,6 +152,7 @@ describe('BuildingInformation Component', () => {
     });
 
     it('should toggle overview visibility when clicked', () => {
+      // Arrange & Act
         const { getByText, queryByText } = render(
             <BuildingInformation
                 building={mockBuilding}
@@ -152,17 +160,20 @@ describe('BuildingInformation Component', () => {
                 onClose={mockOnClose}
             />
         );
-
+          // Assert
         expect(queryByText('Main building on campus')).toBeNull();
 
         fireEvent.press(getByText('Overview'));
+        // Assert
         expect(getByText('Main building on campus')).toBeTruthy();
 
         fireEvent.press(getByText('Overview'));
+        // Assert
         expect(queryByText('Main building on campus')).toBeNull();
     });
 
     it('should call onGetDirections when directions button is pressed', () => {
+      // Arrange & Act
         const { getByText } = render(
             <BuildingInformation
                 building={mockBuilding}
@@ -170,12 +181,13 @@ describe('BuildingInformation Component', () => {
                 onClose={mockOnClose}
             />
         );
-
         fireEvent.press(getByText('Get Directions'));
+        // Assert
         expect(mockOnGetDirections).toHaveBeenCalledWith(mockBuilding);
     });
 
     it('should call onClose when close button is pressed', () => {
+      // Arrange & Act
         const { getByTestId } = render(
             <BuildingInformation
                 building={mockBuilding}
@@ -185,6 +197,7 @@ describe('BuildingInformation Component', () => {
         );
 
         fireEvent.press(getByTestId('close-button'));
+        // Assert
         expect(mockOnClose).toHaveBeenCalledTimes(1);
     });
 });
