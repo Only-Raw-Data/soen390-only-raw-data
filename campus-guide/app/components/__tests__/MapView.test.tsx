@@ -1,38 +1,37 @@
-import React from 'react';
-import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
-import MapViewApp from '../MapView';
-import { useDirections } from '../../context/DirectionsContext';
-import useBuildingPolygons from '../../hooks/useBuildingPolygons';
-import useUserLocation from '../../hooks/useUserLocation';
-import { SGW_BUILDINGS } from '@/constants/buildings';
+import React from "react";
+import { render, fireEvent, act } from "@testing-library/react-native";
+import MapViewApp from "../MapView";
+import { useDirections } from "../../context/DirectionsContext";
+import useBuildingPolygons from "../../hooks/useBuildingPolygons";
+import useUserLocation from "../../hooks/useUserLocation";
+import { SGW_BUILDINGS } from "@/constants/buildings";
 
 //Mocks
-jest.mock('../../context/DirectionsContext', () => ({
+jest.mock("../../context/DirectionsContext", () => ({
   useDirections: jest.fn(),
 }));
 
-jest.mock('../../hooks/useBuildingPolygons', () => ({
+jest.mock("../../hooks/useBuildingPolygons", () => ({
   __esModule: true,
   default: jest.fn(),
 }));
 
-jest.mock('../../hooks/useUserLocation', () => ({
+jest.mock("../../hooks/useUserLocation", () => ({
   __esModule: true,
   default: jest.fn(),
 }));
 
-jest.mock('../../../constants/mapStyle', () => ({
+jest.mock("../../../constants/mapStyle", () => ({
   CAMPUS_MAP_STYLE: [],
 }));
 
-jest.mock('expo-router', () => ({
+jest.mock("expo-router", () => ({
   useRouter: () => ({ push: jest.fn() }),
-  usePathname: () => '/',
+  usePathname: () => "/",
 }));
 
-jest.mock('../BuildingSearchComponent', () => {
-  const React = require('react');
-  const { TextInput } = require('react-native');
+jest.mock("../BuildingSearchComponent", () => {
+  const { TextInput } = require("react-native");
   return function MockSearch(props: any) {
     return (
       <TextInput
@@ -44,16 +43,22 @@ jest.mock('../BuildingSearchComponent', () => {
   };
 });
 
-jest.mock('react-native-maps', () => {
-  const React = require('react');
-  const { View, Text, TouchableOpacity } = require('react-native');
+jest.mock("react-native-maps", () => {
+  const React = require("react");
+  const { View, Text, TouchableOpacity } = require("react-native");
 
-  const MockMapView = React.forwardRef(({ children, ...props }: any, ref: any) => (
-    <View testID="mapView" {...props}>{children}</View>
-  ));
+  const MockMapView = React.forwardRef(
+    ({ children, ...props }: any, ref: any) => (
+      <View testID="mapView" {...props}>
+        {children}
+      </View>
+    ),
+  );
 
   const MockMarker = ({ title, onPress }: any) => (
-    <Text accessibilityRole="button" onPress={onPress}>{title}</Text>
+    <Text accessibilityRole="button" onPress={onPress}>
+      {title}
+    </Text>
   );
 
   const MockPolygon = ({ onPress, coordinates }: any) => (
@@ -65,7 +70,10 @@ jest.mock('react-native-maps', () => {
   );
 
   const MockPolyline = ({ coordinates }: any) => (
-    <View testID="route-polyline" accessibilityLabel={`polyline-${coordinates?.length || 0}-coords`} />
+    <View
+      testID="route-polyline"
+      accessibilityLabel={`polyline-${coordinates?.length || 0}-coords`}
+    />
   );
 
   const MockCircle = () => null;
@@ -77,23 +85,27 @@ jest.mock('react-native-maps', () => {
     Polygon: MockPolygon,
     Polyline: MockPolyline,
     Circle: MockCircle,
-    PROVIDER_GOOGLE: 'google',
+    PROVIDER_GOOGLE: "google",
   };
 });
 
 let capturedOnCampusDetected: ((campus: string) => void) | null = null;
-let capturedOnBuildingHighlight: ((buildingId: string | null) => void) | null = null;
+let capturedOnBuildingHighlight: ((buildingId: string | null) => void) | null =
+  null;
 
-jest.mock('../LocateMeButton', () => {
-  const React = require('react');
-  const { TouchableOpacity, Text } = require('react-native');
-  
+jest.mock("../LocateMeButton", () => {
+  const { TouchableOpacity, Text } = require("react-native");
+
   return {
     __esModule: true,
-    default: function MockLocateMeButton({ onLocate, onCampusDetected, onBuildingHighlight }: any) {
+    default: function MockLocateMeButton({
+      onLocate,
+      onCampusDetected,
+      onBuildingHighlight,
+    }: any) {
       capturedOnCampusDetected = onCampusDetected;
       capturedOnBuildingHighlight = onBuildingHighlight;
-      
+
       return (
         <TouchableOpacity testID="locate-me-button" onPress={onLocate}>
           <Text>Locate Me</Text>
@@ -106,7 +118,7 @@ jest.mock('../LocateMeButton', () => {
 // Mock polygon data for tests
 const mockSGWPolygons = [
   {
-    buildingId: 'h',
+    buildingId: "h",
     coordinates: [
       { latitude: 45.497092, longitude: -73.5788 },
       { latitude: 45.497192, longitude: -73.5788 },
@@ -115,7 +127,7 @@ const mockSGWPolygons = [
     ],
   },
   {
-    buildingId: 'mb',
+    buildingId: "mb",
     coordinates: [
       { latitude: 45.495304, longitude: -73.579044 },
       { latitude: 45.495404, longitude: -73.579044 },
@@ -127,7 +139,7 @@ const mockSGWPolygons = [
 
 const mockLoyolaPolygons = [
   {
-    buildingId: 'cc',
+    buildingId: "cc",
     coordinates: [
       { latitude: 45.458204, longitude: -73.6403 },
       { latitude: 45.458304, longitude: -73.6403 },
@@ -137,7 +149,7 @@ const mockLoyolaPolygons = [
   },
 ];
 
-describe('MapViewApp', () => {
+describe("MapViewApp", () => {
   const mockSetStartBuilding = jest.fn();
   const mockSetDestinationBuilding = jest.fn();
   const mockGetCurrentLocation = jest.fn();
@@ -176,109 +188,109 @@ describe('MapViewApp', () => {
     });
   });
 
-  it('renders search when showSearch=true', () => {
+  it("renders search when showSearch=true", () => {
     // Arrange
     const screen = render(<MapViewApp showSearch />);
     // Act
-    const input = screen.getByPlaceholderText('Search buildings...');
+    const input = screen.getByPlaceholderText("Search buildings...");
     // Assert
     expect(input).toBeTruthy();
   });
 
-  it('renders campus toggle buttons', () => {
+  it("renders campus toggle buttons", () => {
     // Arrange
     const screen = render(<MapViewApp showSearch />);
     // Act
-    const sgw = screen.getByText('SGW Campus');
-    const loyola = screen.getByText('Loyola Campus');
+    const sgw = screen.getByText("SGW Campus");
+    const loyola = screen.getByText("Loyola Campus");
     // Assert
     expect(sgw).toBeTruthy();
     expect(loyola).toBeTruthy();
   });
 
-  it('renders map container', () => {
+  it("renders map container", () => {
     // Arrange
     const screen = render(<MapViewApp />);
     // Act
-    const map = screen.getByTestId('mapView');
+    const map = screen.getByTestId("mapView");
     // Assert
     expect(map).toBeTruthy();
   });
 
-  it('defaults to SGW markers', () => {
+  it("defaults to SGW markers", () => {
     // Arrange
     const screen = render(<MapViewApp />);
     // Act
-    const hall = screen.getByText('H');
-    const molson = screen.getByText('MB');
+    const hall = screen.getByText("H");
+    const molson = screen.getByText("MB");
     // Assert
     expect(hall).toBeTruthy();
     expect(molson).toBeTruthy();
   });
 
-  it('switches to Loyola campus', () => {
+  it("switches to Loyola campus", () => {
     // Arrange
     const screen = render(<MapViewApp />);
     // Act
-    fireEvent.press(screen.getByText('Loyola Campus'));
+    fireEvent.press(screen.getByText("Loyola Campus"));
     // Assert
-    expect(screen.getByText('CC')).toBeTruthy();
+    expect(screen.getByText("CC")).toBeTruthy();
   });
 
-
-  it('filters buildings by name', () => {
+  it("filters buildings by name", () => {
     // Arrange
     const screen = render(<MapViewApp showSearch />);
-    const input = screen.getByPlaceholderText('Search buildings...');
+    const input = screen.getByPlaceholderText("Search buildings...");
     // Act
-    fireEvent.changeText(input, 'Hall');
+    fireEvent.changeText(input, "Hall");
     // Assert
-    expect(screen.getByText('H')).toBeTruthy();
+    expect(screen.getByText("H")).toBeTruthy();
   });
 
-  it('filters buildings by code', () => {
+  it("filters buildings by code", () => {
     // Arrange
     const screen = render(<MapViewApp showSearch />);
-    const input = screen.getByPlaceholderText('Search buildings...');
+    const input = screen.getByPlaceholderText("Search buildings...");
     // Act
-    fireEvent.changeText(input, 'MB');
+    fireEvent.changeText(input, "MB");
     // Assert
-    expect(screen.getByText('MB')).toBeTruthy();
+    expect(screen.getByText("MB")).toBeTruthy();
   });
 
-  it('is case insensitive', () => {
+  it("is case insensitive", () => {
     // Arrange
     const screen = render(<MapViewApp showSearch />);
-    const input = screen.getByPlaceholderText('Search buildings...');
+    const input = screen.getByPlaceholderText("Search buildings...");
     // Act
-    fireEvent.changeText(input, 'engineering');
+    fireEvent.changeText(input, "engineering");
     // Assert
-    expect(screen.getByText('EV')).toBeTruthy();
+    expect(screen.getByText("EV")).toBeTruthy();
   });
 
-
-  it('shows building info popup', () => {
+  it("shows building info popup", () => {
     // Arrange
     const screen = render(<MapViewApp />);
     // Act
-    fireEvent.press(screen.getByText('H'));
+    fireEvent.press(screen.getByText("H"));
     // Assert
-    expect(screen.getByText('Henry F. Hall Building')).toBeTruthy();
+    expect(screen.getByText("Henry F. Hall Building")).toBeTruthy();
   });
 
-  it('sets start building on first press', () => {
+  it("sets start building on first press", () => {
     // Arrange
     const screen = render(<MapViewApp />);
     // Act
-    fireEvent.press(screen.getByText('H'));
+    fireEvent.press(screen.getByText("H"));
     // Assert
-    expect(mockSetStartBuilding).toHaveBeenCalledWith(expect.objectContaining({ id: 'h' }));
+    expect(mockSetStartBuilding).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "h" }),
+    );
   });
 
-  it('sets destination building when start exists', () => {
+  it("sets destination building when start exists", () => {
     // Arrange
     (useDirections as jest.Mock).mockReturnValue({
-      startBuilding: { id: 'h' },
+      startBuilding: { id: "h" },
       destinationBuilding: null,
       route: null,
       isLoadingRoute: false,
@@ -289,87 +301,91 @@ describe('MapViewApp', () => {
     const screen = render(<MapViewApp />);
 
     // Act
-    fireEvent.press(screen.getByText('MB'));
+    fireEvent.press(screen.getByText("MB"));
     // Assert
-    expect(mockSetDestinationBuilding).toHaveBeenCalledWith(expect.objectContaining({ id: 'mb' }));
+    expect(mockSetDestinationBuilding).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "mb" }),
+    );
   });
 
-  it('clears start building when tapped again', () => {
+  it("clears start building when tapped again", () => {
     // Arrange
-    const hBuilding = SGW_BUILDINGS.find(b => b.code === 'H');
-  
+    const hBuilding = SGW_BUILDINGS.find((b) => b.code === "H");
+
     (useDirections as jest.Mock).mockReturnValue({
       startBuilding: hBuilding,
       destinationBuilding: null,
       setStartBuilding: mockSetStartBuilding,
       setDestinationBuilding: mockSetDestinationBuilding,
     });
-  
+
     const screen = render(<MapViewApp />);
-  
+
     // Act
-    const polygons = screen.getAllByTestId('building-polygon');
+    const polygons = screen.getAllByTestId("building-polygon");
     fireEvent.press(polygons[0]); // mockSGWPolygons[0] is 'h'
-  
+
     // Assert
     expect(mockSetStartBuilding).toHaveBeenCalledWith(null);
   });
-  
-  it('clears destination building when tapped again', () => {
+
+  it("clears destination building when tapped again", () => {
     // Arrange
-    const hBuilding = SGW_BUILDINGS.find(b => b.code === 'H');
-    const mbBuilding = SGW_BUILDINGS.find(b => b.code === 'MB');
-  
+    const hBuilding = SGW_BUILDINGS.find((b) => b.code === "H");
+    const mbBuilding = SGW_BUILDINGS.find((b) => b.code === "MB");
+
     (useDirections as jest.Mock).mockReturnValue({
       startBuilding: hBuilding,
       destinationBuilding: mbBuilding,
       setStartBuilding: mockSetStartBuilding,
       setDestinationBuilding: mockSetDestinationBuilding,
     });
-  
+
     const screen = render(<MapViewApp />);
-  
+
     // Act
-    const polygons = screen.getAllByTestId('building-polygon');
+    const polygons = screen.getAllByTestId("building-polygon");
     fireEvent.press(polygons[1]); // mockSGWPolygons[1] is 'mb'
-  
+
     // Assert
     expect(mockSetDestinationBuilding).toHaveBeenCalledWith(null);
   });
-  
-  it('replaces destination when both start and destination are set and a new building is tapped', () => {
-    // Arrange 
-    const hBuilding = SGW_BUILDINGS.find(b => b.code === 'H');
-    const mbBuilding = SGW_BUILDINGS.find(b => b.code === 'MB');
-    
+
+  it("replaces destination when both start and destination are set and a new building is tapped", () => {
+    // Arrange
+    const hBuilding = SGW_BUILDINGS.find((b) => b.code === "H");
+    const mbBuilding = SGW_BUILDINGS.find((b) => b.code === "MB");
+
     (useDirections as jest.Mock).mockReturnValue({
       startBuilding: hBuilding,
       destinationBuilding: mbBuilding,
       setStartBuilding: mockSetStartBuilding,
       setDestinationBuilding: mockSetDestinationBuilding,
     });
-  
+
     const screen = render(<MapViewApp />);
-  
-    // Act 
-    fireEvent.press(screen.getByText('EV'));
-  
-    // Assert 
+
+    // Act
+    fireEvent.press(screen.getByText("EV"));
+
+    // Assert
     expect(mockSetDestinationBuilding).toHaveBeenCalledWith(
-      expect.objectContaining({ code: 'EV' })
+      expect.objectContaining({ code: "EV" }),
     );
   });
 
-
-  it('search works across campus switches', () => {
+  it("search works across campus switches", () => {
     // Arrange
     (useDirections as jest.Mock).mockReturnValue({
-      startBuilding: { id: 'h' },
-      destinationBuilding: { id: 'mb' },
+      startBuilding: { id: "h" },
+      destinationBuilding: { id: "mb" },
       route: {
-        coordinates: [{ latitude: 45.4971, longitude: -73.5791 }, { latitude: 45.4953, longitude: -73.5782 }],
-        duration: '5 mins',
-        distance: '1 km'
+        coordinates: [
+          { latitude: 45.4971, longitude: -73.5791 },
+          { latitude: 45.4953, longitude: -73.5782 },
+        ],
+        duration: "5 mins",
+        distance: "1 km",
       },
       isLoadingRoute: false,
       setStartBuilding: mockSetStartBuilding,
@@ -379,149 +395,153 @@ describe('MapViewApp', () => {
     const screen = render(<MapViewApp />);
 
     // Assert
-    expect(screen.getByTestId('route-polyline')).toBeTruthy();
-    expect(screen.getByText('5 mins (1 km)')).toBeTruthy();
+    expect(screen.getByTestId("route-polyline")).toBeTruthy();
+    expect(screen.getByText("5 mins (1 km)")).toBeTruthy();
   });
 
   // Polygon tests
-  describe('Building Polygons', () => {
-    it('renders polygons for current campus buildings', () => {
+  describe("Building Polygons", () => {
+    it("renders polygons for current campus buildings", () => {
       // Arrange & Act
       const screen = render(<MapViewApp />);
-      const polygons = screen.getAllByTestId('building-polygon');
+      const polygons = screen.getAllByTestId("building-polygon");
       // Assert - should have 2 SGW polygons from mock
       expect(polygons.length).toBe(2);
     });
 
-    it('calls useBuildingPolygons with correct campus', () => {
+    it("calls useBuildingPolygons with correct campus", () => {
       // Arrange & Act
       render(<MapViewApp />);
       // Assert
-      expect(useBuildingPolygons).toHaveBeenCalledWith('SGW');
+      expect(useBuildingPolygons).toHaveBeenCalledWith("SGW");
     });
 
-    it('switches polygon data when changing campuses', () => {
+    it("switches polygon data when changing campuses", () => {
       // Arrange
-      (useBuildingPolygons as jest.Mock).mockImplementation((campus: string) => ({
-        polygons: campus === 'SGW' ? mockSGWPolygons : mockLoyolaPolygons,
-        loading: false,
-        error: null,
-      }));
+      (useBuildingPolygons as jest.Mock).mockImplementation(
+        (campus: string) => ({
+          polygons: campus === "SGW" ? mockSGWPolygons : mockLoyolaPolygons,
+          loading: false,
+          error: null,
+        }),
+      );
 
       const screen = render(<MapViewApp />);
 
       // Act - switch to Loyola
-      fireEvent.press(screen.getByText('Loyola Campus'));
+      fireEvent.press(screen.getByText("Loyola Campus"));
 
       // Assert - useBuildingPolygons should be called with 'Loyola'
-      expect(useBuildingPolygons).toHaveBeenCalledWith('Loyola');
+      expect(useBuildingPolygons).toHaveBeenCalledWith("Loyola");
     });
 
-    it('polygon tap triggers building selection', () => {
+    it("polygon tap triggers building selection", () => {
       // Arrange
       const screen = render(<MapViewApp />);
-      const polygons = screen.getAllByTestId('building-polygon');
+      const polygons = screen.getAllByTestId("building-polygon");
 
       // Act - tap first polygon (H building)
       fireEvent.press(polygons[0]);
 
       // Assert
       expect(mockSetStartBuilding).toHaveBeenCalledWith(
-        expect.objectContaining({ id: 'h' })
+        expect.objectContaining({ id: "h" }),
       );
     });
   });
 
   // Location feature tests
-  describe('Location Feature', () => {
-    it('renders locate me button', () => {
+  describe("Location Feature", () => {
+    it("renders locate me button", () => {
       const screen = render(<MapViewApp />);
-      expect(screen.getByTestId('locate-me-button')).toBeTruthy();
+      expect(screen.getByTestId("locate-me-button")).toBeTruthy();
     });
 
-    it('calls getCurrentLocation when locate button pressed', () => {
+    it("calls getCurrentLocation when locate button pressed", () => {
       const screen = render(<MapViewApp />);
-      fireEvent.press(screen.getByTestId('locate-me-button'));
+      fireEvent.press(screen.getByTestId("locate-me-button"));
       expect(mockGetCurrentLocation).toHaveBeenCalled();
     });
 
-    it('uses location hook', () => {
+    it("uses location hook", () => {
       render(<MapViewApp />);
       expect(useUserLocation).toHaveBeenCalled();
     });
 
-    it('switches campus when onCampusDetected is called with different campus', () => {
+    it("switches campus when onCampusDetected is called with different campus", () => {
       // Arrange
-      (useBuildingPolygons as jest.Mock).mockImplementation((campus: string) => ({
-        polygons: campus === 'SGW' ? mockSGWPolygons : mockLoyolaPolygons,
-        loading: false,
-        error: null,
-      }));
+      (useBuildingPolygons as jest.Mock).mockImplementation(
+        (campus: string) => ({
+          polygons: campus === "SGW" ? mockSGWPolygons : mockLoyolaPolygons,
+          loading: false,
+          error: null,
+        }),
+      );
 
       const screen = render(<MapViewApp />);
-      
-      // Verify we start on SGW
-      expect(screen.getByText('H')).toBeTruthy();
 
-      // Act 
+      // Verify we start on SGW
+      expect(screen.getByText("H")).toBeTruthy();
+
+      // Act
       act(() => {
         if (capturedOnCampusDetected) {
-          capturedOnCampusDetected('Loyola');
+          capturedOnCampusDetected("Loyola");
         }
       });
 
-      // Assert 
-      expect(useBuildingPolygons).toHaveBeenCalledWith('Loyola');
+      // Assert
+      expect(useBuildingPolygons).toHaveBeenCalledWith("Loyola");
     });
 
-    it('does not switch campus when onCampusDetected is called with same campus', () => {
+    it("does not switch campus when onCampusDetected is called with same campus", () => {
       // Arrange
       render(<MapViewApp />);
 
-      // Act 
+      // Act
       act(() => {
         if (capturedOnCampusDetected) {
-          capturedOnCampusDetected('SGW');
+          capturedOnCampusDetected("SGW");
         }
       });
 
-      // Assert 
-      expect(useBuildingPolygons).toHaveBeenLastCalledWith('SGW');
+      // Assert
+      expect(useBuildingPolygons).toHaveBeenLastCalledWith("SGW");
     });
 
-    it('highlights building when onBuildingHighlight is called', () => {
+    it("highlights building when onBuildingHighlight is called", () => {
       // Arrange
       render(<MapViewApp />);
 
       // Act - simulate building highlight
       act(() => {
         if (capturedOnBuildingHighlight) {
-          capturedOnBuildingHighlight('h');
+          capturedOnBuildingHighlight("h");
         }
       });
 
-      // Assert 
+      // Assert
       expect(capturedOnBuildingHighlight).toBeDefined();
     });
 
-    it('clears highlight when onBuildingHighlight is called with null', () => {
+    it("clears highlight when onBuildingHighlight is called with null", () => {
       // Arrange
       render(<MapViewApp />);
 
-      // Act 
+      // Act
       act(() => {
         if (capturedOnBuildingHighlight) {
-          capturedOnBuildingHighlight('h');
+          capturedOnBuildingHighlight("h");
           capturedOnBuildingHighlight(null);
         }
       });
 
-      // Assert 
+      // Assert
       expect(capturedOnBuildingHighlight).toBeDefined();
     });
 
-    it('animates to user location when campus detected and location available', () => {
-      // Arrange 
+    it("animates to user location when campus detected and location available", () => {
+      // Arrange
       (useUserLocation as jest.Mock).mockReturnValue({
         location: {
           coords: {
@@ -531,9 +551,9 @@ describe('MapViewApp', () => {
         },
         isLoading: false,
         errorMsg: null,
-        nearestBuilding: { id: 'cc', name: 'Central Building' },
+        nearestBuilding: { id: "cc", name: "Central Building" },
         isOnCampus: true,
-        currentCampus: 'Loyola',
+        currentCampus: "Loyola",
         getCurrentLocation: mockGetCurrentLocation,
         startLocationTracking: jest.fn(),
         stopLocationTracking: jest.fn(),
@@ -542,14 +562,14 @@ describe('MapViewApp', () => {
 
       render(<MapViewApp />);
 
-      // Act 
+      // Act
       act(() => {
         if (capturedOnCampusDetected) {
-          capturedOnCampusDetected('Loyola');
+          capturedOnCampusDetected("Loyola");
         }
       });
 
-      // Assert 
+      // Assert
       expect(useUserLocation).toHaveBeenCalled();
     });
   });

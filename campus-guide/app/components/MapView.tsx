@@ -1,13 +1,5 @@
 import React, { useState, useRef } from "react";
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  Modal,
-} from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import BuildingSearchHeader from "./BuildingSearchComponent";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -24,7 +16,6 @@ import MapView, {
   Marker,
   Polygon,
   PROVIDER_GOOGLE,
-  Circle,
   Polyline,
 } from "react-native-maps";
 import useBuildingPolygons from "../hooks/useBuildingPolygons";
@@ -49,7 +40,6 @@ export default function MapViewApp({
     setDestinationBuilding,
     clearDirections,
     route,
-    isLoadingRoute,
   } = useDirections();
 
   const router = useRouter();
@@ -68,8 +58,7 @@ export default function MapViewApp({
   const [infoBuilding, setInfoBuilding] = useState<Building | null>(null);
 
   // Fetch building polygons for the current campus
-  const { polygons: buildingPolygons, loading: polygonsLoading } =
-    useBuildingPolygons(selectedCampus);
+  const { polygons: buildingPolygons } = useBuildingPolygons(selectedCampus);
 
   // User location hook
   const {
@@ -88,11 +77,6 @@ export default function MapViewApp({
       b.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       b.code.toLowerCase().includes(searchQuery.toLowerCase()),
   );
-
-  const isStartSelected =
-    !!selectedBuilding && startBuilding?.id === selectedBuilding.id;
-  const isDestSelected =
-    !!selectedBuilding && destinationBuilding?.id === selectedBuilding.id;
 
   const handleCampusChange = (campus: Campus) => {
     setSelectedCampus(campus);
@@ -131,6 +115,12 @@ export default function MapViewApp({
     return "#912338";
   };
 
+  const getStrokeColorForBuilding = (isStart: boolean, isDest: boolean) => {
+    if (isStart) return "#10B981";
+    if (isDest) return "#FFEA00";
+    return "#912338";
+  };
+
   const getPolygonColors = (buildingId: string) => {
     const isStart = startBuilding?.id === buildingId;
     const isDest = destinationBuilding?.id === buildingId;
@@ -147,7 +137,7 @@ export default function MapViewApp({
 
     return {
       fillColor: "rgba(145, 35, 56, 0.3)", // Maroon with transparency
-      strokeColor: isStart ? "#10B981" : isDest ? "#FFEA00" : "#912338",
+      strokeColor: getStrokeColorForBuilding(isStart, isDest),
       strokeWidth: isStart || isDest ? 3 : 2,
     };
   };

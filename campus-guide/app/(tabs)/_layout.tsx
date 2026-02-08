@@ -10,8 +10,8 @@ function TabBar({
   currentScreen,
   onScreenChange,
 }: {
-  currentScreen: Screen;
-  onScreenChange: (screen: Screen) => void;
+  readonly currentScreen: Screen;
+  readonly onScreenChange: (screen: Screen) => void;
 }) {
   return (
     <BottomNav currentScreen={currentScreen} onScreenChange={onScreenChange} />
