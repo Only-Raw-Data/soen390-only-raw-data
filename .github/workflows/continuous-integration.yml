@@ -28,7 +28,7 @@ jobs:
         working-directory: campus-guide
         run: npm test -- --coverage
 
-       - name: SonarCloud Scan
+      - name: SonarCloud Scan
         uses: SonarSource/sonarqube-scan-action@v7
         env:
           SONAR_TOKEN: ${{ secrets.SONARCLOUD_TOKEN }}
