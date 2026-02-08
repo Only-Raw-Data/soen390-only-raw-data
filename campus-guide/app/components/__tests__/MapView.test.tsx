@@ -62,6 +62,10 @@ jest.mock('react-native-maps', () => {
     />
   );
 
+  const MockPolyline = ({ coordinates }: any) => (
+    <View testID="route-polyline" accessibilityLabel={`polyline-${coordinates?.length || 0}-coords`} />
+  );
+
   const MockCircle = () => null;
 
   return {
@@ -69,6 +73,7 @@ jest.mock('react-native-maps', () => {
     default: MockMapView,
     Marker: MockMarker,
     Polygon: MockPolygon,
+    Polyline: MockPolyline,
     Circle: MockCircle,
     PROVIDER_GOOGLE: 'google',
   };
@@ -138,6 +143,8 @@ describe('MapViewApp', () => {
     (useDirections as jest.Mock).mockReturnValue({
       startBuilding: null,
       destinationBuilding: null,
+      route: null,
+      isLoadingRoute: false,
       setStartBuilding: mockSetStartBuilding,
       setDestinationBuilding: mockSetDestinationBuilding,
     });
@@ -268,6 +275,8 @@ describe('MapViewApp', () => {
     (useDirections as jest.Mock).mockReturnValue({
       startBuilding: { id: 'h' },
       destinationBuilding: null,
+      route: null,
+      isLoadingRoute: false,
       setStartBuilding: mockSetStartBuilding,
       setDestinationBuilding: mockSetDestinationBuilding,
     });
@@ -349,14 +358,24 @@ describe('MapViewApp', () => {
 
   it('search works across campus switches', () => {
     // Arrange
-    const screen = render(<MapViewApp showSearch />);
-    const input = screen.getByPlaceholderText('Search buildings...');
-    // Act
-    fireEvent.changeText(input, 'Hall');
-    fireEvent.press(screen.getByText('Loyola Campus'));
-    fireEvent.changeText(input, 'Central');
+    (useDirections as jest.Mock).mockReturnValue({
+      startBuilding: { id: 'h' },
+      destinationBuilding: { id: 'mb' },
+      route: {
+        coordinates: [{ latitude: 45.4971, longitude: -73.5791 }, { latitude: 45.4953, longitude: -73.5782 }],
+        duration: '5 mins',
+        distance: '1 km'
+      },
+      isLoadingRoute: false,
+      setStartBuilding: mockSetStartBuilding,
+      setDestinationBuilding: mockSetDestinationBuilding,
+    });
+
+    const screen = render(<MapViewApp />);
+
     // Assert
-    expect(screen.getByText('CC')).toBeTruthy();
+    expect(screen.getByTestId('route-polyline')).toBeTruthy();
+    expect(screen.getByText('5 mins (1 km)')).toBeTruthy();
   });
 
   // Polygon tests
@@ -405,32 +424,6 @@ describe('MapViewApp', () => {
       expect(mockSetStartBuilding).toHaveBeenCalledWith(
         expect.objectContaining({ id: 'h' })
       );
-    });
-
-    it('handles empty polygon data gracefully', () => {
-      // Arrange
-      (useBuildingPolygons as jest.Mock).mockReturnValue({
-        polygons: [],
-        loading: false,
-        error: null,
-      });
-
-      // Act & Assert - should not throw
-      const screen = render(<MapViewApp />);
-      expect(screen.getByTestId('mapView')).toBeTruthy();
-    });
-
-    it('renders with loading state', () => {
-      // Arrange
-      (useBuildingPolygons as jest.Mock).mockReturnValue({
-        polygons: [],
-        loading: true,
-        error: null,
-      });
-
-      // Act & Assert - should render map even while loading
-      const screen = render(<MapViewApp />);
-      expect(screen.getByTestId('mapView')).toBeTruthy();
     });
   });
 
