@@ -4,6 +4,7 @@ import { MapViewApp } from '../MapView';
 import { useDirections } from '../../context/DirectionsContext';
 import { useBuildingPolygons } from '../../hooks/useBuildingPolygons';
 import { useUserLocation } from '../../hooks/useUserLocation';
+import { SGW_BUILDINGS } from '@/constants/buildings';
 
 //Mocks
 jest.mock('../../context/DirectionsContext', () => ({
@@ -277,6 +278,72 @@ describe('MapViewApp', () => {
     fireEvent.press(screen.getByText('MB'));
     // Assert
     expect(mockSetDestinationBuilding).toHaveBeenCalledWith(expect.objectContaining({ id: 'mb' }));
+  });
+
+  it('clears start building when tapped again', () => {
+    // Arrange
+    const hBuilding = SGW_BUILDINGS.find(b => b.code === 'H');
+  
+    (useDirections as jest.Mock).mockReturnValue({
+      startBuilding: hBuilding,
+      destinationBuilding: null,
+      setStartBuilding: mockSetStartBuilding,
+      setDestinationBuilding: mockSetDestinationBuilding,
+    });
+  
+    const screen = render(<MapViewApp />);
+  
+    // Act
+    const polygons = screen.getAllByTestId('building-polygon');
+    fireEvent.press(polygons[0]); // mockSGWPolygons[0] is 'h'
+  
+    // Assert
+    expect(mockSetStartBuilding).toHaveBeenCalledWith(null);
+  });
+  
+  it('clears destination building when tapped again', () => {
+    // Arrange
+    const hBuilding = SGW_BUILDINGS.find(b => b.code === 'H');
+    const mbBuilding = SGW_BUILDINGS.find(b => b.code === 'MB');
+  
+    (useDirections as jest.Mock).mockReturnValue({
+      startBuilding: hBuilding,
+      destinationBuilding: mbBuilding,
+      setStartBuilding: mockSetStartBuilding,
+      setDestinationBuilding: mockSetDestinationBuilding,
+    });
+  
+    const screen = render(<MapViewApp />);
+  
+    // Act
+    const polygons = screen.getAllByTestId('building-polygon');
+    fireEvent.press(polygons[1]); // mockSGWPolygons[1] is 'mb'
+  
+    // Assert
+    expect(mockSetDestinationBuilding).toHaveBeenCalledWith(null);
+  });
+  
+  it('replaces destination when both start and destination are set and a new building is tapped', () => {
+    // Arrange 
+    const hBuilding = SGW_BUILDINGS.find(b => b.code === 'H');
+    const mbBuilding = SGW_BUILDINGS.find(b => b.code === 'MB');
+    
+    (useDirections as jest.Mock).mockReturnValue({
+      startBuilding: hBuilding,
+      destinationBuilding: mbBuilding,
+      setStartBuilding: mockSetStartBuilding,
+      setDestinationBuilding: mockSetDestinationBuilding,
+    });
+  
+    const screen = render(<MapViewApp />);
+  
+    // Act 
+    fireEvent.press(screen.getByText('EV'));
+  
+    // Assert 
+    expect(mockSetDestinationBuilding).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 'EV' })
+    );
   });
 
 
