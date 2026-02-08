@@ -1,0 +1,60 @@
+appId: com.campus.campusguide
+---
+- launchApp
+
+- assertVisible: "SGW Campus"
+
+- waitForAnimationToEnd
+
+- tapOn: "Loyola Campus"
+- waitForAnimationToEnd
+
+- tapOn:
+    point: "50%,50%"
+- waitForAnimationToEnd
+
+- assertVisible: "PY"
+- assertVisible: "Get Directions"
+
+- tapOn:
+    id: "close-button"
+- waitForAnimationToEnd
+
+- tapOn:
+    point: "35%,35%"
+
+- assertNotVisible: "Administration Building"
+- assertNotVisible: "BB-BH Annex"
+- assertNotVisible: "Central Building"
+- assertNotVisible: "Communication Studies and Journalism Building"
+- assertNotVisible: "F.C. Smith Building"
+- assertNotVisible: "Centre for Structural and Functional Genomics"
+- assertNotVisible: "Hingston Hall, wing HA"
+- assertNotVisible: "Hingston Hall, wing HB"
+- assertNotVisible: "Hingston Hall, wing HC"
+- assertNotVisible: "Applied Science Hub"
+- assertNotVisible: "Jesuit Residence"
+- assertNotVisible: "PB Building"
+- assertNotVisible: "PERFORM centre"
+- assertNotVisible: "Physical Services Building"
+- assertNotVisible: "Oscar Peterson Concert Hall"
+- assertNotVisible: "Psychology Building"
+- assertNotVisible: "Recreation and Athletics Complex"
+- assertNotVisible: "Loyola Jesuit Hall and Conference Centre"
+- assertNotVisible: "Student Centre"
+- assertNotVisible: "Solar House"
+- assertNotVisible: "Richard J. Renaud Science Complex"
+- assertNotVisible: "Terrebonne Building"
+- assertNotVisible: "TB Annex"
+- assertNotVisible: "Vanier Extension"
+- assertNotVisible: "Vanier Library Building"
+
+- tapOn:
+    point: "45%,45%"
+- waitForAnimationToEnd
+
+- assertVisible: "TB"
+
+- tapOn:
+    id: "close-button"
+- waitForAnimationToEnd

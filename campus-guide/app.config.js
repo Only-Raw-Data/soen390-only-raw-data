@@ -36,7 +36,13 @@ module.exports = {
       favicon: "./assets/images/favicon.png"
     },
     plugins: [
-      "expo-router"
+      "expo-router",
+      [
+        "expo-location",
+        {
+          locationWhenInUsePermission: "Allow Campus Guide to use your location to find the nearest building."
+        }
+      ]
     ],
     experiments: {
       typedRoutes: true
