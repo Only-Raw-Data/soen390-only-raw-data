@@ -1,9 +1,9 @@
 {
   "sgwBuildings": [
-    { "id": "b", "name": "B Annex", "code": "B", "lat": 45.497846, "lng": -73.579498, "campus": "SGW", "address": "2160 Bishop Street", "x": 0, "y": 0 },
+    { "id": "b", "name": "B Annex", "code": "B", "lat": 45.497880, "lng": -73.579430, "campus": "SGW", "address": "2160 Bishop Street", "x": 0, "y": 0 },
     { "id": "ci", "name": "CI Annex", "code": "CI", "lat": 45.497467, "lng": -73.579925, "campus": "SGW", "address": "2149 Mackay Street", "x": 0, "y": 0 },
     { "id": "cl", "name": "CL Annex", "code": "CL", "lat": 45.494259, "lng": -73.579007, "campus": "SGW", "address": "1665 Ste-Catherine W", "x": 0, "y": 0 },
-    { "id": "d", "name": "D Annex", "code": "D", "lat": 45.497797, "lng": -73.579309, "campus": "SGW", "address": "2140 Bishop Street", "x": 0, "y": 0 },
+    { "id": "d", "name": "D Annex", "code": "D", "lat": 45.497730, "lng": -73.579410, "campus": "SGW", "address": "2140 Bishop Street", "x": 0, "y": 0 },
     { "id": "en", "name": "EN Annex", "code": "EN", "lat": 45.496914, "lng": -73.579555, "campus": "SGW", "address": "2070 Mackay Street", "x": 0, "y": 0 },
     { "id": "er", "name": "ER Building", "code": "ER", "lat": 45.496428, "lng": -73.57999, "campus": "SGW", "address": "2155 Guy Street", "x": 0, "y": 0 },
     { "id": "es", "name": "ES Building", "code": "ES", "lat": 45.496172, "lng": -73.579922, "campus": "SGW", "address": "2135 Guy Street", "x": 0, "y": 0 },
@@ -20,7 +20,7 @@
     { "id": "gnl", "name": "Grey Nuns Building – Wings L–N", "code": "GNL", "lat": 45.493622, "lng": -73.577003, "campus": "SGW", "address": "1190 Guy Street", "x": 0, "y": 0 },
     { "id": "gs", "name": "Guy-Sherbrooke Building", "code": "GS", "lat": 45.496673, "lng": -73.581409, "campus": "SGW", "address": "1538 Sherbrooke W", "x": 0, "y": 0 },
     { "id": "h", "name": "Henry F. Hall Building", "code": "H", "lat": 45.497092, "lng": -73.5788, "campus": "SGW", "address": "1455 DeMaisonneuve W", "x": 0, "y": 0 },
-    { "id": "k", "name": "K Annex", "code": "K", "lat": 45.497817, "lng": -73.579409, "campus": "SGW", "address": "2150 Bishop Street", "x": 0, "y": 0 },
+    { "id": "k", "name": "K Annex", "code": "K", "lat": 45.497800, "lng": -73.579420, "campus": "SGW", "address": "2150 Bishop Street", "x": 0, "y": 0 },
     { "id": "lb", "name": "J.W. McConnell Building", "code": "LB", "lat": 45.49705, "lng": -73.578009, "campus": "SGW", "address": "1400 DeMaisonneuve W", "x": 0, "y": 0 },
     { "id": "mb", "name": "John Molson Building", "code": "MB", "lat": 45.495304, "lng": -73.579044, "campus": "SGW", "address": "1450 Guy Street", "x": 0, "y": 0 },
     { "id": "va", "name": "Visual Arts Building", "code": "VA", "lat": 45.495543, "lng": -73.573795, "campus": "SGW", "address": "1395 Ren\u00e9-L\u00e9vesque W", "x": 0, "y": 0 }

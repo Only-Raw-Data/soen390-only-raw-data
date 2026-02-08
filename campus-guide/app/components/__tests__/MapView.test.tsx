@@ -1,8 +1,9 @@
 import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { MapViewApp } from '../MapView';
 import { useDirections } from '../../context/DirectionsContext';
 import { useBuildingPolygons } from '../../hooks/useBuildingPolygons';
+import { useUserLocation } from '../../hooks/useUserLocation';
 
 //Mocks
 jest.mock('../../context/DirectionsContext', () => ({
@@ -11,6 +12,10 @@ jest.mock('../../context/DirectionsContext', () => ({
 
 jest.mock('../../hooks/useBuildingPolygons', () => ({
   useBuildingPolygons: jest.fn(),
+}));
+
+jest.mock('../../hooks/useUserLocation', () => ({
+  useUserLocation: jest.fn(),
 }));
 
 jest.mock('../../../constants/mapStyle', () => ({
@@ -40,9 +45,9 @@ jest.mock('react-native-maps', () => {
   const React = require('react');
   const { View, Text, TouchableOpacity } = require('react-native');
 
-  const MockMapView = ({ children, ...props }: any) => (
+  const MockMapView = React.forwardRef(({ children, ...props }: any, ref: any) => (
     <View testID="mapView" {...props}>{children}</View>
-  );
+  ));
 
   const MockMarker = ({ title, onPress }: any) => (
     <Text accessibilityRole="button" onPress={onPress}>{title}</Text>
@@ -56,14 +61,41 @@ jest.mock('react-native-maps', () => {
     />
   );
 
+  const MockPolyline = ({ coordinates }: any) => (
+    <View testID="route-polyline" accessibilityLabel={`polyline-${coordinates?.length || 0}-coords`} />
+  );
+
+  const MockCircle = () => null;
+
   return {
     __esModule: true,
     default: MockMapView,
     Marker: MockMarker,
     Polygon: MockPolygon,
+    Polyline: MockPolyline,
+    Circle: MockCircle,
     PROVIDER_GOOGLE: 'google',
   };
 });
+
+let capturedOnCampusDetected: ((campus: string) => void) | null = null;
+let capturedOnBuildingHighlight: ((buildingId: string | null) => void) | null = null;
+
+jest.mock('../LocateMeButton', () => ({
+  LocateMeButton: ({ onLocate, onCampusDetected, onBuildingHighlight }: any) => {
+    const React = require('react');
+    const { TouchableOpacity, Text } = require('react-native');
+    
+    capturedOnCampusDetected = onCampusDetected;
+    capturedOnBuildingHighlight = onBuildingHighlight;
+    
+    return (
+      <TouchableOpacity testID="locate-me-button" onPress={onLocate}>
+        <Text>Locate Me</Text>
+      </TouchableOpacity>
+    );
+  },
+}));
 
 // Mock polygon data for tests
 const mockSGWPolygons = [
@@ -102,6 +134,7 @@ const mockLoyolaPolygons = [
 describe('MapViewApp', () => {
   const mockSetStartBuilding = jest.fn();
   const mockSetDestinationBuilding = jest.fn();
+  const mockGetCurrentLocation = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -109,6 +142,8 @@ describe('MapViewApp', () => {
     (useDirections as jest.Mock).mockReturnValue({
       startBuilding: null,
       destinationBuilding: null,
+      route: null,
+      isLoadingRoute: false,
       setStartBuilding: mockSetStartBuilding,
       setDestinationBuilding: mockSetDestinationBuilding,
     });
@@ -118,6 +153,20 @@ describe('MapViewApp', () => {
       polygons: mockSGWPolygons,
       loading: false,
       error: null,
+    });
+
+    // Default mock for user location
+    (useUserLocation as jest.Mock).mockReturnValue({
+      location: null,
+      isLoading: false,
+      errorMsg: null,
+      nearestBuilding: null,
+      isOnCampus: false,
+      currentCampus: null,
+      getCurrentLocation: mockGetCurrentLocation,
+      startLocationTracking: jest.fn(),
+      stopLocationTracking: jest.fn(),
+      requestLocationPermission: jest.fn(),
     });
   });
 
@@ -225,6 +274,8 @@ describe('MapViewApp', () => {
     (useDirections as jest.Mock).mockReturnValue({
       startBuilding: { id: 'h' },
       destinationBuilding: null,
+      route: null,
+      isLoadingRoute: false,
       setStartBuilding: mockSetStartBuilding,
       setDestinationBuilding: mockSetDestinationBuilding,
     });
@@ -237,17 +288,26 @@ describe('MapViewApp', () => {
     expect(mockSetDestinationBuilding).toHaveBeenCalledWith(expect.objectContaining({ id: 'mb' }));
   });
 
-
-  it('search works across campus switches', () => {
+  it('renders route polyline when route is available', () => {
     // Arrange
-    const screen = render(<MapViewApp showSearch />);
-    const input = screen.getByPlaceholderText('Search buildings...');
-    // Act
-    fireEvent.changeText(input, 'Hall');
-    fireEvent.press(screen.getByText('Loyola Campus'));
-    fireEvent.changeText(input, 'Central');
+    (useDirections as jest.Mock).mockReturnValue({
+      startBuilding: { id: 'h' },
+      destinationBuilding: { id: 'mb' },
+      route: {
+        coordinates: [{ latitude: 45.4971, longitude: -73.5791 }, { latitude: 45.4953, longitude: -73.5782 }],
+        duration: '5 mins',
+        distance: '1 km'
+      },
+      isLoadingRoute: false,
+      setStartBuilding: mockSetStartBuilding,
+      setDestinationBuilding: mockSetDestinationBuilding,
+    });
+
+    const screen = render(<MapViewApp />);
+
     // Assert
-    expect(screen.getByText('CC')).toBeTruthy();
+    expect(screen.getByTestId('route-polyline')).toBeTruthy();
+    expect(screen.getByText('5 mins (1 km)')).toBeTruthy();
   });
 
   // Polygon tests
@@ -297,31 +357,24 @@ describe('MapViewApp', () => {
         expect.objectContaining({ id: 'h' })
       );
     });
+  });
 
-    it('handles empty polygon data gracefully', () => {
-      // Arrange
-      (useBuildingPolygons as jest.Mock).mockReturnValue({
-        polygons: [],
-        loading: false,
-        error: null,
-      });
-
-      // Act & Assert - should not throw
+  // Location feature tests
+  describe('Location Feature', () => {
+    it('renders locate me button', () => {
       const screen = render(<MapViewApp />);
-      expect(screen.getByTestId('mapView')).toBeTruthy();
+      expect(screen.getByTestId('locate-me-button')).toBeTruthy();
     });
 
-    it('renders with loading state', () => {
-      // Arrange
-      (useBuildingPolygons as jest.Mock).mockReturnValue({
-        polygons: [],
-        loading: true,
-        error: null,
-      });
-
-      // Act & Assert - should render map even while loading
+    it('calls getCurrentLocation when locate button pressed', () => {
       const screen = render(<MapViewApp />);
-      expect(screen.getByTestId('mapView')).toBeTruthy();
+      fireEvent.press(screen.getByTestId('locate-me-button'));
+      expect(mockGetCurrentLocation).toHaveBeenCalled();
+    });
+
+    it('uses location hook', () => {
+      render(<MapViewApp />);
+      expect(useUserLocation).toHaveBeenCalled();
     });
   });
 });

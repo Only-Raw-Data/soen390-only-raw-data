@@ -1,14 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Modal } from 'react-native';
 import BuildingSearchHeader from './BuildingSearchComponent';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Campus, Building, SGW_BUILDINGS, LOYOLA_BUILDINGS,CAMPUS_REGIONS } from './../../constants/buildings';
 import { useDirections } from '../context/DirectionsContext';
-import MapView, { Marker, Polygon, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Marker, Polygon, PROVIDER_GOOGLE, Circle, Polyline } from 'react-native-maps';
 import { useBuildingPolygons } from '../hooks/useBuildingPolygons';
 import { CAMPUS_MAP_STYLE } from '../../constants/mapStyle';
 import  BuildingInformation  from './BuildingInformation';
+import { LocateMeButton } from './LocateMeButton';
+import { useUserLocation } from '../hooks/useUserLocation';
 
 interface MapViewAppProps {
     googleMapsApiKey?: string;
@@ -20,17 +22,32 @@ export function MapViewApp({showSearch, googleMapsApiKey}: MapViewAppProps ) {
         startBuilding, 
         destinationBuilding, 
         setStartBuilding, 
-        setDestinationBuilding 
+        setDestinationBuilding,
+        route,
+        isLoadingRoute
     } = useDirections();
 
     const router = useRouter();
+    const mapRef = useRef<MapView>(null);
 
     const [selectedCampus, setSelectedCampus] = useState<Campus>('SGW');
     const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const [highlightedBuildingId, setHighlightedBuildingId] = useState<string | null>(null);
 
     // Fetch building polygons for the current campus
     const { polygons: buildingPolygons, loading: polygonsLoading } = useBuildingPolygons(selectedCampus);
+
+    // User location hook
+    const {
+        location: userLocation,
+        isLoading: locationLoading,
+        errorMsg: locationError,
+        nearestBuilding,
+        isOnCampus,
+        currentCampus,
+        getCurrentLocation,
+    } = useUserLocation();
 
     const buildings = selectedCampus === 'SGW' ? SGW_BUILDINGS : LOYOLA_BUILDINGS;
     const filteredBuildings = buildings.filter(
@@ -82,11 +99,44 @@ export function MapViewApp({showSearch, googleMapsApiKey}: MapViewAppProps ) {
     const getPolygonColors = (buildingId: string) => {
         const isStart = startBuilding?.id === buildingId;
         const isDest = destinationBuilding?.id === buildingId;
+        const isHighlighted = highlightedBuildingId === buildingId;
+        
+        // User location highlight takes precedence for visual emphasis
+        if (isHighlighted) {
+            return {
+                fillColor: 'rgba(59, 130, 246, 0.4)', // Blue with transparency
+                strokeColor: '#3B82F6',
+                strokeWidth: 4,
+            };
+        }
+        
         return {
             fillColor: 'rgba(145, 35, 56, 0.3)', // Maroon with transparency
             strokeColor: isStart ? '#10B981' : isDest ? '#FFEA00' : '#912338',
             strokeWidth: isStart || isDest ? 3 : 2,
         };
+    };
+
+    // Handle campus switch when user is located
+    const handleCampusDetected = (campus: Campus) => {
+        if (campus !== selectedCampus) {
+            setSelectedCampus(campus);
+        }
+        
+        // Animate to user location if available
+        if (userLocation && mapRef.current) {
+            mapRef.current.animateToRegion({
+                latitude: userLocation.coords.latitude,
+                longitude: userLocation.coords.longitude,
+                latitudeDelta: 0.005,
+                longitudeDelta: 0.005,
+            }, 1000);
+        }
+    };
+
+    // Handle building highlight
+    const handleBuildingHighlight = (buildingId: string | null) => {
+        setHighlightedBuildingId(buildingId);
     };
 
     const handleGetDirections = (building: Building) => {
@@ -143,11 +193,12 @@ export function MapViewApp({showSearch, googleMapsApiKey}: MapViewAppProps ) {
             </View>
 
             <MapView
+                ref={mapRef}
                 provider={PROVIDER_GOOGLE}
                 style={styles.map}
                 region={CAMPUS_REGIONS[selectedCampus]}
                 showsUserLocation={true}
-                showsMyLocationButton={true}
+                showsMyLocationButton={false}
                 customMapStyle={CAMPUS_MAP_STYLE}
             >
                 {/* Render Building Polygons */}
@@ -178,7 +229,36 @@ export function MapViewApp({showSearch, googleMapsApiKey}: MapViewAppProps ) {
                         pinColor={getMarkerColor(building)}
                     />
                 ))}
+                {/* Render Directions Polyline */}
+                {route && (
+                    <Polyline
+                        coordinates={route.coordinates}
+                        strokeWidth={4}
+                        strokeColor="#3B82F6"
+                    />
+                )}
             </MapView>
+
+            {/* Travel Time Display */}
+            {route && (
+                <View style={styles.travelTimeContainer}>
+                    <View style={styles.travelTimeBadge}>
+                        <Ionicons name="time-outline" size={16} color="#FFFFFF" />
+                        <Text style={styles.travelTimeText}>{route.duration} ({route.distance})</Text>
+                    </View>
+                </View>
+            )}
+
+            <LocateMeButton
+                onLocate={getCurrentLocation}
+                isLoading={locationLoading}
+                nearestBuilding={nearestBuilding}
+                isOnCampus={isOnCampus}
+                errorMsg={locationError}
+                currentCampus={currentCampus}
+                onCampusDetected={handleCampusDetected}
+                onBuildingHighlight={handleBuildingHighlight}
+            />
 
             {selectedBuilding && (
             <BuildingInformation
@@ -410,5 +490,32 @@ const styles = StyleSheet.create({
     },
     map: {
         flex: 1,
+    },
+    travelTimeContainer: {
+        position: 'absolute',
+        top: 140, // Below campus toggle
+        left: 0,
+        right: 0,
+        alignItems: 'center',
+        zIndex: 50,
+    },
+    travelTimeBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#3B82F6',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 20,
+        gap: 6,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+        elevation: 4,
+    },
+    travelTimeText: {
+        color: '#FFFFFF',
+        fontWeight: '600',
+        fontSize: 14,
     },
 });
