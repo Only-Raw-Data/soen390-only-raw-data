@@ -143,6 +143,7 @@ export function DirectionsHeader() {
                             {filteredBuildings.map(building => (
                                 <TouchableOpacity
                                     key={building.id}
+                                    id={building.id}
                                     style={styles.searchResultItem}
                                     onPress={() => handleSelectBuilding(building, isSearchingStart ? 'start' : 'dest')}
                                 >

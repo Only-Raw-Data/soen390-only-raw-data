@@ -9,40 +9,56 @@ appId: com.anonymous.campusguide
     timeout: 60000
 
 # Navigate to Directions page
+- extendedWaitUntil:
+    visible: "Concordia Campus Guide"
+    timeout: 60000
+
 - tapOn: "Directions"
 - waitForAnimationToEnd
 
 # Assert Directions page elements
 - assertVisible: "Get Directions"
-- assertVisible: "Start location"
-- assertVisible: "Destination"
+# - assertVisible: "Start location"
+# - assertVisible: "Destination"
 
 # Tap on Start location field
-- tapOn: "Start location"
-- waitForAnimationToEnd
+- tapOn:
+    id: "start-input"
+
+- assertVisible:
+    id: "start-input"
+    focused: true
 
 # Enter start location (you may need to adjust based on your input method)
-- inputText: "Guy-Concordia Metro"
+- inputText: "HE"
+- tapOn:
+    point: "50%, 40%" 
 
 # Confirm/close keyboard or selection (if needed)
-- hideKeyboard
+# - hideKeyboard
 
 # Tap on Destination field
-- tapOn: "Destination"
-- waitForAnimationToEnd
+- tapOn:
+    id: "dest-input"
+
+- assertVisible:
+    id: "dest-input"
+    focused: true
 
 # Enter destination
-- inputText: "Hall Building"
+- inputText: "BH"
+- tapOn:
+    point: "50%, 30%" 
+
 
 # Confirm/close keyboard
-- hideKeyboard
+# - hideKeyboard
 
 # Assert both fields are filled
-- assertVisible: "Guy-Concordia Metro"
-- assertVisible: "Hall Building"
+- assertVisible: "BB-BH Annex"
+- assertVisible: "Henry F. Hall Building"
 
-# Optional: Select transport mode
+# Select transport mode test
+- tapOn: "Car"
+- tapOn: "Transit"
 - tapOn: "Walk"
-
-# Assert Walk is selected (you may need testID for this)
-- assertVisible: "Walk"
