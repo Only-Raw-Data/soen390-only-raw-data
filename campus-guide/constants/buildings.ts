@@ -10,6 +10,9 @@ export interface Building {
   lng: number;
   campus: Campus;
   address: string;
+  department: string;
+  overview: string;
+  accessibility: string;
   x: number;
   y: number;
 }

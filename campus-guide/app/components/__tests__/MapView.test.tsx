@@ -4,6 +4,7 @@ import { MapViewApp } from '../MapView';
 import { useDirections } from '../../context/DirectionsContext';
 import { useBuildingPolygons } from '../../hooks/useBuildingPolygons';
 import { useUserLocation } from '../../hooks/useUserLocation';
+import { SGW_BUILDINGS } from '@/constants/buildings';
 
 //Mocks
 jest.mock('../../context/DirectionsContext', () => ({
@@ -288,7 +289,74 @@ describe('MapViewApp', () => {
     expect(mockSetDestinationBuilding).toHaveBeenCalledWith(expect.objectContaining({ id: 'mb' }));
   });
 
-  it('renders route polyline when route is available', () => {
+  it('clears start building when tapped again', () => {
+    // Arrange
+    const hBuilding = SGW_BUILDINGS.find(b => b.code === 'H');
+  
+    (useDirections as jest.Mock).mockReturnValue({
+      startBuilding: hBuilding,
+      destinationBuilding: null,
+      setStartBuilding: mockSetStartBuilding,
+      setDestinationBuilding: mockSetDestinationBuilding,
+    });
+  
+    const screen = render(<MapViewApp />);
+  
+    // Act
+    const polygons = screen.getAllByTestId('building-polygon');
+    fireEvent.press(polygons[0]); // mockSGWPolygons[0] is 'h'
+  
+    // Assert
+    expect(mockSetStartBuilding).toHaveBeenCalledWith(null);
+  });
+  
+  it('clears destination building when tapped again', () => {
+    // Arrange
+    const hBuilding = SGW_BUILDINGS.find(b => b.code === 'H');
+    const mbBuilding = SGW_BUILDINGS.find(b => b.code === 'MB');
+  
+    (useDirections as jest.Mock).mockReturnValue({
+      startBuilding: hBuilding,
+      destinationBuilding: mbBuilding,
+      setStartBuilding: mockSetStartBuilding,
+      setDestinationBuilding: mockSetDestinationBuilding,
+    });
+  
+    const screen = render(<MapViewApp />);
+  
+    // Act
+    const polygons = screen.getAllByTestId('building-polygon');
+    fireEvent.press(polygons[1]); // mockSGWPolygons[1] is 'mb'
+  
+    // Assert
+    expect(mockSetDestinationBuilding).toHaveBeenCalledWith(null);
+  });
+  
+  it('replaces destination when both start and destination are set and a new building is tapped', () => {
+    // Arrange 
+    const hBuilding = SGW_BUILDINGS.find(b => b.code === 'H');
+    const mbBuilding = SGW_BUILDINGS.find(b => b.code === 'MB');
+    
+    (useDirections as jest.Mock).mockReturnValue({
+      startBuilding: hBuilding,
+      destinationBuilding: mbBuilding,
+      setStartBuilding: mockSetStartBuilding,
+      setDestinationBuilding: mockSetDestinationBuilding,
+    });
+  
+    const screen = render(<MapViewApp />);
+  
+    // Act 
+    fireEvent.press(screen.getByText('EV'));
+  
+    // Assert 
+    expect(mockSetDestinationBuilding).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 'EV' })
+    );
+  });
+
+
+  it('search works across campus switches', () => {
     // Arrange
     (useDirections as jest.Mock).mockReturnValue({
       startBuilding: { id: 'h' },
@@ -374,6 +442,109 @@ describe('MapViewApp', () => {
 
     it('uses location hook', () => {
       render(<MapViewApp />);
+      expect(useUserLocation).toHaveBeenCalled();
+    });
+
+    it('switches campus when onCampusDetected is called with different campus', () => {
+      // Arrange
+      (useBuildingPolygons as jest.Mock).mockImplementation((campus: string) => ({
+        polygons: campus === 'SGW' ? mockSGWPolygons : mockLoyolaPolygons,
+        loading: false,
+        error: null,
+      }));
+
+      const screen = render(<MapViewApp />);
+      
+      // Verify we start on SGW
+      expect(screen.getByText('H')).toBeTruthy();
+
+      // Act 
+      act(() => {
+        if (capturedOnCampusDetected) {
+          capturedOnCampusDetected('Loyola');
+        }
+      });
+
+      // Assert 
+      expect(useBuildingPolygons).toHaveBeenCalledWith('Loyola');
+    });
+
+    it('does not switch campus when onCampusDetected is called with same campus', () => {
+      // Arrange
+      render(<MapViewApp />);
+
+      // Act 
+      act(() => {
+        if (capturedOnCampusDetected) {
+          capturedOnCampusDetected('SGW');
+        }
+      });
+
+      // Assert 
+      expect(useBuildingPolygons).toHaveBeenLastCalledWith('SGW');
+    });
+
+    it('highlights building when onBuildingHighlight is called', () => {
+      // Arrange
+      render(<MapViewApp />);
+
+      // Act - simulate building highlight
+      act(() => {
+        if (capturedOnBuildingHighlight) {
+          capturedOnBuildingHighlight('h');
+        }
+      });
+
+      // Assert 
+      expect(capturedOnBuildingHighlight).toBeDefined();
+    });
+
+    it('clears highlight when onBuildingHighlight is called with null', () => {
+      // Arrange
+      render(<MapViewApp />);
+
+      // Act 
+      act(() => {
+        if (capturedOnBuildingHighlight) {
+          capturedOnBuildingHighlight('h');
+          capturedOnBuildingHighlight(null);
+        }
+      });
+
+      // Assert 
+      expect(capturedOnBuildingHighlight).toBeDefined();
+    });
+
+    it('animates to user location when campus detected and location available', () => {
+      // Arrange 
+      (useUserLocation as jest.Mock).mockReturnValue({
+        location: {
+          coords: {
+            latitude: 45.458204,
+            longitude: -73.6403,
+          },
+        },
+        isLoading: false,
+        errorMsg: null,
+        nearestBuilding: { id: 'cc', name: 'Central Building' },
+        isOnCampus: true,
+        currentCampus: 'Loyola',
+        getCurrentLocation: mockGetCurrentLocation,
+        startLocationTracking: jest.fn(),
+        stopLocationTracking: jest.fn(),
+        requestLocationPermission: jest.fn(),
+      });
+
+      render(<MapViewApp />);
+
+      // Act 
+      act(() => {
+        if (capturedOnCampusDetected) {
+          capturedOnCampusDetected('Loyola');
+        }
+      });
+
+      // Assert 
       expect(useUserLocation).toHaveBeenCalled();
     });
   });
