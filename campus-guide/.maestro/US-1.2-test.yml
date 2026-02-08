@@ -9,7 +9,9 @@ appId: com.anonymous.campusguide
     timeout: 60000
 
 # Assert we're on SGW Campus by default
-- assertVisible: "SGW Campus"
+- extendedWaitUntil:
+    visible: "SGW Campus"
+    timeout: 60000
 
 # Click on Directions button
 - tapOn: "Directions"

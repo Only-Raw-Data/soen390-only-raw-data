@@ -1,7 +1,15 @@
 import React, { useState, useRef } from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Modal,
+} from "react-native";
 import BuildingSearchHeader from "./BuildingSearchComponent";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import {
   Campus,
@@ -11,7 +19,14 @@ import {
   CAMPUS_REGIONS,
 } from "./../../constants/buildings";
 import { useDirections } from "../context/DirectionsContext";
-import MapView, { Marker, Polygon, PROVIDER_GOOGLE } from "react-native-maps";
+import MapView, {
+  Callout,
+  Marker,
+  Polygon,
+  PROVIDER_GOOGLE,
+  Circle,
+  Polyline,
+} from "react-native-maps";
 import useBuildingPolygons from "../hooks/useBuildingPolygons";
 import { CAMPUS_MAP_STYLE } from "../../constants/mapStyle";
 import BuildingInformation from "./BuildingInformation";
@@ -23,19 +38,24 @@ interface MapViewAppProps {
   readonly showSearch?: boolean;
 }
 
-export default function MapViewApp({ showSearch, googleMapsApiKey }: MapViewAppProps) {
+export default function MapViewApp({
+  showSearch,
+  googleMapsApiKey,
+}: MapViewAppProps) {
   const {
     startBuilding,
     destinationBuilding,
     setStartBuilding,
     setDestinationBuilding,
-    clearDirections,
+    route,
+    isLoadingRoute,
   } = useDirections();
 
   const router = useRouter();
   const mapRef = useRef<MapView>(null);
 
   const [selectedCampus, setSelectedCampus] = useState<Campus>("SGW");
+  // Building pressed on the map - used for showing details and getting directions
   const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(
     null,
   );
@@ -43,9 +63,12 @@ export default function MapViewApp({ showSearch, googleMapsApiKey }: MapViewAppP
   const [highlightedBuildingId, setHighlightedBuildingId] = useState<
     string | null
   >(null);
+  // State for building info modal
+  const [infoBuilding, setInfoBuilding] = useState<Building | null>(null);
 
   // Fetch building polygons for the current campus
-  const { polygons: buildingPolygons } = useBuildingPolygons(selectedCampus);
+  const { polygons: buildingPolygons, loading: polygonsLoading } =
+    useBuildingPolygons(selectedCampus);
 
   // User location hook
   const {
@@ -64,6 +87,11 @@ export default function MapViewApp({ showSearch, googleMapsApiKey }: MapViewAppP
       b.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       b.code.toLowerCase().includes(searchQuery.toLowerCase()),
   );
+
+  const isStartSelected =
+    !!selectedBuilding && startBuilding?.id === selectedBuilding.id;
+  const isDestSelected =
+    !!selectedBuilding && destinationBuilding?.id === selectedBuilding.id;
 
   const handleCampusChange = (campus: Campus) => {
     setSelectedCampus(campus);
@@ -116,16 +144,9 @@ export default function MapViewApp({ showSearch, googleMapsApiKey }: MapViewAppP
       };
     }
 
-    // Determine stroke color based on selection state
-    const getStrokeColor = () => {
-      if (isStart) return "#10B981";
-      if (isDest) return "#FFEA00";
-      return "#912338";
-    };
-
     return {
       fillColor: "rgba(145, 35, 56, 0.3)", // Maroon with transparency
-      strokeColor: getStrokeColor(),
+      strokeColor: isStart ? "#10B981" : isDest ? "#FFEA00" : "#912338",
       strokeWidth: isStart || isDest ? 3 : 2,
     };
   };
@@ -211,74 +232,122 @@ export default function MapViewApp({ showSearch, googleMapsApiKey }: MapViewAppP
         </View>
       </View>
 
-      <View style={styles.mapContainer}>
-        <MapView
-          ref={mapRef}
-          provider={PROVIDER_GOOGLE}
-          style={styles.map}
-          region={CAMPUS_REGIONS[selectedCampus]}
-          showsUserLocation={true}
-          showsMyLocationButton={false}
-          customMapStyle={CAMPUS_MAP_STYLE}
-        >
-          {/* Render Building Polygons */}
-          {buildingPolygons.map((polygon) => {
-            const colors = getPolygonColors(polygon.buildingId);
-            const building = buildings.find((b) => b.id === polygon.buildingId);
-            return (
-              <Polygon
-                key={`polygon-${polygon.buildingId}`}
-                coordinates={polygon.coordinates}
-                fillColor={colors.fillColor}
-                strokeColor={colors.strokeColor}
-                strokeWidth={colors.strokeWidth}
-                tappable={true}
-                onPress={() => building && handleBuildingPress(building)}
-              />
-            );
-          })}
-
-          {/* Existing Markers */}
-          {filteredBuildings.map((building) => (
-            <Marker
-              key={building.id}
-              coordinate={{ latitude: building.lat, longitude: building.lng }}
-              title={getMarkerTitle(building)}
-              description={building.name + "\n" + building.address}
-              onPress={() => handleBuildingPress(building)}
-              pinColor={getMarkerColor(building)}
+      <MapView
+        ref={mapRef}
+        provider={PROVIDER_GOOGLE}
+        style={styles.map}
+        region={CAMPUS_REGIONS[selectedCampus]}
+        showsUserLocation={true}
+        showsMyLocationButton={false}
+        customMapStyle={CAMPUS_MAP_STYLE}
+      >
+        {/* Render Building Polygons */}
+        {buildingPolygons.map((polygon) => {
+          const colors = getPolygonColors(polygon.buildingId);
+          const building = buildings.find((b) => b.id === polygon.buildingId);
+          return (
+            <Polygon
+              key={`polygon-${polygon.buildingId}`}
+              coordinates={polygon.coordinates}
+              fillColor={colors.fillColor}
+              strokeColor={colors.strokeColor}
+              strokeWidth={colors.strokeWidth}
+              tappable={true}
+              onPress={() => building && handleBuildingPress(building)}
             />
-          ))}
-        </MapView>
+          );
+        })}
 
-        {(startBuilding || destinationBuilding) && (
-          <TouchableOpacity
-            style={styles.clearSelectionButton}
-            onPress={clearDirections}
+        {/* Existing Markers */}
+        {filteredBuildings.map((building) => (
+          <Marker
+            key={building.id}
+            coordinate={{ latitude: building.lat, longitude: building.lng }}
+            title={getMarkerTitle(building)}
+            onPress={() => handleBuildingPress(building)}
+            pinColor={getMarkerColor(building)}
           >
-            <Ionicons name="close-circle" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-        )}
-
-        <LocateMeButton
-          onLocate={getCurrentLocation}
-          isLoading={locationLoading}
-          nearestBuilding={nearestBuilding}
-          isOnCampus={isOnCampus}
-          errorMsg={locationError}
-          currentCampus={currentCampus}
-          onCampusDetected={handleCampusDetected}
-          onBuildingHighlight={handleBuildingHighlight}
-        />
-
-        {selectedBuilding && (
-          <BuildingInformation
-            building={selectedBuilding}
-            onGetDirections={handleGetDirections}
-            onClose={() => setSelectedBuilding(null)}
+            <Callout tooltip onPress={() => setInfoBuilding(building)}>
+              <View style={styles.icontainer}>
+                <Text style={styles.ititle}>{building.name}</Text>
+                <Text style={styles.isubtitle}>{building.address}</Text>
+                <View style={styles.ibutton}>
+                  <Text style={styles.ibuttonText}>Open details</Text>
+                </View>
+              </View>
+            </Callout>
+          </Marker>
+        ))}
+        {/* Render Directions Polyline */}
+        {route && (
+          <Polyline
+            coordinates={route.coordinates}
+            strokeWidth={4}
+            strokeColor="#3B82F6"
           />
         )}
-      </View>
+      </MapView>
+
+      {/* Travel Time Display */}
+      {route && (
+        <View style={styles.travelTimeContainer}>
+          <View style={styles.travelTimeBadge}>
+            <Ionicons name="time-outline" size={16} color="#FFFFFF" />
+            <Text style={styles.travelTimeText}>
+              {route.duration} ({route.distance})
+            </Text>
+          </View>
+        </View>
+      )}
+
+      <LocateMeButton
+        onLocate={getCurrentLocation}
+        isLoading={locationLoading}
+        nearestBuilding={nearestBuilding}
+        isOnCampus={isOnCampus}
+        errorMsg={locationError}
+        currentCampus={currentCampus}
+        onCampusDetected={handleCampusDetected}
+        onBuildingHighlight={handleBuildingHighlight}
+      />
+
+      {infoBuilding && (
+        <BuildingInformation
+          building={infoBuilding}
+          onGetDirections={handleGetDirections}
+          onClose={() => setInfoBuilding(null)}
+        />
+      )}
+
+      {selectedBuilding && (
+        <View style={styles.bottomBar}>
+          <View style={styles.bottomBarInfo}>
+            <Text style={styles.bottomBarCode}>{selectedBuilding.code}</Text>
+            <Text style={styles.bottomBarName} numberOfLines={1}>
+              {selectedBuilding.name}
+            </Text>
+            <Text style={styles.bottomBarAddress} numberOfLines={1}>
+              {selectedBuilding.address}
+            </Text>
+          </View>
+          <View style={styles.bottomBarActions}>
+            <TouchableOpacity
+              style={styles.bottomBarButtonSecondary}
+              onPress={() => setSelectedBuilding(null)}
+            >
+              <Text style={styles.bottomBarButtonSecondaryText}>Clear</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.bottomBarButtonPrimary}
+              onPress={() => handleGetDirections(selectedBuilding)}
+            >
+              <Text style={styles.bottomBarButtonPrimaryText}>
+                Get directions
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -504,18 +573,117 @@ const styles = StyleSheet.create({
   map: {
     flex: 1,
   },
-  clearSelectionButton: {
+  travelTimeContainer: {
     position: "absolute",
-    top: 16,
-    right: 16,
-    backgroundColor: "#912338",
-    padding: 12,
-    borderRadius: 50,
+    top: 140, // Below campus toggle
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    zIndex: 50,
+  },
+  travelTimeBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#3B82F6",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 6,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.2,
     shadowRadius: 4,
-    elevation: 5,
-    zIndex: 30,
+    elevation: 4,
+  },
+  travelTimeText: {
+    color: "#FFFFFF",
+    fontWeight: "600",
+    fontSize: 14,
+  },
+  icontainer: {
+    width: 220,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: "white",
+  },
+  ititle: {
+    fontSize: 14,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+  isubtitle: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginBottom: 10,
+  },
+  ibutton: {
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: "#912338",
+    alignItems: "center",
+  },
+  ibuttonText: {
+    color: "white",
+    fontWeight: "700",
+    fontSize: 12,
+  },
+  bottomBar: {
+    position: "absolute",
+    left: 12,
+    right: 12,
+    bottom: 12,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  bottomBarInfo: {
+    marginBottom: 10,
+  },
+  bottomBarCode: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#912338",
+  },
+  bottomBarName: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#111827",
+    marginTop: 2,
+  },
+  bottomBarAddress: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginTop: 2,
+  },
+  bottomBarActions: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  bottomBarButtonPrimary: {
+    flex: 1,
+    backgroundColor: "#912338",
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  bottomBarButtonPrimaryText: {
+    color: "#FFFFFF",
+    fontWeight: "800",
+  },
+  bottomBarButtonSecondary: {
+    width: 90,
+    backgroundColor: "#F3F4F6",
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  bottomBarButtonSecondaryText: {
+    color: "#374151",
+    fontWeight: "800",
   },
 });
