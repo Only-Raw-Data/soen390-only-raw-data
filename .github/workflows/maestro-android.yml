@@ -1,0 +1,101 @@
+name: Acceptance Tests (Android - EAS + Maestro)
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+jobs:
+  acceptance-android:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: campus-guide/package-lock.json
+
+      - name: Install dependencies
+        working-directory: campus-guide
+        run: npm ci
+
+      - name: Setup Expo & EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build Android APK on EAS (preview)
+        working-directory: campus-guide
+        env:
+          EXPO_PUBLIC_GOOGLE_MAPS_API_KEY: ${{ secrets.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY }}
+        run: |
+          eas build \
+            --platform android \
+            --profile preview \
+            --non-interactive \
+            --wait \
+            --json > eas-build.json
+
+      - name: Extract APK URL
+        working-directory: campus-guide
+        id: apk
+        run: |
+          echo "EAS Build Output:"
+          cat eas-build.json
+          node -e "
+          const fs = require('fs');
+          const buildData = JSON.parse(fs.readFileSync('./eas-build.json', 'utf8'));
+          console.log('Build data structure:', JSON.stringify(buildData, null, 2));
+          
+          // Handle array response from EAS
+          const build = Array.isArray(buildData) ? buildData[0] : buildData;
+          
+          // Try different possible URL fields
+          const url = build?.artifacts?.applicationArchiveUrl || 
+                      build?.artifacts?.buildUrl || 
+                      build?.buildUrl;
+          
+          if (!url) {
+            console.error('Could not find APK URL in build output');
+            console.error('Available fields:', Object.keys(build || {}));
+            process.exit(1);
+          }
+          
+          console.log('Found APK URL:', url);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, 'APK_URL=' + url + '\n');
+          "
+
+
+      - name: Download APK
+        run: |
+          curl -L "${{ steps.apk.outputs.APK_URL }}" -o app.apk
+
+      - name: Cache Maestro
+        uses: actions/cache@v4
+        with:
+          path: ~/.maestro
+          key: maestro-${{ runner.os }}
+
+      - name: Run Maestro tests on Android emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 33
+          arch: x86_64
+          script: |
+            curl -fsSL "https://get.maestro.mobile.dev" | bash
+            export PATH="$PATH:$HOME/.maestro/bin"
+
+            adb devices
+
+            adb uninstall com.campus.campusguide || true
+            adb install -r app.apk
+
+            maestro --version
+            maestro test campus-guide/.maestro --verbose

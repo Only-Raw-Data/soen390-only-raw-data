@@ -1,0 +1,37 @@
+appId: com.campus.campusguide
+
+---
+
+# Basic Acceptance Test Flow
+# This test verifies the app launches successfully and displays the main UI elements
+
+- launchApp
+
+- assertVisible: "SGW Campus"
+- assertVisible: "Loyola Campus"
+
+# Verify the map view is loaded
+- assertVisible:
+    id: "mapView"
+
+# Test campus toggle functionality
+- tapOn: "Loyola Campus"
+- assertVisible: "Loyola Campus"
+
+- tapOn: "SGW Campus"
+- assertVisible: "SGW Campus"
+
+# Verify bottom navigation is present
+- assertVisible: "Map"
+- assertVisible: "Directions"
+- assertVisible: "Schedule"
+- assertVisible: "Indoor"
+- assertVisible: "POI"
+
+# Test navigation to different screens
+- tapOn: "Directions"
+- assertVisible: "Directions"
+
+- tapOn: "Map"
+- assertVisible: "Map"
+

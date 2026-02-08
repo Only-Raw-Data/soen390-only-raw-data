@@ -1,5 +1,5 @@
 # .maestro/US-1.2-test.yml
-appId: com.anonymous.campusguide
+appId: com.campus.campusguide
 ---
 - launchApp
 
