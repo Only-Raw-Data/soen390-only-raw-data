@@ -23,8 +23,7 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.campusguide"
+      "predictiveBackGestureEnabled": false
     },
     "web": {
       "bundler": "metro",
