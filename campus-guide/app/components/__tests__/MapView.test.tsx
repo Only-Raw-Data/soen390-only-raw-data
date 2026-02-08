@@ -260,34 +260,30 @@ describe("MapViewApp", () => {
     expect(screen.getByText("CC")).toBeTruthy();
   });
 
-  it("filters buildings by name", () => {
+  it.each([
+    {
+      searchTerm: "Hall",
+      expectedBuilding: "H",
+      description: "filters buildings by name",
+    },
+    {
+      searchTerm: "MB",
+      expectedBuilding: "MB",
+      description: "filters buildings by code",
+    },
+    {
+      searchTerm: "engineering",
+      expectedBuilding: "EV",
+      description: "is case insensitive",
+    },
+  ])("$description", ({ searchTerm, expectedBuilding }) => {
     // Arrange
     const screen = render(<MapViewApp showSearch />);
     const input = screen.getByPlaceholderText("Search buildings...");
     // Act
-    fireEvent.changeText(input, "Hall");
+    fireEvent.changeText(input, searchTerm);
     // Assert
-    expect(screen.getByText("H")).toBeTruthy();
-  });
-
-  it("filters buildings by code", () => {
-    // Arrange
-    const screen = render(<MapViewApp showSearch />);
-    const input = screen.getByPlaceholderText("Search buildings...");
-    // Act
-    fireEvent.changeText(input, "MB");
-    // Assert
-    expect(screen.getByText("MB")).toBeTruthy();
-  });
-
-  it("is case insensitive", () => {
-    // Arrange
-    const screen = render(<MapViewApp showSearch />);
-    const input = screen.getByPlaceholderText("Search buildings...");
-    // Act
-    fireEvent.changeText(input, "engineering");
-    // Assert
-    expect(screen.getByText("EV")).toBeTruthy();
+    expect(screen.getByText(expectedBuilding)).toBeTruthy();
   });
 
   it("shows building info popup", () => {
