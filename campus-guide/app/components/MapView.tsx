@@ -47,6 +47,7 @@ export default function MapViewApp({
     destinationBuilding,
     setStartBuilding,
     setDestinationBuilding,
+    clearDirections,
     route,
     isLoadingRoute,
   } = useDirections();
@@ -232,61 +233,73 @@ export default function MapViewApp({
         </View>
       </View>
 
-      <MapView
-        ref={mapRef}
-        provider={PROVIDER_GOOGLE}
-        style={styles.map}
-        region={CAMPUS_REGIONS[selectedCampus]}
-        showsUserLocation={true}
-        showsMyLocationButton={false}
-        customMapStyle={CAMPUS_MAP_STYLE}
-      >
-        {/* Render Building Polygons */}
-        {buildingPolygons.map((polygon) => {
-          const colors = getPolygonColors(polygon.buildingId);
-          const building = buildings.find((b) => b.id === polygon.buildingId);
-          return (
-            <Polygon
-              key={`polygon-${polygon.buildingId}`}
-              coordinates={polygon.coordinates}
-              fillColor={colors.fillColor}
-              strokeColor={colors.strokeColor}
-              strokeWidth={colors.strokeWidth}
-              tappable={true}
-              onPress={() => building && handleBuildingPress(building)}
-            />
-          );
-        })}
+      <View style={styles.mapWrapper}>
+        <MapView
+          ref={mapRef}
+          provider={PROVIDER_GOOGLE}
+          style={styles.map}
+          region={CAMPUS_REGIONS[selectedCampus]}
+          showsUserLocation={true}
+          showsMyLocationButton={false}
+          customMapStyle={CAMPUS_MAP_STYLE}
+        >
+          {/* Render Building Polygons */}
+          {buildingPolygons.map((polygon) => {
+            const colors = getPolygonColors(polygon.buildingId);
+            const building = buildings.find((b) => b.id === polygon.buildingId);
+            return (
+              <Polygon
+                key={`polygon-${polygon.buildingId}`}
+                coordinates={polygon.coordinates}
+                fillColor={colors.fillColor}
+                strokeColor={colors.strokeColor}
+                strokeWidth={colors.strokeWidth}
+                tappable={true}
+                onPress={() => building && handleBuildingPress(building)}
+              />
+            );
+          })}
 
-        {/* Existing Markers */}
-        {filteredBuildings.map((building) => (
-          <Marker
-            key={building.id}
-            coordinate={{ latitude: building.lat, longitude: building.lng }}
-            title={getMarkerTitle(building)}
-            onPress={() => handleBuildingPress(building)}
-            pinColor={getMarkerColor(building)}
-          >
-            <Callout tooltip onPress={() => setInfoBuilding(building)}>
-              <View style={styles.icontainer}>
-                <Text style={styles.ititle}>{building.name}</Text>
-                <Text style={styles.isubtitle}>{building.address}</Text>
-                <View style={styles.ibutton}>
-                  <Text style={styles.ibuttonText}>Open details</Text>
+          {/* Existing Markers */}
+          {filteredBuildings.map((building) => (
+            <Marker
+              key={building.id}
+              coordinate={{ latitude: building.lat, longitude: building.lng }}
+              title={getMarkerTitle(building)}
+              onPress={() => handleBuildingPress(building)}
+              pinColor={getMarkerColor(building)}
+            >
+              <Callout tooltip onPress={() => setInfoBuilding(building)}>
+                <View style={styles.icontainer}>
+                  <Text style={styles.ititle}>{building.name}</Text>
+                  <Text style={styles.isubtitle}>{building.address}</Text>
+                  <View style={styles.ibutton}>
+                    <Text style={styles.ibuttonText}>Open details</Text>
+                  </View>
                 </View>
-              </View>
-            </Callout>
-          </Marker>
-        ))}
-        {/* Render Directions Polyline */}
-        {route && (
-          <Polyline
-            coordinates={route.coordinates}
-            strokeWidth={4}
-            strokeColor="#3B82F6"
-          />
+              </Callout>
+            </Marker>
+          ))}
+          {/* Render Directions Polyline */}
+          {route && (
+            <Polyline
+              coordinates={route.coordinates}
+              strokeWidth={4}
+              strokeColor="#3B82F6"
+            />
+          )}
+        </MapView>
+
+        {/* Clear Selection Button */}
+        {(startBuilding || destinationBuilding) && (
+          <TouchableOpacity
+            style={styles.clearSelectionButton}
+            onPress={clearDirections}
+          >
+            <Ionicons name="close-circle" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
         )}
-      </MapView>
+      </View>
 
       {/* Travel Time Display */}
       {route && (
@@ -570,6 +583,10 @@ const styles = StyleSheet.create({
     elevation: 5,
     zIndex: 30,
   },
+  mapWrapper: {
+    flex: 1,
+    position: "relative",
+  },
   map: {
     flex: 1,
   },
@@ -685,5 +702,19 @@ const styles = StyleSheet.create({
   bottomBarButtonSecondaryText: {
     color: "#374151",
     fontWeight: "800",
+  },
+  clearSelectionButton: {
+    position: "absolute",
+    top: 16,
+    right: 16,
+    backgroundColor: "#912338",
+    padding: 12,
+    borderRadius: 50,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    zIndex: 30,
   },
 });

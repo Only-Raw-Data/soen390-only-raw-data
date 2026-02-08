@@ -93,13 +93,13 @@ export const fetchDirections = async (
     const distanceText = `${distanceKm} km`;
 
     const decodedCoordinates = decode(route.polyline.encodedPolyline)
-    const formattetCoordinates = decodedCoordinates.map(([lat, lng]) => ({
+    const formattedCoordinates = decodedCoordinates.map(([lat, lng]) => ({
       latitude: lat,
       longitude: lng,
     }));
 
     return {
-      coordinates: formattetCoordinates,
+      coordinates: formattedCoordinates,
       duration: durationText,
       distance: distanceText,
     };
