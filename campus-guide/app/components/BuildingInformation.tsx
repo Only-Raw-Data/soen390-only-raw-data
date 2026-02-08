@@ -48,7 +48,7 @@ export default function BuildingInformation({
                     </View>
 
                     {/* Department Section */}
-                    {building.department && building.department !== 'NA' && building.department !== '' && (
+                    {Boolean(building.department && building.department !== 'NA' && building.department !== '') && (
                         <View style={styles.section}>
                             <View style={styles.sectionHeader}>
                                 <Ionicons name="business-outline" size={16} color="#912338" />
@@ -59,7 +59,7 @@ export default function BuildingInformation({
                     )}
 
                     {/* Accessibility Section */}
-                    {building.accessibility && building.accessibility !== 'NA' && building.accessibility !== '' && (
+                    {Boolean(building.accessibility && building.accessibility !== 'NA' && building.accessibility !== '') && (
                         <View style={styles.section}>
                             <View style={styles.sectionHeader}>
                                 <Ionicons name="accessibility-outline" size={16} color="#912338" />
@@ -70,7 +70,7 @@ export default function BuildingInformation({
                     )}
 
                     {/* Overview Section */}
-                    {building.overview && building.overview !== 'NA' && building.overview !== '' && (
+                    {Boolean(building.overview && building.overview !== 'NA' && building.overview !== '') && (
                         <View style={styles.section}>
                             <TouchableOpacity 
                                 style={styles.overviewHeader}
