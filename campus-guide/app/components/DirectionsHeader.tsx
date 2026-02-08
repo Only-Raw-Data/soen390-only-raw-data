@@ -44,6 +44,10 @@ export function DirectionsHeader() {
         }
     };
 
+    const handleGetDirections = async () => {
+        console.warn(startBuilding)
+    }
+
     const allBuildings = [...SGW_BUILDINGS, ...LOYOLA_BUILDINGS];
     const filteredBuildings = allBuildings.filter(b => 
         b.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -176,6 +180,7 @@ export function DirectionsHeader() {
 
                 <TouchableOpacity
                     testID="get-directions-button"
+                    onPress={handleGetDirections}
                     style={[
                         styles.getDirectionsButton,
                         (!startBuilding || !destinationBuilding) && styles.getDirectionsButtonDisabled

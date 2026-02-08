@@ -5,13 +5,15 @@
   "version": "1.0.0",
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "web": "expo start --web",
-    "test": "jest"
+    "test": "jest",
+    "build": "npm install && npm run build"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
+    "@googlemaps/polyline-codec": "^1.0.28",
     "@react-navigation/native": "^7.1.8",
     "expo": "~54.0.33",
     "expo-build-properties": "~1.0.10",
