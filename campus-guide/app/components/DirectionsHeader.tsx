@@ -5,6 +5,7 @@ import { useDirections} from '../context/DirectionsContext';
 import { TransportationMode } from '../types/transportation';
 import { SGW_BUILDINGS, LOYOLA_BUILDINGS, Building } from './../../constants/buildings';
 import { useUserLocation } from '../hooks/useUserLocation';
+import { useGoogleDirection } from '../hooks/useGoogleDirections';
 import { ShuttleSchedule } from './ShuttleSchedule';
 
 export function DirectionsHeader() {
@@ -20,7 +21,8 @@ export function DirectionsHeader() {
     } = useDirections();
 
     const { getNearestBuilding, isLoading: locationLoading, resetLoadingState } = useUserLocation();
-
+    const { getDirections } = useGoogleDirection();
+ 
     const [isSearchingStart, setIsSearchingStart] = useState(false);
     const [isSearchingDest, setIsSearchingDest] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
@@ -45,7 +47,12 @@ export function DirectionsHeader() {
     };
 
     const handleGetDirections = async () => {
-        console.warn(startBuilding)
+        if (!startBuilding || !destinationBuilding) {
+            Alert.alert('Missing Information', 'Please select both start and destination buildings');
+            return;
+        }
+
+        const routes = await getDirections(startBuilding, destinationBuilding, transportationMode)
     }
 
     const allBuildings = [...SGW_BUILDINGS, ...LOYOLA_BUILDINGS];
