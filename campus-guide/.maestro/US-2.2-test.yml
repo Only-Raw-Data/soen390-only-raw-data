@@ -9,21 +9,46 @@ appId: com.anonymous.campusguide
     timeout: 60000
 
 # Navigate to Directions page
+- extendedWaitUntil:
+    visible: "Concordia Campus Guide"
+    timeout: 60000
+
 - tapOn: "Directions"
 - waitForAnimationToEnd
 
-# Click the location icon (bottom right - current location button)
-# Based on your screenshot, this appears to be near the Get Directions button area
+# Assert Directions page elements
+- assertVisible: "Get Directions"
+# - assertVisible: "Start location"
+# - assertVisible: "Destination"
+
+# Tap on use current location button
 - tapOn:
-    point: "90%,25%"  # Approximate location of current location icon
+    id: "use-current-location-button"
 
-# Wait for error message to appear
-- waitForAnimationToEnd
+# Confirm/close keyboard or selection (if needed)
+# - hideKeyboard
 
-# Assert error message is displayed
-- assertVisible: "You don't appear to be on campus"
-- assertVisible: "Move closer to a Concordia campus to see your nearest building"
-
-# Optional: Dismiss error message
+# Tap on Destination field
 - tapOn:
-    point: "95%,65%"  # Close button on error message
+    id: "dest-input"
+
+- assertVisible:
+    id: "dest-input"
+    focused: true
+
+# Enter destination
+- inputText: "BH"
+- tapOn:
+    point: "50%, 30%" 
+
+
+# Confirm/close keyboard
+# - hideKeyboard
+
+# Assert both fields are filled
+- assertVisible: "BB-BH Annex"
+
+# Select transport mode test
+- tapOn: "Car"
+- tapOn: "Transit"
+- tapOn: "Walk"
