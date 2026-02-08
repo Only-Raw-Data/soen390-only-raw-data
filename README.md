@@ -53,7 +53,7 @@ cd soen390-only-raw-data/campus-guide
 ### 2. Install dependencies
 
 ```bash
-npm run build
+npm install
 ```
 
 ### 3. Set environment variables
