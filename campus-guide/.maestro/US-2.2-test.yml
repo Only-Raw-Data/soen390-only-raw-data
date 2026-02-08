@@ -1,0 +1,29 @@
+# .maestro/US-2.2-test.yml
+appId: com.anonymous.campusguide
+---
+- launchApp
+
+# Wait for app to load
+- extendedWaitUntil:
+    visible: "Concordia Campus Guide"
+    timeout: 60000
+
+# Navigate to Directions page
+- tapOn: "Directions"
+- waitForAnimationToEnd
+
+# Click the location icon (bottom right - current location button)
+# Based on your screenshot, this appears to be near the Get Directions button area
+- tapOn:
+    point: "90%,25%"  # Approximate location of current location icon
+
+# Wait for error message to appear
+- waitForAnimationToEnd
+
+# Assert error message is displayed
+- assertVisible: "You don't appear to be on campus"
+- assertVisible: "Move closer to a Concordia campus to see your nearest building"
+
+# Optional: Dismiss error message
+- tapOn:
+    point: "95%,65%"  # Close button on error message

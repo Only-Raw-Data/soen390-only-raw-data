@@ -12,9 +12,9 @@ const OVERPASS_URL = process.env.EXPO_PUBLIC_OVERPASS_URL as string;
 const CACHE_DIR_NAME = "building_polygons";
 const CACHE_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
 
-if (!OVERPASS_URL) {
-  throw new Error("OVERPASS_URL is not defined in environment variables");
-}
+// if (!OVERPASS_URL) {
+//   throw new Error("OVERPASS_URL is not defined in environment variables");
+// }
 
 // Re-export BuildingPolygon for backwards compatibility
 export { BuildingPolygon } from "../types/buildingPolygon";
@@ -93,24 +93,7 @@ async function cachePolygons(
   }
 }
 
-function haversineDistance(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number,
-): number {
-  const R = 6371000; // Earth's radius in meters
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
+import { haversineDistance } from "../utils/locationUtils";
 
 function matchBuildingsToPolygons(
   buildings: Building[],

@@ -1,0 +1,48 @@
+# .maestro/US-2.1-test.yml
+appId: com.anonymous.campusguide
+---
+- launchApp
+
+# Wait for app to load
+- extendedWaitUntil:
+    visible: "Concordia Campus Guide"
+    timeout: 60000
+
+# Navigate to Directions page
+- tapOn: "Directions"
+- waitForAnimationToEnd
+
+# Assert Directions page elements
+- assertVisible: "Get Directions"
+- assertVisible: "Start location"
+- assertVisible: "Destination"
+
+# Tap on Start location field
+- tapOn: "Start location"
+- waitForAnimationToEnd
+
+# Enter start location (you may need to adjust based on your input method)
+- inputText: "Guy-Concordia Metro"
+
+# Confirm/close keyboard or selection (if needed)
+- hideKeyboard
+
+# Tap on Destination field
+- tapOn: "Destination"
+- waitForAnimationToEnd
+
+# Enter destination
+- inputText: "Hall Building"
+
+# Confirm/close keyboard
+- hideKeyboard
+
+# Assert both fields are filled
+- assertVisible: "Guy-Concordia Metro"
+- assertVisible: "Hall Building"
+
+# Optional: Select transport mode
+- tapOn: "Walk"
+
+# Assert Walk is selected (you may need testID for this)
+- assertVisible: "Walk"
