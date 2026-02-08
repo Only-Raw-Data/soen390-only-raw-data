@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Campus, Building, SGW_BUILDINGS, LOYOLA_BUILDINGS,CAMPUS_REGIONS } from './../../constants/buildings';
 import { useDirections } from '../context/DirectionsContext';
-import MapView, { Marker, Polygon, PROVIDER_GOOGLE, Circle } from 'react-native-maps';
+import MapView, { Marker, Polygon, PROVIDER_GOOGLE, Circle, Polyline } from 'react-native-maps';
 import { useBuildingPolygons } from '../hooks/useBuildingPolygons';
 import { CAMPUS_MAP_STYLE } from '../../constants/mapStyle';
 import  BuildingInformation  from './BuildingInformation';
@@ -22,7 +22,9 @@ export function MapViewApp({showSearch, googleMapsApiKey}: MapViewAppProps ) {
         startBuilding, 
         destinationBuilding, 
         setStartBuilding, 
-        setDestinationBuilding 
+        setDestinationBuilding,
+        route,
+        isLoadingRoute
     } = useDirections();
 
     const router = useRouter();
@@ -227,7 +229,25 @@ export function MapViewApp({showSearch, googleMapsApiKey}: MapViewAppProps ) {
                         pinColor={getMarkerColor(building)}
                     />
                 ))}
+                {/* Render Directions Polyline */}
+                {route && (
+                    <Polyline
+                        coordinates={route.coordinates}
+                        strokeWidth={4}
+                        strokeColor="#3B82F6"
+                    />
+                )}
             </MapView>
+
+            {/* Travel Time Display */}
+            {route && (
+                <View style={styles.travelTimeContainer}>
+                    <View style={styles.travelTimeBadge}>
+                        <Ionicons name="time-outline" size={16} color="#FFFFFF" />
+                        <Text style={styles.travelTimeText}>{route.duration} ({route.distance})</Text>
+                    </View>
+                </View>
+            )}
 
             <LocateMeButton
                 onLocate={getCurrentLocation}
@@ -470,5 +490,32 @@ const styles = StyleSheet.create({
     },
     map: {
         flex: 1,
+    },
+    travelTimeContainer: {
+        position: 'absolute',
+        top: 140, // Below campus toggle
+        left: 0,
+        right: 0,
+        alignItems: 'center',
+        zIndex: 50,
+    },
+    travelTimeBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#3B82F6',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 20,
+        gap: 6,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+        elevation: 4,
+    },
+    travelTimeText: {
+        color: '#FFFFFF',
+        fontWeight: '600',
+        fontSize: 14,
     },
 });
