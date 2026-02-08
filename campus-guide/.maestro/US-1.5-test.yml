@@ -1,0 +1,32 @@
+# .maestro/US-1.5-test.yml
+appId: com.anonymous.campusguide
+---
+- launchApp
+
+# Wait for app to load
+- extendedWaitUntil:
+    visible: "Concordia Campus Guide"
+    timeout: 60000
+
+# Ensure we're on SGW Campus
+- assertVisible: "SGW Campus"
+
+# Wait for map to load with markers
+- waitForAnimationToEnd
+
+# Tap on a building marker (LB building area)
+- tapOn:
+    point: "40%,45%"  # Approximate location of LB building marker
+
+# Wait for building info card to appear
+- waitForAnimationToEnd
+
+# Assert building information is displayed
+- assertVisible: "B Annex"
+- assertVisible: "SGW Campus"
+- assertVisible: "2160 Bishop Street"
+- assertVisible: "Get Directions"
+
+# Optional: Close the building info by tapping elsewhere or close button
+- tapOn:
+    id: "close-button"  # Close button location
