@@ -220,6 +220,7 @@ export function DirectionsHeader() {
                             <Text style={styles.modalTitle}>Shuttle Bus Schedule</Text>
                         </View>
                         <TouchableOpacity
+                            testID="close-shuttle-modal"
                             onPress={() => setShowScheduleModal(false)}
                             style={styles.closeButton}
                         >

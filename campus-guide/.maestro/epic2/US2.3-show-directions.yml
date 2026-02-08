@@ -26,10 +26,12 @@ appId: com.campus.campusguide
 - tapOn: "John Molson Building"
 - waitForAnimationToEnd
 
-- assertVisible: "Henry F. Hall Building"
+- assertVisible: "Central Building"
 - assertVisible: "John Molson Building"
 
 - tapOn:
-    point: "50%,45%"
+   point: "50%,45%"
 - waitForAnimationToEnd
 
+- assertVisible:
+    text: ".*mins.*km.*" 

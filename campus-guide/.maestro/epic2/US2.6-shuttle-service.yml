@@ -1,0 +1,94 @@
+appId: com.campus.campusguide
+---
+- launchApp
+- waitForAnimationToEnd
+
+- assertVisible: "SGW Campus"
+
+- tapOn: "Directions"
+- waitForAnimationToEnd
+
+- assertVisible: "Start location"
+- tapOn: "Start location"
+- inputText: "John"
+- hideKeyboard
+- waitForAnimationToEnd
+
+- tapOn: "John Molson Building"
+- waitForAnimationToEnd
+
+- assertVisible: "Destination"
+- tapOn: "Destination"
+- inputText: "Central"
+- hideKeyboard
+- waitForAnimationToEnd
+
+- tapOn: "Central Building"
+- waitForAnimationToEnd
+
+- assertVisible: "John Molson Building"
+- assertVisible: "Central Building"
+
+- tapOn:
+   point: "50%,45%"
+- waitForAnimationToEnd
+
+- tapOn: "Shuttle"
+- waitForAnimationToEnd
+
+- assertVisible: "Shuttle Bus Schedule"
+- assertVisible: "Monday — Thursday"
+
+- swipe:
+    direction: UP
+    duration: 500
+
+- waitForAnimationToEnd
+
+- assertVisible: "LOY DEPARTURES"
+- assertVisible: "S.G.W DEPARTURES"
+
+- assertVisible: "* Last bus / Dernier départ"
+
+- assertVisible: "09:15"
+- assertVisible: "09:30"
+- assertVisible: "09:45"
+- assertVisible: "10:00"
+- assertVisible: "10:15"
+- assertVisible: "10:30"
+- assertVisible: "10:45"
+- assertVisible: "11:00"
+- assertVisible: "11:15"
+- assertVisible: "11:30"
+- assertVisible: "12:15"
+
+- tapOn: "Friday"
+- waitForAnimationToEnd
+
+- assertVisible: "09:15" 
+- assertVisible: "09:30"
+- assertVisible: "09:45"
+- assertVisible: "10:00"
+- assertVisible: "10:15"
+- assertVisible: "10:45"
+- assertVisible: "11:00"
+- assertVisible: "11:15"
+- assertVisible: "11:30"
+- assertVisible: "12:00"
+- assertVisible: "12:15"
+- assertVisible: "12:30"
+- assertVisible: "12:45"
+- assertVisible: "13:15"
+
+
+- tapOn:
+    id: "close-shuttle-modal"
+- waitForAnimationToEnd
+
+- assertVisible: "Get Directions"
+
+- assertVisible:
+    text: ".*mins.*km.*" 
+
+
+
