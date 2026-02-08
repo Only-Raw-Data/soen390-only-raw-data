@@ -14,8 +14,7 @@ appId: com.campus.campusguide
 - assertVisible: "LB"
 - assertVisible: "Get Directions"
 
-- tapOn:
-    id: "close-button"
+- tapOn: "Clear"
 - waitForAnimationToEnd
 
 - tapOn:
@@ -53,8 +52,7 @@ appId: com.campus.campusguide
 - assertVisible: "J.W. McConnell Building"
 - assertVisible: "Get Directions"
 
-- tapOn:
-    id: "close-button"
+- tapOn: "Clear"
 - waitForAnimationToEnd
 
 - tapOn:
@@ -63,6 +61,5 @@ appId: com.campus.campusguide
 
 - assertVisible: "LB"
 
-- tapOn:
-    id: "close-button"
+- tapOn: "Clear"
 - waitForAnimationToEnd

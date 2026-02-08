@@ -1,0 +1,87 @@
+appId: com.campus.campusguide
+---
+# Epic #7 - User Story 2.2: Use current location as starting point
+# Functional acceptance testing
+
+# Acceptance Criteria:
+# Given location permission is granted
+# When the user selects "Use Current Location"
+# Then the nearest building is set as the route starting point
+
+- launchApp
+- waitForAnimationToEnd
+
+- assertVisible: "SGW Campus"
+
+# Navigate to Directions screen
+- tapOn: "Directions"
+- waitForAnimationToEnd
+
+- assertVisible: "Get Directions"
+
+# Verify "Use Current Location" button is available
+- assertVisible:
+    id: "use-current-location-button"
+
+# Click "Use Current Location" button
+- tapOn:
+    id: "use-current-location-button"
+- waitForAnimationToEnd
+
+# Wait for location to be detected (may show loading indicator)
+- extendedWaitUntil:
+    visible: "Starting point"
+    timeout: 5000
+
+# Verify a building was set as starting point
+- assertVisible: "Starting point"
+
+# Test that we can clear and reuse the feature
+- tapOn:
+    id: "use-current-location-button"
+- waitForAnimationToEnd
+
+# Verify starting point is still set
+- assertVisible: "Starting point"
+
+# Test integration with destination selection
+- tapOn: "Destination"
+- waitForAnimationToEnd
+
+- inputText: "EV"
+- hideKeyboard
+- waitForAnimationToEnd
+
+- assertVisible: "Engineering, Computer Science and Visual Arts Integrated Complex"
+
+# Select destination
+- tapOn: "Engineering, Computer Science and Visual Arts Integrated Complex"
+- waitForAnimationToEnd
+
+# Verify both start (from current location) and destination are set
+- assertVisible: "Starting point"
+- assertVisible: "Destination"
+- assertVisible: "Engineering, Computer Science and Visual Arts Integrated Complex"
+
+# Test swapping locations works with current location
+- tapOn:
+    id: "swap-button"
+- waitForAnimationToEnd
+
+# After swap, the previous start should be destination
+- assertVisible: "Starting point"
+- assertVisible: "Destination"
+
+# Test clearing directions
+- tapOn: "Map"
+- waitForAnimationToEnd
+
+# Go back to directions and verify fields are cleared
+- tapOn: "Directions"
+- waitForAnimationToEnd
+
+- assertVisible: "Get Directions"
+- assertVisible: "Starting point"
+
+# Note: Actual GPS location testing requires real device/emulator with mock location
+# This test validates the UI flow and button interactions

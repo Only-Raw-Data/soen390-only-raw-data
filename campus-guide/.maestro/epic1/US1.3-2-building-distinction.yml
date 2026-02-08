@@ -16,8 +16,7 @@ appId: com.campus.campusguide
 - assertVisible: "PY"
 - assertVisible: "Get Directions"
 
-- tapOn:
-    id: "close-button"
+- tapOn: "Clear"
 - waitForAnimationToEnd
 
 - tapOn:
@@ -55,6 +54,5 @@ appId: com.campus.campusguide
 
 - assertVisible: "TB"
 
-- tapOn:
-    id: "close-button"
+- tapOn: "Clear"
 - waitForAnimationToEnd

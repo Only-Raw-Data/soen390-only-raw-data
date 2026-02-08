@@ -1,0 +1,110 @@
+appId: com.campus.campusguide
+---
+- launchApp
+- waitForAnimationToEnd
+
+- assertVisible: "SGW Campus"
+
+- tapOn: "Directions"
+- waitForAnimationToEnd
+
+- assertVisible: "Start location"
+- tapOn: "Start location"
+- inputText: "Henry"
+- hideKeyboard
+- waitForAnimationToEnd
+
+- tapOn: "Henry F. Hall Building"
+- waitForAnimationToEnd
+
+
+- assertVisible: "Destination"
+- tapOn: "Destination"
+- inputText: "John"
+- hideKeyboard
+- waitForAnimationToEnd
+
+- tapOn: "John Molson Building"
+- waitForAnimationToEnd
+
+# Verify both buildings are selected
+- assertVisible: "Henry F. Hall Building"
+- assertVisible: "John Molson Building"
+
+# Tap the Get Directions button (using coordinates to ensure we hit the button, not the heading)
+- tapOn:
+    point: "50%,45%"
+- waitForAnimationToEnd
+
+# - tapOn:
+#     point: "50%,50%"
+# - waitForAnimationToEnd
+
+# - assertVisible: "Get Directions"
+
+# - tapOn: "Get Directions"
+# - waitForAnimationToEnd
+
+# - assertVisible: "Get Directions"
+# - assertVisible: "Starting point"
+
+# # Go back to Map to select destination
+# - tapOn: "Map"
+# - waitForAnimationToEnd
+
+# # Tap second building (different location from first)
+# - tapOn:
+#     point: "40%,60%"
+# - waitForAnimationToEnd
+
+# # Verify building popup appears for second building
+# - assertVisible: "Get Directions"
+
+# # Click "Get Directions" to set as destination
+# - tapOn: "Get Directions"
+# - waitForAnimationToEnd
+
+# # Verify both start and destination are set
+# - assertVisible: "Get Directions"
+# - assertVisible: "Starting point"
+# - assertVisible: "Destination"
+
+# # Verify we can swap locations
+# - assertVisible:
+#     id: "swap-button"
+
+# # Test selecting buildings via search
+# - tapOn: "Starting point"
+# - waitForAnimationToEnd
+
+# # Search for a building
+# - inputText: "Henry"
+# - waitForAnimationToEnd
+
+# # Should show search results
+# - assertVisible: "Henry F. Hall Building"
+
+# # Select the building from search
+# - tapOn: "Henry F. Hall Building"
+# - waitForAnimationToEnd
+
+# # Verify selection was made
+# - assertVisible: "Henry F. Hall Building"
+
+# # Search for destination building
+# - tapOn: "Destination"
+# - waitForAnimationToEnd
+
+# - inputText: "EV"
+# - hideKeyboard
+# - waitForAnimationToEnd
+
+# - assertVisible: "Engineering, Computer Science and Visual Arts Integrated Complex"
+
+# # Select destination
+# - tapOn: "Engineering, Computer Science and Visual Arts Integrated Complex"
+# - waitForAnimationToEnd
+
+# # Verify both buildings are selected
+# - assertVisible: "Henry F. Hall Building"
+# - assertVisible: "Engineering, Computer Science and Visual Arts Integrated Complex"
