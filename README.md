@@ -53,7 +53,7 @@ cd soen390-only-raw-data/campus-guide
 ### 2. Install dependencies
 
 ```bash
-npm install
+npm run build
 ```
 
 ### 3. Set environment variables
@@ -82,3 +82,35 @@ Scan the QR code with **Expo Go** (Android) or your **Camera app** (iOS) to laun
 | `EXPO_PUBLIC_OVERPASS_URL` | Overpass API endpoint for querying OpenStreetMap building data |
 
 ---
+
+# End-to-End Testing with Maestro
+
+## Prerequisites
+- **Android Studio** (for emulator) - [Download](https://developer.android.com/studio)
+- **Android SDK** (installed via Android Studio)
+- **Java JDK 11+**
+- **ANDROID_HOME environment variable set**
+- **Node.js 18+** and npm
+- **Maestro** - [Installation Guide](https://docs.maestro.dev/getting-started/installing-maestro)
+
+## Running Tests
+
+### 1. Double check your dependencies
+
+```bash
+npm run build
+```
+
+### 2. Launch your Android emulator
+
+### 3. Launch app (Android)
+
+```bash
+npm run android
+```
+
+### 3. In another terminal, run tests (e.g.: User Story 1.5)
+
+```bash
+maestro test campus-guide/.maestro/US-1.5-test.yml
+```
