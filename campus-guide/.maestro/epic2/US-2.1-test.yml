@@ -62,3 +62,5 @@ appId: com.anonymous.campusguide
 - tapOn: "Car"
 - tapOn: "Transit"
 - tapOn: "Walk"
+
+- stopApp

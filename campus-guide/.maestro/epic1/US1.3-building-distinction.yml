@@ -63,3 +63,5 @@ appId: com.campus.campusguide
 
 - tapOn: "Clear"
 - waitForAnimationToEnd
+
+- stopApp

@@ -33,3 +33,4 @@ appId: com.campus.campusguide
     point: "50%,45%"
 - waitForAnimationToEnd
 
+- stopApp

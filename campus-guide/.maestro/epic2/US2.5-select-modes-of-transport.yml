@@ -48,3 +48,4 @@ appId: com.campus.campusguide
 - assertVisible:
     text: ".*mins.*km.*" 
 
+- stopApp

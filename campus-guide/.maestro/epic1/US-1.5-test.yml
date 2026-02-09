@@ -8,15 +8,18 @@ appId: com.anonymous.campusguide
     visible: "Concordia Campus Guide"
     timeout: 60000
 
-# Ensure we're on SGW Campus
-- assertVisible: "SGW Campus"
-
 # Wait for map to load with markers
 - waitForAnimationToEnd
 
+# Ensure we're on SGW Campus
+# Wait for app to load
+- extendedWaitUntil:
+    visible: "SGW Campus"
+    timeout: 60000
+
 # Tap on a building marker (LB building area)
 - tapOn:
-    point: "40%,45%"  # Approximate location of LB building marker
+    point: "38%,43%"
 
 # Wait for building info card to appear
 - waitForAnimationToEnd
@@ -30,3 +33,5 @@ appId: com.anonymous.campusguide
 # Optional: Close the building info by tapping elsewhere or close button
 - tapOn:
     id: "close-button"  # Close button location
+
+- stopApp

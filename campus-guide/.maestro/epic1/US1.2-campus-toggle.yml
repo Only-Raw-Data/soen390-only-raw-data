@@ -27,3 +27,5 @@ appId: com.campus.campusguide
 
 - waitForAnimationToEnd
 - assertVisible: "SGW Campus"
+
+- stopApp

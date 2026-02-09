@@ -22,3 +22,4 @@ appId: com.campus.campusguide
 - tapOn: "SGW Campus"
 - waitForAnimationToEnd
 
+- stopApp
