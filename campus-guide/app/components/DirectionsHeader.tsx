@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useDirections} from '../context/DirectionsContext';
 import { TransportationMode } from '../types/transportation';
 import { SGW_BUILDINGS, LOYOLA_BUILDINGS, Building } from './../../constants/buildings';
-import useUserLocation from '../hooks/useUserLocation';
+import useUserLocation from '@hooks/useUserLocation';
 import ShuttleSchedule from './ShuttleSchedule';
 import { SHUTTLE_SCHEDULE } from './../../constants/shuttleSchedule';
 import { Weekday } from '@/constants/weekday';

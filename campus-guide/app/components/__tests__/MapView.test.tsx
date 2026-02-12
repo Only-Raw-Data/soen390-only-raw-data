@@ -1,5 +1,5 @@
 import React from "react";
-import { render, fireEvent, act } from "@testing-library/react-native";
+import { render, fireEvent, act, waitFor } from "@testing-library/react-native";
 import MapViewApp from "../MapView";
 import { useDirections } from "../../context/DirectionsContext";
 import useBuildingPolygons from "../../hooks/useBuildingPolygons";
@@ -58,12 +58,22 @@ jest.mock("react-native-maps", () => {
   const React = require("react");
   const { View, Text, TouchableOpacity } = require("react-native");
 
+  // Create shared mocks to capture calls across renders/layers
+  (global as any).mockMapMethods = {
+    fitToCoordinates: jest.fn(),
+    animateToRegion: jest.fn(),
+    animateCamera: jest.fn(),
+  };
+
   const MockMapView = React.forwardRef(
-    ({ children, ...props }: any, ref: any) => (
-      <View testID="mapView" {...props}>
-        {children}
-      </View>
-    ),
+    ({ children, ...props }: any, ref: any) => {
+      React.useImperativeHandle(ref, () => (global as any).mockMapMethods);
+      return (
+        <View testID="mapView" {...props}>
+          {children}
+        </View>
+      );
+    },
   );
 
   const MockMarker = ({ title, onPress, testID }: any) => (
@@ -598,6 +608,36 @@ describe("MapViewApp", () => {
 
       // Assert
       expect(useUserLocation).toHaveBeenCalled();
+    });
+
+    it("fits map to coordinates when route changes", async () => {
+      // Arrange
+      const mockRoute1 = { coordinates: [{ latitude: 1, longitude: 2 }] };
+      const mockRoute2 = { coordinates: [{ latitude: 3, longitude: 4 }, { latitude: 5, longitude: 6 }] };
+      const mapMethods = (global as any).mockMapMethods;
+      mapMethods.fitToCoordinates.mockClear();
+
+      // Start with first route
+      (useDirections as jest.Mock).mockReturnValue(
+        createDirectionsMock({ route: mockRoute1 })
+      );
+
+      const screen = render(<MapViewApp />);
+      
+      // Act - change route to trigger useEffect
+      (useDirections as jest.Mock).mockReturnValue(
+        createDirectionsMock({ route: mockRoute2 })
+      );
+      screen.rerender(<MapViewApp />);
+      
+      // Assert
+      await waitFor(() => {
+        expect(mapMethods.fitToCoordinates).toHaveBeenCalled();
+        expect(mapMethods.fitToCoordinates).toHaveBeenCalledWith(
+          mockRoute2.coordinates,
+          expect.any(Object)
+        );
+      });
     });
 
     it("shows 'Set as Start' when no start building is selected", () => {

@@ -106,16 +106,18 @@ describe('BuildingInformation Component', () => {
 
     it('should render building information correctly', () => {
       // Arrange & Act
-        const { getByText } = render(
+        const { getByText, getByTestId } = render(
             <BuildingInformation
                 building={mockBuilding}
                 onGetDirections={mockOnGetDirections}
                 onClose={mockOnClose}
+                getDirectionsButtonText="Get Directions"
             />
         );
           // Assert
         expect(getByText('H-110')).toBeTruthy();
         expect(getByText('Henry F. Hall Building')).toBeTruthy();
+        expect(getByTestId('building-info-name')).toBeTruthy();
         expect(getByText('Sir George Williams Campus')).toBeTruthy();
         expect(getByText('1455 De Maisonneuve Blvd. W.')).toBeTruthy();
     });

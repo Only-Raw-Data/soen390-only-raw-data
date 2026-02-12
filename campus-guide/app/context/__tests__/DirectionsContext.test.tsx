@@ -213,4 +213,24 @@ describe('DirectionsContext', () => {
         expect(result.current.route).toBeNull();
         expect(result.current.startBuilding).toBeNull();
     });
+
+    it('should handle fetchRoute errors gracefully', async () => {
+        // Arrange
+        (fetchDirections as jest.Mock).mockRejectedValueOnce(new Error('API Error'));
+        const { result } = renderHook(() => useDirections(), { wrapper });
+
+        act(() => {
+            result.current.setStartBuilding(SGW_BUILDINGS[0]);
+            result.current.setDestinationBuilding(SGW_BUILDINGS[1]);
+        });
+
+        // Act
+        await act(async () => {
+            await result.current.fetchRoute();
+        });
+
+        // Assert
+        expect(result.current.route).toBeNull();
+        expect(result.current.isLoadingRoute).toBe(false);
+    });
 });
