@@ -6,6 +6,7 @@ import { TransportationMode } from '../types/transportation';
 import { SGW_BUILDINGS, LOYOLA_BUILDINGS, Building } from './../../constants/buildings';
 import useUserLocation from '../hooks/useUserLocation';
 import ShuttleSchedule from './ShuttleSchedule';
+import { SHUTTLE_SCHEDULE } from './../../constants/shuttleSchedule';
 
 export default function DirectionsHeader() {
     const {
@@ -28,6 +29,43 @@ export default function DirectionsHeader() {
     const [isSearchingDest, setIsSearchingDest] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [showScheduleModal, setShowScheduleModal] = useState(false);
+    const [nextShuttleTime, setNextShuttleTime] = useState<string | null>(null);
+
+    // Calculate next shuttle when mode is shuttle and campuses are different
+    useEffect(() => {
+        if (transportationMode === 'shuttle' && startBuilding && destinationBuilding && startBuilding.campus !== destinationBuilding.campus) {
+            const now = new Date();
+            const day = now.getDay();
+            const isFriday = day === 5;
+            const isWeekend = day === 0 || day === 6;
+            
+            if (isWeekend) {
+                setNextShuttleTime("No shuttle on weekends");
+                return;
+            }
+
+            const schedule = isFriday ? SHUTTLE_SCHEDULE.friday : SHUTTLE_SCHEDULE.mondayThursday;
+            const currentCampus = startBuilding.campus;
+            const currentTimeStr = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
+
+            const nextBus = schedule.find(time => {
+                const busTime = currentCampus === 'Loyola' ? time.loyola : time.sgw;
+                if (!busTime) return false;
+                // Remove asterisk for comparison
+                const cleanBusTime = busTime.replace('*', '');
+                return cleanBusTime > currentTimeStr;
+            });
+
+            if (nextBus) {
+                const time = currentCampus === 'Loyola' ? nextBus.loyola : nextBus.sgw;
+                setNextShuttleTime(`Next shuttle: ${time}`);
+            } else {
+                setNextShuttleTime("No more shuttles today");
+            }
+        } else {
+            setNextShuttleTime(null);
+        }
+    }, [transportationMode, startBuilding, destinationBuilding]);
 
     // Show modal when shuttle mode is selected
     useEffect(() => {
@@ -36,9 +74,9 @@ export default function DirectionsHeader() {
         }
     }, [transportationMode]);
 
-    // Auto-update route when inputs change if a route already exists
+    // Auto-update route when inputs change
     useEffect(() => {
-        if (startBuilding && destinationBuilding && route) {
+        if (startBuilding && destinationBuilding) {
             fetchRoute();
         }
     }, [startBuilding, destinationBuilding, transportationMode]);
@@ -184,6 +222,16 @@ export default function DirectionsHeader() {
                         </TouchableOpacity>
                     ))}
                 </View>
+
+                {nextShuttleTime && (
+                    <View style={styles.shuttleHint}>
+                        <Ionicons name="information-circle-outline" size={16} color="#912338" />
+                        <Text style={styles.shuttleHintText}>{nextShuttleTime}</Text>
+                        <TouchableOpacity onPress={() => setShowScheduleModal(true)}>
+                            <Text style={styles.shuttleHintLink}>Full Schedule</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
 
                 <TouchableOpacity
                     testID="get-directions-button"
@@ -424,5 +472,26 @@ const styles = StyleSheet.create({
     },
     closeButton: {
         padding: 4,
+    },
+    shuttleHint: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FEF3F2',
+        padding: 10,
+        borderRadius: 8,
+        marginBottom: 16,
+        gap: 8,
+    },
+    shuttleHintText: {
+        fontSize: 13,
+        color: '#912338',
+        fontWeight: '500',
+        flex: 1,
+    },
+    shuttleHintLink: {
+        fontSize: 13,
+        color: '#3B82F6',
+        fontWeight: '600',
+        textDecorationLine: 'underline',
     },
 });
