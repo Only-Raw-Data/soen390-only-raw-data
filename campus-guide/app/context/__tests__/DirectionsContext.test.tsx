@@ -188,12 +188,12 @@ describe('DirectionsContext', () => {
 
         const { result } = renderHook(() => useDirections(), { wrapper });
 
+        // Act
         act(() => {
             result.current.setStartBuilding(SGW_BUILDINGS[0]);
             result.current.setDestinationBuilding(SGW_BUILDINGS[1]);
         });
 
-        // Act
         let routeCall: Promise<void>;
         act(() => {
             routeCall = result.current.fetchRoute();

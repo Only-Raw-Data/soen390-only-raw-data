@@ -15,7 +15,7 @@ interface BuildingInformationProps {
   readonly building: Building;
   readonly onGetDirections: (building: Building) => void;
   readonly onClose: () => void;
-  readonly getDirectionsButtonText?: string;
+  readonly getDirectionsButtonText: string;
 }
 
 const hasValidContent = (value: string | undefined | null): boolean => {

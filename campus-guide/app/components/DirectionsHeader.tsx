@@ -7,6 +7,7 @@ import { SGW_BUILDINGS, LOYOLA_BUILDINGS, Building } from './../../constants/bui
 import useUserLocation from '../hooks/useUserLocation';
 import ShuttleSchedule from './ShuttleSchedule';
 import { SHUTTLE_SCHEDULE } from './../../constants/shuttleSchedule';
+import { Weekday } from '@/constants/weekday';
 
 export default function DirectionsHeader() {
     const {
@@ -35,8 +36,8 @@ export default function DirectionsHeader() {
         if (transportationMode === 'shuttle' && startBuilding && destinationBuilding && startBuilding.campus !== destinationBuilding.campus) {
             const now = new Date();
             const day = now.getDay();
-            const isFriday = day === 5;
-            const isWeekend = day === 0 || day === 6;
+            const isFriday = day === Weekday.Friday;
+            const isWeekend = day === Weekday.Saturday || day === Weekday.Sunday;
             
             if (isWeekend) {
                 setNextShuttleTime("No shuttle on weekends");
