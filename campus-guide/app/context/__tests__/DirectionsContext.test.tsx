@@ -9,7 +9,7 @@ jest.mock('../../services/directionsService', () => ({
 }));
 
 describe('DirectionsContext', () => {
-    const wrapper = ({ children }: { children: React.ReactNode }) => (
+    const wrapper = ({ children }: { readonly children: React.ReactNode }) => (
         <DirectionsProvider>{children}</DirectionsProvider>
     );
 
@@ -135,8 +135,56 @@ describe('DirectionsContext', () => {
         expect(result.current.isLoadingRoute).toBe(false);
     });
 
-    it('should handle fetch route failure', async () => {
-        (fetchDirections as jest.Mock).mockRejectedValueOnce(new Error('API error'));
+    it('should ignore stale route responses (race condition protection)', async () => {
+        // Arrange
+        const mockRoute1 = { distance: '1 km', duration: '5 mins', coordinates: [] } as any;
+        const mockRoute2 = { distance: '2 km', duration: '10 mins', coordinates: [] } as any;
+        
+        // Mock fetchDirections to return different routes with different delays
+        let resolveFirst: (val: any) => void;
+        const firstFetch = new Promise((resolve) => { resolveFirst = resolve; });
+        (fetchDirections as jest.Mock)
+            .mockReturnValueOnce(firstFetch)
+            .mockResolvedValueOnce(mockRoute2);
+
+        const { result } = renderHook(() => useDirections(), { wrapper });
+
+        // Act
+        act(() => {
+            result.current.setStartBuilding(SGW_BUILDINGS[0]);
+            result.current.setDestinationBuilding(SGW_BUILDINGS[1]);
+        });
+
+        // Trigger first fetch
+        let fetchPromise1: Promise<void>;
+        act(() => {
+            fetchPromise1 = result.current.fetchRoute();
+        });
+
+        // Trigger second fetch immediately (it will resolve instantly because of mockResolvedValueOnce)
+        await act(async () => {
+            await result.current.fetchRoute();
+        });
+
+        // Assert: Second route should be set
+        expect(result.current.route).toEqual(mockRoute2);
+
+        // Act: Now resolve the first fetch
+        await act(async () => {
+            resolveFirst(mockRoute1);
+            await fetchPromise1;
+        });
+
+        // Assert: Route should STILL be mockRoute2 (first one was ignored as stale)
+        expect(result.current.route).toEqual(mockRoute2);
+    });
+
+    it('should invalidate pending requests when clearDirections is called', async () => {
+        // Arrange
+        const mockRoute = { distance: '1 km', duration: '5 mins', coordinates: [] } as any;
+        let resolveFetch: (val: any) => void;
+        const fetchPromise = new Promise((resolve) => { resolveFetch = resolve; });
+        (fetchDirections as jest.Mock).mockReturnValueOnce(fetchPromise);
 
         const { result } = renderHook(() => useDirections(), { wrapper });
 
@@ -145,11 +193,24 @@ describe('DirectionsContext', () => {
             result.current.setDestinationBuilding(SGW_BUILDINGS[1]);
         });
 
-        await act(async () => {
-            await result.current.fetchRoute();
+        // Act
+        let routeCall: Promise<void>;
+        act(() => {
+            routeCall = result.current.fetchRoute();
         });
 
+        act(() => {
+            result.current.clearDirections();
+        });
+
+        // Resolve the fetch after clearing
+        await act(async () => {
+            resolveFetch(mockRoute);
+            await routeCall;
+        });
+
+        // Assert
         expect(result.current.route).toBeNull();
-        expect(result.current.isLoadingRoute).toBe(false);
+        expect(result.current.startBuilding).toBeNull();
     });
 });

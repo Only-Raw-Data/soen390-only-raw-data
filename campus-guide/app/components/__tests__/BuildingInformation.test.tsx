@@ -200,4 +200,32 @@ describe('BuildingInformation Component', () => {
         // Assert
         expect(mockOnClose).toHaveBeenCalledTimes(1);
     });
+
+    it('should show dynamic button text when provided', () => {
+        // Arrange
+        const dynamicText = "Set as Start";
+        const { getByText } = render(
+            <BuildingInformation
+                building={mockBuilding}
+                onGetDirections={mockOnGetDirections}
+                onClose={mockOnClose}
+                getDirectionsButtonText={dynamicText}
+            />
+        );
+        // Act & Assert
+        expect(getByText(dynamicText)).toBeTruthy();
+    });
+
+    it('should show default button text when no dynamic text provided', () => {
+        // Arrange
+        const { getByText } = render(
+            <BuildingInformation
+                building={mockBuilding}
+                onGetDirections={mockOnGetDirections}
+                onClose={mockOnClose}
+            />
+        );
+        // Act & Assert
+        expect(getByText('Get Directions')).toBeTruthy();
+    });
 });
