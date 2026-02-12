@@ -187,9 +187,11 @@ export default function MapViewApp({
 
   // Fit route in view when it changes
   React.useEffect(() => {
-    if (route && route.coordinates && route.coordinates.length > 0 && mapRef.current && typeof mapRef.current.fitToCoordinates === 'function') {
-      console.log('Fitting map to coordinates:', route.coordinates.length);
-      mapRef.current.fitToCoordinates(route.coordinates, {
+    const coords = route?.coordinates;
+
+    if ((coords?.length ?? 0) > 0 && mapRef.current?.fitToCoordinates) {
+      console.log("Fitting map to coordinates:", coords?.length);
+      mapRef.current.fitToCoordinates(coords, {
         edgePadding: { top: 150, right: 50, bottom: 50, left: 50 },
         animated: true,
       });
@@ -387,7 +389,7 @@ export default function MapViewApp({
           building={infoBuilding}
           onGetDirections={handleGetDirections}
           onClose={() => setInfoBuilding(null)}
-          getDirectionsButtonText={!startBuilding ? "Set as Start" : "Set as Destination"}
+          getDirectionsButtonText={startBuilding ?  "Set as Destination" : "Set as Start" }
         />
       )}
 
@@ -425,7 +427,7 @@ export default function MapViewApp({
               onPress={() => handleGetDirections(selectedBuilding)}
             >
               <Text style={styles.bottomBarButtonPrimaryText}>
-                {!startBuilding ? "Set as Start" : "Set as Destination"}
+                {startBuilding ? "Set as Destination" : "Set as Start"}
               </Text>
             </TouchableOpacity>
           </View>

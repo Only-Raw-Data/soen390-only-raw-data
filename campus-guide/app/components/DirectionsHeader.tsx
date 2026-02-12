@@ -19,7 +19,6 @@ export default function DirectionsHeader() {
         swapLocations,
         clearDirections,
         fetchRoute,
-        route,
         isLoadingRoute
     } = useDirections();
 
