@@ -168,6 +168,7 @@ const createDirectionsMock = (overrides = {}) => ({
   isLoadingRoute: false,
   setStartBuilding: jest.fn(),
   setDestinationBuilding: jest.fn(),
+  clearDirections: jest.fn(),
   ...overrides,
 });
 
@@ -410,8 +411,8 @@ describe("MapViewApp", () => {
     fireEvent.press(moreInfoButton); 
     
     // Assert
-    // Use findByText to wait for BuildingInformation to render
-    expect(await screen.findByText("Henry F. Hall Building")).toBeTruthy();
+    // Use testID to avoid duplication with bottom bar
+    expect(await screen.findByTestId("building-info-name")).toBeTruthy();
     expect(await screen.findByText("Departments")).toBeTruthy();
   });
 
@@ -471,13 +472,17 @@ describe("MapViewApp", () => {
       expect(useBuildingPolygons).toHaveBeenCalledWith("Loyola");
     });
 
-    it("polygon tap triggers building selection", () => {
+    it("polygon tap triggers building selection", async () => {
       // Arrange
       const screen = render(<MapViewApp />);
       const polygons = screen.getAllByTestId("building-polygon");
 
       // Act - tap first polygon (H building)
       fireEvent.press(polygons[0]);
+      
+      // Confirmation step (new flow)
+      const confirmButton = await screen.findByText(/Set as Start/i);
+      fireEvent.press(confirmButton);
 
       // Assert
       expect(mockSetStartBuilding).toHaveBeenCalledWith(

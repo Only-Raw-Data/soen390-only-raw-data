@@ -58,7 +58,7 @@ export default function BuildingInformation({
               <Text style={styles.codeText}>{building.code}</Text>
             </View>
             <View style={styles.details}>
-              <Text style={styles.name}>{building.name}</Text>
+              <Text style={styles.name} testID="building-info-name">{building.name}</Text>
               <Text style={styles.campus}>{building.campus} Campus</Text>
               <Text style={styles.address}>{building.address}</Text>
             </View>
