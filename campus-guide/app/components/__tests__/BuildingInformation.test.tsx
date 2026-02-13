@@ -106,16 +106,18 @@ describe('BuildingInformation Component', () => {
 
     it('should render building information correctly', () => {
       // Arrange & Act
-        const { getByText } = render(
+        const { getByText, getByTestId } = render(
             <BuildingInformation
                 building={mockBuilding}
                 onGetDirections={mockOnGetDirections}
                 onClose={mockOnClose}
+                getDirectionsButtonText="Get Directions"
             />
         );
           // Assert
         expect(getByText('H-110')).toBeTruthy();
         expect(getByText('Henry F. Hall Building')).toBeTruthy();
+        expect(getByTestId('building-info-name')).toBeTruthy();
         expect(getByText('Sir George Williams Campus')).toBeTruthy();
         expect(getByText('1455 De Maisonneuve Blvd. W.')).toBeTruthy();
     });
@@ -199,5 +201,33 @@ describe('BuildingInformation Component', () => {
         fireEvent.press(getByTestId('close-button'));
         // Assert
         expect(mockOnClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('should show dynamic button text when provided', () => {
+        // Arrange
+        const dynamicText = "Set as Start";
+        const { getByText } = render(
+            <BuildingInformation
+                building={mockBuilding}
+                onGetDirections={mockOnGetDirections}
+                onClose={mockOnClose}
+                getDirectionsButtonText={dynamicText}
+            />
+        );
+        // Act & Assert
+        expect(getByText(dynamicText)).toBeTruthy();
+    });
+
+    it('should show default button text when no dynamic text provided', () => {
+        // Arrange
+        const { getByText } = render(
+            <BuildingInformation
+                building={mockBuilding}
+                onGetDirections={mockOnGetDirections}
+                onClose={mockOnClose}
+            />
+        );
+        // Act & Assert
+        expect(getByText('Get Directions')).toBeTruthy();
     });
 });

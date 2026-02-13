@@ -41,35 +41,67 @@ export default function DirectionsProvider({
   const [route, setRoute] = useState<RouteData | null>(null);
   const [isLoadingRoute, setIsLoadingRoute] = useState(false);
 
+  const activeRequestRef = React.useRef(0);
+
   const clearDirections = useCallback(() => {
+    console.log('Clearing directions state');
+    activeRequestRef.current++; // Invalidate any pending requests
     setStartBuilding(null);
     setDestinationBuilding(null);
     setTransportationMode("walk");
     setRoute(null);
+    setIsLoadingRoute(false);
   }, []);
 
   const swapLocations = useCallback(() => {
+    console.log('Swapping locations');
     setStartBuilding(destinationBuilding);
     setDestinationBuilding(startBuilding);
     setRoute(null);
   }, [startBuilding, destinationBuilding]);
 
   const fetchRoute = useCallback(async () => {
-    if (!startBuilding || !destinationBuilding) return;
+    if (!startBuilding || !destinationBuilding) {
+      console.log('fetchRoute called but missing buildings:', { start: !!startBuilding, dest: !!destinationBuilding });
+      return;
+    }
 
+    const requestId = ++activeRequestRef.current;
+    console.log(`Starting fetchRoute request #${requestId}`, {
+      start: startBuilding.code,
+      dest: destinationBuilding.code,
+      mode: transportationMode
+    });
+    
     setIsLoadingRoute(true);
+    
     try {
       const data = await fetchDirections(
         { lat: startBuilding.lat, lng: startBuilding.lng },
         { lat: destinationBuilding.lat, lng: destinationBuilding.lng },
         transportationMode,
       );
-      setRoute(data);
+      
+      if (requestId === activeRequestRef.current) {
+        if (data && startBuilding && destinationBuilding) {
+          console.log(`Successfully fetched route #${requestId}`);
+          setRoute(data);
+        } else {
+          console.log(`Fetch finished for #${requestId} but data or buildings missing, clearing route`);
+          setRoute(null);
+        }
+      } else {
+        console.log(`Ignoring stale route response for request #${requestId}`);
+      }
     } catch (error) {
-      console.error("Failed to fetch route:", error);
-      setRoute(null);
+      console.error(`Failed to fetch route #${requestId}:`, error);
+      if (requestId === activeRequestRef.current) {
+        setRoute(null);
+      }
     } finally {
-      setIsLoadingRoute(false);
+      if (requestId === activeRequestRef.current) {
+        setIsLoadingRoute(false);
+      }
     }
   }, [startBuilding, destinationBuilding, transportationMode]);
 
