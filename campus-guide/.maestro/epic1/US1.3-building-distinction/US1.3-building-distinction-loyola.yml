@@ -3,7 +3,10 @@ appId: com.soen390.campusguide
 - launchApp
 
 - assertVisible: "SGW Campus"
+- waitForAnimationToEnd
 
+- tapOn:
+    point: "90%,93%"
 - waitForAnimationToEnd
 
 - tapOn: "Loyola Campus"

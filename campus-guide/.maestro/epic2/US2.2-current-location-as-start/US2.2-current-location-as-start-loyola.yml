@@ -5,6 +5,10 @@ appId: com.soen390.campusguide
 
 - assertVisible: "SGW Campus"
 
+- tapOn:
+    point: "90%,93%"
+- waitForAnimationToEnd
+
 - tapOn: "Directions"
 - waitForAnimationToEnd
 

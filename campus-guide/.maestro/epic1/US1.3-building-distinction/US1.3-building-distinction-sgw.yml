@@ -4,7 +4,10 @@ appId: com.soen390.campusguide
 - waitForAnimationToEnd
 
 - assertVisible: "SGW Campus"
+- waitForAnimationToEnd
 
+- tapOn:
+    point: "90%,93%"
 - waitForAnimationToEnd
 
 - tapOn:

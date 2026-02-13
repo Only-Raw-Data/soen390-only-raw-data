@@ -7,6 +7,10 @@ appId: com.soen390.campusguide
 - assertVisible: "Loyola Campus"
 
 - tapOn:
+    point: "90%,93%"
+- waitForAnimationToEnd
+
+- tapOn:
     point: "50%,60%"
 - waitForAnimationToEnd
 - assertVisible: "EV"

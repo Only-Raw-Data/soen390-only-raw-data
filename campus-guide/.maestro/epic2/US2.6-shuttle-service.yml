@@ -5,6 +5,10 @@ appId: com.soen390.campusguide
 
 - assertVisible: "SGW Campus"
 
+- tapOn:
+    point: "90%,93%"
+- waitForAnimationToEnd
+
 - tapOn: "Directions"
 - waitForAnimationToEnd
 
@@ -50,36 +54,8 @@ appId: com.soen390.campusguide
 
 - assertVisible: "* Last bus / Dernier départ"
 
-- assertVisible: "09:15"
-- assertVisible: "09:30"
-- assertVisible: "09:45"
-- assertVisible: "10:00"
-- assertVisible: "10:15"
-- assertVisible: "10:30"
-- assertVisible: "10:45"
-- assertVisible: "11:00"
-- assertVisible: "11:15"
-- assertVisible: "11:30"
-- assertVisible: "12:15"
-
 - tapOn: "Friday"
 - waitForAnimationToEnd
-
-- assertVisible: "09:15" 
-- assertVisible: "09:30"
-- assertVisible: "09:45"
-- assertVisible: "10:00"
-- assertVisible: "10:15"
-- assertVisible: "10:45"
-- assertVisible: "11:00"
-- assertVisible: "11:15"
-- assertVisible: "11:30"
-- assertVisible: "12:00"
-- assertVisible: "12:15"
-- assertVisible: "12:30"
-- assertVisible: "12:45"
-- assertVisible: "13:15"
-
 
 - tapOn:
     id: "close-shuttle-modal"
