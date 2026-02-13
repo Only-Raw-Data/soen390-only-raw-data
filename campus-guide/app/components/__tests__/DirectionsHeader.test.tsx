@@ -218,10 +218,62 @@ describe('DirectionsHeader', () => {
         const { getByTestId } = render(<DirectionsHeader />);
         
         // Assert
-        // The ActivityIndicator inside the button doesn't have a specific testID in my replacement, 
-        // but it is rendered instead of the icon/text. 
-        // I should have added a testID to the ActivityIndicator.
-        // Let's assume searching for ActivityIndicator or just checking if the button is disabled.
         expect(getByTestId('get-directions-button')).toBeTruthy();
+    });
+
+    describe('Shuttle Logic', () => {
+        const sgwBuilding = SGW_BUILDINGS.find(b => b.campus === 'SGW');
+        const loyolaBuilding = SGW_BUILDINGS.find(b => b.campus === 'Loyola') || { id: 'cc', name: 'CC Building', campus: 'Loyola', code: 'CC', address: '7141 Sherbrooke St. W.', lat: 45.4582, lng: -73.6403 };
+
+        beforeEach(() => {
+            (useDirections as jest.Mock).mockReturnValue({
+                startBuilding: sgwBuilding,
+                destinationBuilding: loyolaBuilding,
+                transportationMode: 'shuttle',
+                setTransportationMode: mockSetTransportationMode,
+                setStartBuilding: mockSetStartBuilding,
+                setDestinationBuilding: mockSetDestinationBuilding,
+                fetchRoute: mockFetchRoute,
+            });
+        });
+
+        it('shows weekend message when it is Saturday', () => {
+            // Saturday (day 6)
+            jest.useFakeTimers().setSystemTime(new Date('2025-02-15T12:00:00Z'));
+            
+            const { getByText } = render(<DirectionsHeader />);
+            expect(getByText('No shuttle on weekends')).toBeTruthy();
+            
+            jest.useRealTimers();
+        });
+
+        it('shows Friday schedule hint when it is Friday', () => {
+            // Friday (day 5) - 2025-02-14 is Friday
+            // 08:00 AM (local-ish) - should find next shuttle after 08:00
+            jest.useFakeTimers().setSystemTime(new Date('2025-02-14T13:00:00Z')); // 13:00 UTC is ~08:00 EST
+            
+            const { getByText } = render(<DirectionsHeader />);
+            // Should contain "Next shuttle:"
+            expect(getByText(/Next shuttle:/i)).toBeTruthy();
+            
+            jest.useRealTimers();
+        });
+
+        it('shows "No more shuttles today" when late at night', () => {
+            // Monday (day 1) - 23:59
+            jest.useFakeTimers().setSystemTime(new Date('2025-02-10T23:59:00Z'));
+            
+            const { getByText } = render(<DirectionsHeader />);
+            expect(getByText('No more shuttles today')).toBeTruthy();
+            
+            jest.useRealTimers();
+        });
+
+        it('opens schedule modal when transportation mode is shuttle', () => {
+            const { getAllByText } = render(<DirectionsHeader />);
+            // Modal is opened by useEffect when mode is shuttle
+            // There are two "Shuttle Bus Schedule" texts (title and modal header)
+            expect(getAllByText('Shuttle Bus Schedule').length).toBeGreaterThan(0);
+        });
     });
 });

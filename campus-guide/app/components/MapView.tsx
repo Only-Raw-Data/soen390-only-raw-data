@@ -71,8 +71,8 @@ export default function MapViewApp({
     getCurrentLocation,
   } = useUserLocation();
 
-  const buildings = selectedCampus === "SGW" ? SGW_BUILDINGS : LOYOLA_BUILDINGS;
-  const filteredBuildings = buildings.filter(
+  const allBuildingsList = [...SGW_BUILDINGS, ...LOYOLA_BUILDINGS];
+  const filteredBuildings = allBuildingsList.filter(
     (b) =>
       b.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       b.code.toLowerCase().includes(searchQuery.toLowerCase()),
@@ -81,26 +81,31 @@ export default function MapViewApp({
   const handleCampusChange = (campus: Campus) => {
     setSelectedCampus(campus);
     setSelectedBuilding(null);
+    
+    // Animate map to the new campus
+    if (mapRef.current) {
+      mapRef.current.animateToRegion(CAMPUS_REGIONS[campus], 1000);
+    }
   };
 
   const handleBuildingPress = (building: Building) => {
-    setSelectedBuilding(building);
-
-    // Selection logic for Directions
-    if (!startBuilding) {
-      setStartBuilding(building);
-    } else if (building.id === startBuilding.id) {
-      // Tapping start again clears it
-      setStartBuilding(null);
-    } else if (!destinationBuilding) {
-      setDestinationBuilding(building);
-    } else if (building.id === destinationBuilding.id) {
-      // Tapping destination again clears it
-      setDestinationBuilding(null);
-    } else {
-      // If both are set and we tap a new one, replace destination
-      setDestinationBuilding(building);
+    // Switch campus context (markers/polygons) if the building is on the other campus
+    if (building.id !== selectedBuilding?.id && building.campus !== selectedCampus) {
+      setSelectedCampus(building.campus);
+      
+      // Animate to the new campus to avoid disorientation
+      if (mapRef.current) {
+        mapRef.current.animateToRegion({
+          latitude: building.lat,
+          longitude: building.lng,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        }, 1000);
+      }
     }
+    
+    setSelectedBuilding(building);
+    setInfoBuilding(null);
   };
 
   const getMarkerTitle = (building: Building) => {
@@ -174,8 +179,24 @@ export default function MapViewApp({
     } else if (building.id !== startBuilding.id) {
       setDestinationBuilding(building);
     }
+    
+    setSelectedBuilding(null); // Close the bottom bar
+    setInfoBuilding(null); // Close the detail popup
     router.push("/(tabs)/two");
   };
+
+  // Fit route in view when it changes
+  React.useEffect(() => {
+    const coords = route?.coordinates;
+
+    if ((coords?.length ?? 0) > 0 && mapRef.current?.fitToCoordinates) {
+      console.log("Fitting map to coordinates:", coords?.length);
+      mapRef.current.fitToCoordinates(coords, {
+        edgePadding: { top: 150, right: 50, bottom: 50, left: 50 },
+        animated: true,
+      });
+    }
+  }, [route]);
 
   return (
     <View style={styles.container}>
@@ -228,15 +249,38 @@ export default function MapViewApp({
           ref={mapRef}
           provider={PROVIDER_GOOGLE}
           style={styles.map}
-          region={CAMPUS_REGIONS[selectedCampus]}
+          initialRegion={CAMPUS_REGIONS[selectedCampus]}
           showsUserLocation={true}
           showsMyLocationButton={false}
           customMapStyle={CAMPUS_MAP_STYLE}
+          onRegionChangeComplete={(region) => {
+            // Only auto-switch if zoomed in enough to see buildings (guard against flip-flopping)
+            if (region.latitudeDelta > 0.02) return;
+
+            // Auto-switch campus markers based on the map center
+            const sgwCenter = CAMPUS_REGIONS.SGW;
+            const loyolaCenter = CAMPUS_REGIONS.Loyola;
+            
+            const distToSGW = Math.sqrt(
+              Math.pow(region.latitude - sgwCenter.latitude, 2) + 
+              Math.pow(region.longitude - sgwCenter.longitude, 2)
+            );
+            const distToLoyola = Math.sqrt(
+              Math.pow(region.latitude - loyolaCenter.latitude, 2) + 
+              Math.pow(region.longitude - loyolaCenter.longitude, 2)
+            );
+
+            if (distToSGW < distToLoyola && selectedCampus !== "SGW") {
+              setSelectedCampus("SGW");
+            } else if (distToLoyola < distToSGW && selectedCampus !== "Loyola") {
+              setSelectedCampus("Loyola");
+            }
+          }}
         >
           {/* Render Building Polygons */}
           {buildingPolygons.map((polygon) => {
             const colors = getPolygonColors(polygon.buildingId);
-            const building = buildings.find((b) => b.id === polygon.buildingId);
+            const building = allBuildingsList.find((b) => b.id === polygon.buildingId);
             return (
               <Polygon
                 key={`polygon-${polygon.buildingId}`}
@@ -251,9 +295,12 @@ export default function MapViewApp({
           })}
 
           {/* Existing Markers */}
-          {filteredBuildings.map((building) => (
+          {filteredBuildings
+            .filter(b => b.campus === selectedCampus)
+            .map((building) => (
             <Marker
               key={building.id}
+              testID={`building-marker-${building.id}`}
               coordinate={{ latitude: building.lat, longitude: building.lng }}
               title={getMarkerTitle(building)}
               onPress={() => handleBuildingPress(building)}
@@ -273,10 +320,30 @@ export default function MapViewApp({
           {/* Render Directions Polyline */}
           {route && (
             <Polyline
+              key={`route-${route.distance}-${route.duration}-${route.coordinates.length}`}
               coordinates={route.coordinates}
               strokeWidth={4}
               strokeColor="#3B82F6"
+              zIndex={10}
             />
+          )}
+          
+          {/* Add markers for start and destination if they are from different campuses */}
+          {route && startBuilding && destinationBuilding && startBuilding.campus !== destinationBuilding.campus && (
+            <>
+               <Marker 
+                key={`start-marker-${startBuilding.id}`}
+                coordinate={{ latitude: startBuilding.lat, longitude: startBuilding.lng }}
+                pinColor="#10B981"
+                title="Start"
+              />
+              <Marker 
+                key={`dest-marker-${destinationBuilding.id}`}
+                coordinate={{ latitude: destinationBuilding.lat, longitude: destinationBuilding.lng }}
+                pinColor="#FFEA00"
+                title="Destination"
+              />
+            </>
           )}
         </MapView>
 
@@ -322,14 +389,15 @@ export default function MapViewApp({
           building={infoBuilding}
           onGetDirections={handleGetDirections}
           onClose={() => setInfoBuilding(null)}
+          getDirectionsButtonText={startBuilding ?  "Set as Destination" : "Set as Start" }
         />
       )}
 
       {selectedBuilding && (
-        <View style={styles.bottomBar}>
+        <View style={styles.bottomBar} testID="bottom-bar">
           <View style={styles.bottomBarInfo}>
-            <Text style={styles.bottomBarCode}>{selectedBuilding.code}</Text>
-            <Text style={styles.bottomBarName} numberOfLines={1}>
+            <Text style={styles.bottomBarCode} testID="bottom-bar-code">{selectedBuilding.code}</Text>
+            <Text style={styles.bottomBarName} numberOfLines={1} testID="bottom-bar-name">
               {selectedBuilding.name}
             </Text>
             <Text style={styles.bottomBarAddress} numberOfLines={1}>
@@ -339,16 +407,27 @@ export default function MapViewApp({
           <View style={styles.bottomBarActions}>
             <TouchableOpacity
               style={styles.bottomBarButtonSecondary}
-              onPress={() => setSelectedBuilding(null)}
+              onPress={() => {
+                setSelectedBuilding(null);
+                clearDirections();
+              }}
             >
               <Text style={styles.bottomBarButtonSecondaryText}>Clear</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.bottomBarButtonSecondary}
+              onPress={() => {
+                setInfoBuilding(selectedBuilding);
+              }}
+            >
+              <Text style={styles.bottomBarButtonSecondaryText}>More Info</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.bottomBarButtonPrimary}
               onPress={() => handleGetDirections(selectedBuilding)}
             >
               <Text style={styles.bottomBarButtonPrimaryText}>
-                Get directions
+                {startBuilding ? "Set as Destination" : "Set as Start"}
               </Text>
             </TouchableOpacity>
           </View>

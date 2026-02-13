@@ -15,6 +15,7 @@ interface BuildingInformationProps {
   readonly building: Building;
   readonly onGetDirections: (building: Building) => void;
   readonly onClose: () => void;
+  readonly getDirectionsButtonText: string;
 }
 
 const hasValidContent = (value: string | undefined | null): boolean => {
@@ -25,6 +26,7 @@ export default function BuildingInformation({
   building,
   onGetDirections,
   onClose,
+  getDirectionsButtonText,
 }: BuildingInformationProps) {
   const [showOverview, setShowOverview] = useState(false);
 
@@ -56,7 +58,7 @@ export default function BuildingInformation({
               <Text style={styles.codeText}>{building.code}</Text>
             </View>
             <View style={styles.details}>
-              <Text style={styles.name}>{building.name}</Text>
+              <Text style={styles.name} testID="building-info-name">{building.name}</Text>
               <Text style={styles.campus}>{building.campus} Campus</Text>
               <Text style={styles.address}>{building.address}</Text>
             </View>
@@ -124,7 +126,9 @@ export default function BuildingInformation({
               onPress={() => onGetDirections(building)}
             >
               <Ionicons name="navigate" size={16} color="#FFFFFF" />
-              <Text style={styles.directionsButtonText}>Get Directions</Text>
+              <Text style={styles.directionsButtonText}>
+                {getDirectionsButtonText || "Get Directions"}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
