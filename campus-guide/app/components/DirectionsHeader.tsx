@@ -142,7 +142,7 @@ export default function DirectionsHeader() {
                             onChangeText={setSearchQuery}
                         />
                         <TouchableOpacity
-                            testID="use-current-location-button"
+                            testID="current location"
                             onPress={handleUseCurrentLocation}
                             disabled={locationLoading}
                             style={styles.locateButton}
@@ -269,6 +269,7 @@ export default function DirectionsHeader() {
                             <Text style={styles.modalTitle}>Shuttle Bus Schedule</Text>
                         </View>
                         <TouchableOpacity
+                            testID="close-shuttle-modal"
                             onPress={() => setShowScheduleModal(false)}
                             style={styles.closeButton}
                         >

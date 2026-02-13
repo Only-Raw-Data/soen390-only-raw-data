@@ -3,13 +3,16 @@
   "main": "expo-router/entry",
   "license": "0BSD",
   "version": "1.0.0",
+  "private": true,
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
+    "android": "expo run:android",
+    "android:native": "expo run:android",
     "ios": "expo run:ios",
+    "ios:native": "expo run:ios",
     "web": "expo start --web",
     "test": "jest",
-    "build": "npm install && npx expo prebuild"
+    "build": "expo prebuild"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
@@ -48,7 +51,6 @@
     "react-test-renderer": "19.1.0",
     "typescript": "~5.9.2"
   },
-  "private": true,
   "jest": {
     "preset": "react-native",
     "setupFilesAfterEnv": [

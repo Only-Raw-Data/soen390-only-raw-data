@@ -1,0 +1,27 @@
+appId: com.soen390.campusguide
+---
+- launchApp
+- waitForAnimationToEnd
+
+- assertVisible: "SGW Campus"
+
+- tapOn:
+    point: "90%,93%"
+- waitForAnimationToEnd
+
+- setLocation:
+    latitude: 45.4972
+    longitude: -73.5789
+
+- tapOn:
+    point: "90%,93%"
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "locate"
+- waitForAnimationToEnd
+
+- assertVisible: 
+    text: ".*You are near.*"
+
+- stopApp
