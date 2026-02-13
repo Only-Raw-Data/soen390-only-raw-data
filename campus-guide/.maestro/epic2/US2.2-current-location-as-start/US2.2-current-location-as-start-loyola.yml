@@ -13,10 +13,6 @@ appId: com.soen390.campusguide
 - waitForAnimationToEnd
 
 - tapOn:
-    point: "90%,93%"
-- waitForAnimationToEnd
-
-- tapOn:
     id: "current location"
 - waitForAnimationToEnd
 
