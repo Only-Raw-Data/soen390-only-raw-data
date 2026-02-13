@@ -104,7 +104,7 @@ export default function DirectionsHeader() {
                             onChangeText={setSearchQuery}
                         />
                         <TouchableOpacity
-                            testID="use-current-location-button"
+                            testID="current location"
                             onPress={handleUseCurrentLocation}
                             disabled={locationLoading}
                             style={styles.locateButton}

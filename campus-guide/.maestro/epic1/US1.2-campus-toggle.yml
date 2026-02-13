@@ -1,0 +1,31 @@
+appId: com.soen390.campusguide
+---
+- launchApp
+- waitForAnimationToEnd
+
+- assertVisible: "SGW Campus"
+
+- tapOn: "Directions"
+
+- waitForAnimationToEnd
+- assertVisible: "Get Directions"
+- assertVisible: "Walk"
+- assertVisible: "Car"
+
+- tapOn: "Map"
+
+- waitForAnimationToEnd
+
+- assertVisible: "SGW Campus"
+
+- tapOn: "Loyola Campus"
+
+- waitForAnimationToEnd
+- assertVisible: "Loyola Campus"
+
+- tapOn: "SGW Campus"
+
+- waitForAnimationToEnd
+- assertVisible: "SGW Campus"
+
+- stopApp

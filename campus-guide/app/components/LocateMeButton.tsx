@@ -143,6 +143,7 @@ export default function LocateMeButton({
       )}
 
       <TouchableOpacity
+        testID="locate"
         style={[styles.button, isLoading && styles.buttonDisabled]}
         onPress={handlePress}
         disabled={isLoading}

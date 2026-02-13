@@ -1,0 +1,35 @@
+appId: com.soen390.campusguide
+---
+- launchApp
+- waitForAnimationToEnd
+
+- assertVisible: "SGW Campus"
+
+- tapOn: "Directions"
+- waitForAnimationToEnd
+
+- tapOn:
+    point: "90%,93%"
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "current location"
+- waitForAnimationToEnd
+
+- assertVisible: "Destination"
+- tapOn: "Destination"
+- inputText: "Central"
+- hideKeyboard
+- waitForAnimationToEnd
+
+- tapOn: "Central Building"
+- waitForAnimationToEnd
+
+- tapOn:
+    point: "50%,45%"
+- waitForAnimationToEnd
+
+- assertVisible:
+    text: ".*mins.*km.*" 
+
+# - stopApp

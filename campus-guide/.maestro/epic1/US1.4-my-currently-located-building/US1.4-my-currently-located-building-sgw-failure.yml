@@ -1,0 +1,19 @@
+appId: com.soen390.campusguide
+---
+- launchApp
+- waitForAnimationToEnd
+
+- assertVisible: "SGW Campus"
+
+- tapOn:
+    point: "90%,93%"
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "locate"
+- waitForAnimationToEnd
+
+- assertVisible: 
+    text: ".*You don't appear to be on campus.*"
+
+- stopApp

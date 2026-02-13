@@ -1,0 +1,25 @@
+appId: com.soen390.campusguide
+---
+- launchApp
+- waitForAnimationToEnd
+
+- assertVisible: "SGW Campus"
+- assertVisible: "Loyola Campus"
+
+- tapOn:
+    point: "50%,60%"
+- waitForAnimationToEnd
+- assertVisible: "EV"
+
+- tapOn: "Loyola Campus"
+- waitForAnimationToEnd
+
+- tapOn:
+    point: "50%,60%"
+- waitForAnimationToEnd
+- assertVisible: "CJA"
+
+- tapOn: "SGW Campus"
+- waitForAnimationToEnd
+
+- stopApp

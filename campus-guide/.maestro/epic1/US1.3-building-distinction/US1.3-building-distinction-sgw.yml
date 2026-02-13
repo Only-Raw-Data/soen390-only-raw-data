@@ -1,0 +1,67 @@
+appId: com.soen390.campusguide
+---
+- launchApp
+- waitForAnimationToEnd
+
+- assertVisible: "SGW Campus"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    point: "50%,50%"
+- waitForAnimationToEnd
+
+- assertVisible: "LB"
+- assertVisible: "Get Directions"
+
+- tapOn: "Clear"
+- waitForAnimationToEnd
+
+- tapOn:
+    point: "35%,35%"
+
+- assertNotVisible: "B Annex"
+- assertNotVisible: "CI Annex"
+- assertNotVisible: "CL Annex"
+- assertNotVisible: "D Annex"
+- assertNotVisible: "EN Annex"
+- assertNotVisible: "ER Building"
+- assertNotVisible: "ES Building"
+- assertNotVisible: "ET Building"
+- assertNotVisible: "Engineering, Computer Science and Visual Arts Integrated Complex"
+- assertNotVisible: "FA Annex"
+- assertNotVisible: "Faubourg Building"
+- assertNotVisible: "Faubourg Ste-Catherine Building"
+- assertNotVisible: "Grey Nuns Annex"
+- assertNotVisible: "Guy-De Maisonneuve Building"
+- assertNotVisible: "Grey Nuns Building – Wing A"
+- assertNotVisible: "Grey Nuns Building – Wings B–G, P"
+- assertNotVisible: "Grey Nuns Building – Wings H–K"
+- assertNotVisible: "Grey Nuns Building – Wings L–N"
+- assertNotVisible: "Guy-Sherbrooke Building"
+- assertNotVisible: "Henry F. Hall Building"
+- assertNotVisible: "K Annex"
+- assertNotVisible: "J.W. McConnell Building"
+- assertNotVisible: "John Molson Building"
+- assertNotVisible: "Visual Arts Building"
+
+- tapOn:
+    point: "45%,60%"
+- waitForAnimationToEnd
+
+- assertVisible: "J.W. McConnell Building"
+- assertVisible: "Get Directions"
+
+- tapOn: "Clear"
+- waitForAnimationToEnd
+
+- tapOn:
+    point: "60%,55%"
+- waitForAnimationToEnd
+
+- assertVisible: "LB"
+
+- tapOn: "Clear"
+- waitForAnimationToEnd
+
+- stopApp
