@@ -125,7 +125,7 @@ describe('DirectionsHeader', () => {
         const { getByTestId } = render(<DirectionsHeader />);
 
         //Assert
-        expect(getByTestId('use-current-location-button')).toBeTruthy();
+        expect(getByTestId('current location')).toBeTruthy();
     });
 
     it('sets start building when Use Current Location succeeds', async () => {
@@ -134,7 +134,7 @@ describe('DirectionsHeader', () => {
         const { getByTestId } = render(<DirectionsHeader />);
 
         //Act
-        fireEvent.press(getByTestId('use-current-location-button'));
+        fireEvent.press(getByTestId('current location'));
 
         //Assert
         await waitFor(() => {
@@ -148,7 +148,7 @@ describe('DirectionsHeader', () => {
         const { getByTestId } = render(<DirectionsHeader />);
 
         //Act
-        fireEvent.press(getByTestId('use-current-location-button'));
+        fireEvent.press(getByTestId('current location'));
 
         //Assert
         await waitFor(() => {
