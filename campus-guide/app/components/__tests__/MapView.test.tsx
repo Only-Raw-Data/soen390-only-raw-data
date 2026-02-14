@@ -271,7 +271,7 @@ describe("MapViewApp", () => {
   it("defaults to SGW markers", () => {
     // Arrange
     const screen = render(<MapViewApp />);
-    // Act - Now markers show "CODE - ADDRESS" format
+    // Act 
     const hall = screen.getByText(/H - 1455 DeMaisonneuve W/);
     const molson = screen.getByText(/MB - 1450 Guy Street/);
     // Assert
@@ -529,7 +529,7 @@ describe("MapViewApp", () => {
 
       const screen = render(<MapViewApp />);
 
-      // Verify we start on SGW - now using regex to match marker format
+      // Verify we start on SGW -
       expect(screen.getByText(/H - 1455 DeMaisonneuve W/)).toBeTruthy();
 
       // Act
@@ -587,6 +587,37 @@ describe("MapViewApp", () => {
 
       // Assert
       expect(capturedOnBuildingHighlight).toBeDefined();
+    });
+
+    it("fits map to coordinates when route changes", async () => {
+      
+      // Arrange
+      const mockRoute1 = { coordinates: [{ latitude: 1, longitude: 2 }] };
+      const mockRoute2 = { coordinates: [{ latitude: 3, longitude: 4 }, { latitude: 5, longitude: 6 }] };
+      const mapMethods = (global as any).mockMapMethods;
+      mapMethods.fitToCoordinates.mockClear();
+
+      // Start with first route
+      (useDirections as jest.Mock).mockReturnValue(
+        createDirectionsMock({ route: mockRoute1 })
+      );
+
+      const screen = render(<MapViewApp />);
+      
+      // Act - change route to trigger useEffect
+      (useDirections as jest.Mock).mockReturnValue(
+        createDirectionsMock({ route: mockRoute2 })
+      );
+      screen.rerender(<MapViewApp />);
+      
+      // Assert
+      await waitFor(() => {
+        expect(mapMethods.fitToCoordinates).toHaveBeenCalled();
+        expect(mapMethods.fitToCoordinates).toHaveBeenCalledWith(
+          mockRoute2.coordinates,
+          expect.any(Object)
+        );
+      });
     });
 
     it("animates to user location when campus detected and location available", () => {
