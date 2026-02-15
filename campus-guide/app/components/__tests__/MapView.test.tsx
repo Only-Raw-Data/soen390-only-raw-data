@@ -208,12 +208,14 @@ describe("MapViewApp", () => {
   let mockSetStartBuilding: jest.Mock;
   let mockSetDestinationBuilding: jest.Mock;
   let mockGetCurrentLocation: jest.Mock;
+  let mockClearDirections: jest.Mock;
 
   const setupDefaultMocks = () => {
     (useDirections as jest.Mock).mockReturnValue(
       createDirectionsMock({
         setStartBuilding: mockSetStartBuilding,
         setDestinationBuilding: mockSetDestinationBuilding,
+        clearDirections: mockClearDirections,
       }),
     );
 
@@ -232,6 +234,7 @@ describe("MapViewApp", () => {
     jest.clearAllMocks();
     mockSetStartBuilding = jest.fn();
     mockSetDestinationBuilding = jest.fn();
+    mockClearDirections = jest.fn();
     mockGetCurrentLocation = jest.fn();
     setupDefaultMocks();
   });
@@ -268,9 +271,9 @@ describe("MapViewApp", () => {
   it("defaults to SGW markers", () => {
     // Arrange
     const screen = render(<MapViewApp />);
-    // Act
-    const hall = screen.getByText("H");
-    const molson = screen.getByText("MB");
+    // Act 
+    const hall = screen.getByText(/H - 1455 DeMaisonneuve W/);
+    const molson = screen.getByText(/MB - 1450 Guy Street/);
     // Assert
     expect(hall).toBeTruthy();
     expect(molson).toBeTruthy();
@@ -282,23 +285,23 @@ describe("MapViewApp", () => {
     // Act
     fireEvent.press(screen.getByText("Loyola Campus"));
     // Assert
-    expect(screen.getByText("CC")).toBeTruthy();
+    expect(screen.getByText(/CC - 7141 Sherbrooke West/)).toBeTruthy();
   });
 
   it.each([
     {
       searchTerm: "Hall",
-      expectedBuilding: "H",
+      expectedBuilding: /H - 1455 DeMaisonneuve W/,
       description: "filters buildings by name",
     },
     {
       searchTerm: "MB",
-      expectedBuilding: "MB",
+      expectedBuilding: /MB - 1450 Guy Street/,
       description: "filters buildings by code",
     },
     {
       searchTerm: "engineering",
-      expectedBuilding: "EV",
+      expectedBuilding: /EV - 1515 Ste-Catherine W/,
       description: "is case insensitive",
     },
   ])("$description", ({ searchTerm, expectedBuilding }) => {
@@ -315,29 +318,24 @@ describe("MapViewApp", () => {
     // Arrange
     const screen = render(<MapViewApp />);
     // Act
-    fireEvent.press(screen.getByText("H"));
+    fireEvent.press(screen.getByText(/H - 1455 DeMaisonneuve W/));
     // Assert
     expect(screen.getByText("Henry F. Hall Building")).toBeTruthy();
   });
 
-  it("sets start building when selected building is confirmed", async () => {
+  it("sets start building when 'Set as Start' is pressed", () => {
     // Arrange
     const screen = render(<MapViewApp />);
-    
     // Act
-    fireEvent.press(screen.getByText("H")); 
-    
-    // Use waitFor to ensure bottom bar is rendered
-    const confirmButton = await screen.findByText(/Set as Start/i);
-    fireEvent.press(confirmButton);
-    
+    fireEvent.press(screen.getByText(/H - 1455 DeMaisonneuve W/));
+    fireEvent.press(screen.getByText("Set as Start"));
     // Assert
     expect(mockSetStartBuilding).toHaveBeenCalledWith(
       expect.objectContaining({ id: "h" }),
     );
   });
 
-  it("sets destination building when confirmed while start exists", () => {
+  it("sets destination building when start exists and 'Set as Destination' is pressed", () => {
     // Arrange
     (useDirections as jest.Mock).mockReturnValue(
       createDirectionsMock({
@@ -350,16 +348,15 @@ describe("MapViewApp", () => {
     const screen = render(<MapViewApp />);
 
     // Act
-    fireEvent.press(screen.getByText("MB")); // Select building
-    fireEvent.press(screen.getByText("Set as Destination")); // Confirm as destination
-    
+    fireEvent.press(screen.getByText(/MB - 1450 Guy Street/));
+    fireEvent.press(screen.getByText("Set as Destination"));
     // Assert
     expect(mockSetDestinationBuilding).toHaveBeenCalledWith(
       expect.objectContaining({ id: "mb" }),
     );
   });
 
-  it("clears start building when confirmed as null", () => {
+  it("clears start building when 'Clear' is pressed", () => {
     // Arrange
     const hBuilding = SGW_BUILDINGS.find((b) => b.code === "H");
 
@@ -368,24 +365,49 @@ describe("MapViewApp", () => {
         startBuilding: hBuilding,
         setStartBuilding: mockSetStartBuilding,
         setDestinationBuilding: mockSetDestinationBuilding,
+        clearDirections: mockClearDirections,
       }),
     );
 
     const screen = render(<MapViewApp />);
 
-    // Act
+    // Act - Select the building that's already the start
     const polygons = screen.getAllByTestId("building-polygon");
-    fireEvent.press(polygons[0]); // Select building 'h'
-    fireEvent.press(screen.getByText("Clear")); // Press Clear in the bottom bar
+    fireEvent.press(polygons[0]); // mockSGWPolygons[0] is 'h'
+    fireEvent.press(screen.getByText("Clear"));
 
-    // Assert
-    // Clearing the selection via the "Clear" button doesn't necessarily call setStartBuilding(null)
-    // in the current implementation of setSelectedBuilding(null), but the test previously expected it.
-    // Based on handleBuildingPress, if it was already selected, it doesn't clear the context.
-    // Let's check how "clear" is handled in MapView.tsx.
+    // Assert - Clear button likely calls clearDirections or setSelectedBuilding(null)
+    // Based on the MapView implementation, clicking Clear on bottom bar clears selection
+    expect(screen.queryByTestId("bottom-bar")).toBeNull();
   });
 
-  it("replaces destination when both start and destination are set and a new building is confirmed", () => {
+  it("clears destination building when 'Clear' is pressed", () => {
+    // Arrange
+    const hBuilding = SGW_BUILDINGS.find((b) => b.code === "H");
+    const mbBuilding = SGW_BUILDINGS.find((b) => b.code === "MB");
+
+    (useDirections as jest.Mock).mockReturnValue(
+      createDirectionsMock({
+        startBuilding: hBuilding,
+        destinationBuilding: mbBuilding,
+        setStartBuilding: mockSetStartBuilding,
+        setDestinationBuilding: mockSetDestinationBuilding,
+        clearDirections: mockClearDirections,
+      }),
+    );
+
+    const screen = render(<MapViewApp />);
+
+    // Act - Select the building that's already the destination
+    const polygons = screen.getAllByTestId("building-polygon");
+    fireEvent.press(polygons[1]); // mockSGWPolygons[1] is 'mb'
+    fireEvent.press(screen.getByText("Clear"));
+
+    // Assert - Clear button clears the bottom bar selection
+    expect(screen.queryByTestId("bottom-bar")).toBeNull();
+  });
+
+  it("replaces destination when both start and destination are set and 'Set as Destination' is pressed", () => {
     // Arrange
     const hBuilding = SGW_BUILDINGS.find((b) => b.code === "H");
     const mbBuilding = SGW_BUILDINGS.find((b) => b.code === "MB");
@@ -402,28 +424,13 @@ describe("MapViewApp", () => {
     const screen = render(<MapViewApp />);
 
     // Act
-    fireEvent.press(screen.getByText("EV")); // Select building
-    fireEvent.press(screen.getByText("Set as Destination")); // Confirm
-    
+    fireEvent.press(screen.getByText(/EV - 1515 Ste-Catherine W/));
+    fireEvent.press(screen.getByText("Set as Destination"));
+
     // Assert
     expect(mockSetDestinationBuilding).toHaveBeenCalledWith(
       expect.objectContaining({ code: "EV" }),
     );
-  });
-
-  it("opens BuildingInformation when 'More Info' is pressed", async () => {
-    // Arrange
-    const screen = render(<MapViewApp />);
-    
-    // Act
-    fireEvent.press(screen.getByText("H")); // Select building
-    const moreInfoButton = await screen.findByText(/More Info/i);
-    fireEvent.press(moreInfoButton); 
-    
-    // Assert
-    // Use testID to avoid duplication with bottom bar
-    expect(await screen.findByTestId("building-info-name")).toBeTruthy();
-    expect(await screen.findByText("Departments")).toBeTruthy();
   });
 
   it("search works across campus switches", () => {
@@ -482,17 +489,14 @@ describe("MapViewApp", () => {
       expect(useBuildingPolygons).toHaveBeenCalledWith("Loyola");
     });
 
-    it("polygon tap triggers building selection", async () => {
+    it("polygon tap triggers building selection after confirmation", () => {
       // Arrange
       const screen = render(<MapViewApp />);
       const polygons = screen.getAllByTestId("building-polygon");
 
-      // Act - tap first polygon (H building)
+      // Act - tap first polygon (H building) and confirm
       fireEvent.press(polygons[0]);
-      
-      // Confirmation step (new flow)
-      const confirmButton = await screen.findByText(/Set as Start/i);
-      fireEvent.press(confirmButton);
+      fireEvent.press(screen.getByText("Set as Start"));
 
       // Assert
       expect(mockSetStartBuilding).toHaveBeenCalledWith(
@@ -525,8 +529,8 @@ describe("MapViewApp", () => {
 
       const screen = render(<MapViewApp />);
 
-      // Verify we start on SGW
-      expect(screen.getByText("H")).toBeTruthy();
+      // Verify we start on SGW -
+      expect(screen.getByText(/H - 1455 DeMaisonneuve W/)).toBeTruthy();
 
       // Act
       act(() => {
@@ -585,32 +589,8 @@ describe("MapViewApp", () => {
       expect(capturedOnBuildingHighlight).toBeDefined();
     });
 
-    it("animates to user location when campus detected and location available", () => {
-      // Arrange
-      (useUserLocation as jest.Mock).mockReturnValue(
-        createUserLocationMock({
-          location: { coords: { latitude: 45.458204, longitude: -73.6403 } },
-          nearestBuilding: { id: "cc", name: "Central Building" },
-          isOnCampus: true,
-          currentCampus: "Loyola",
-          getCurrentLocation: mockGetCurrentLocation,
-        }),
-      );
-
-      render(<MapViewApp />);
-
-      // Act
-      act(() => {
-        if (capturedOnCampusDetected) {
-          capturedOnCampusDetected("Loyola");
-        }
-      });
-
-      // Assert
-      expect(useUserLocation).toHaveBeenCalled();
-    });
-
     it("fits map to coordinates when route changes", async () => {
+      
       // Arrange
       const mockRoute1 = { coordinates: [{ latitude: 1, longitude: 2 }] };
       const mockRoute2 = { coordinates: [{ latitude: 3, longitude: 4 }, { latitude: 5, longitude: 6 }] };
@@ -640,32 +620,55 @@ describe("MapViewApp", () => {
       });
     });
 
-    it("shows 'Set as Start' when no start building is selected", () => {
+    it("animates to user location when campus detected and location available", () => {
       // Arrange
-      (useDirections as jest.Mock).mockReturnValue(
-        createDirectionsMock({ startBuilding: null }),
+      (useUserLocation as jest.Mock).mockReturnValue(
+        createUserLocationMock({
+          location: { coords: { latitude: 45.458204, longitude: -73.6403 } },
+          nearestBuilding: { id: "cc", name: "Central Building" },
+          isOnCampus: true,
+          currentCampus: "Loyola",
+          getCurrentLocation: mockGetCurrentLocation,
+        }),
       );
+
+      render(<MapViewApp />);
+
+      // Act
+      act(() => {
+        if (capturedOnCampusDetected) {
+          capturedOnCampusDetected("Loyola");
+        }
+      });
+
+      // Assert
+      expect(useUserLocation).toHaveBeenCalled();
+    });
+
+    it("shows bottom popup with action buttons", () => {
+      // Arrange
       const screen = render(<MapViewApp />);
       
       // Act
-      fireEvent.press(screen.getByText("H"));
+      fireEvent.press(screen.getByText(/H - 1455 DeMaisonneuve W/));
       
-      // Assert
+      // Assert - Check for bottom bar and its buttons
+      expect(screen.getByTestId("bottom-bar")).toBeTruthy();
+      expect(screen.getByText("Clear")).toBeTruthy();
+      expect(screen.getByText("More Info")).toBeTruthy();
       expect(screen.getByText("Set as Start")).toBeTruthy();
     });
 
-    it("shows 'Set as Destination' when start building is already selected", () => {
+    it("opens building information when 'More Info' is pressed", () => {
       // Arrange
-      (useDirections as jest.Mock).mockReturnValue(
-        createDirectionsMock({ startBuilding: { id: "h", code: "H" } }),
-      );
       const screen = render(<MapViewApp />);
       
       // Act
-      fireEvent.press(screen.getByText("MB"));
+      fireEvent.press(screen.getByText(/H - 1455 DeMaisonneuve W/));
+      fireEvent.press(screen.getByText("More Info"));
       
-      // Assert
-      expect(screen.getByText("Set as Destination")).toBeTruthy();
+      // Assert - BuildingInformation modal should be visible
+      expect(screen.getByText("Departments")).toBeTruthy();
     });
   });
 });

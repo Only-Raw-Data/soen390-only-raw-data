@@ -109,9 +109,9 @@ export default function MapViewApp({
   };
 
   const getMarkerTitle = (building: Building) => {
-    if (startBuilding?.id === building.id) return "A";
-    if (destinationBuilding?.id === building.id) return "B";
-    return building.code;
+    if (startBuilding?.id === building.id) return "START - "+building.code+" - "+building.address;
+    if (destinationBuilding?.id === building.id) return "DESTINATION - "+building.code+" - "+building.address;
+    return building.code+" - "+building.address;
   };
 
   const getMarkerColor = (building: Building) => {
@@ -306,15 +306,6 @@ export default function MapViewApp({
               onPress={() => handleBuildingPress(building)}
               pinColor={getMarkerColor(building)}
             >
-              <Callout tooltip onPress={() => setInfoBuilding(building)}>
-                <View style={styles.icontainer}>
-                  <Text style={styles.ititle}>{building.name}</Text>
-                  <Text style={styles.isubtitle}>{building.address}</Text>
-                  <View style={styles.ibutton}>
-                    <Text style={styles.ibuttonText}>Open details</Text>
-                  </View>
-                </View>
-              </Callout>
             </Marker>
           ))}
           {/* Render Directions Polyline */}
@@ -409,7 +400,6 @@ export default function MapViewApp({
               style={styles.bottomBarButtonSecondary}
               onPress={() => {
                 setSelectedBuilding(null);
-                clearDirections();
               }}
             >
               <Text style={styles.bottomBarButtonSecondaryText}>Clear</Text>
