@@ -241,6 +241,10 @@ describe('DirectionsHeader', () => {
             });
         });
 
+        afterEach(() => {
+            jest.useRealTimers();
+        });
+
         it('shows direction label "Shuttle To Loyola" when start is SGW and destination is Loyola', () => {
             // Arrange & Act
             const { getByTestId } = render(<DirectionsHeader />);
@@ -250,7 +254,7 @@ describe('DirectionsHeader', () => {
             expect(getByTestId('shuttle-direction-label').props.children).toContain('To Loyola');
         });
 
-        it('shows next shuttle text with direction (e.g. To Loyola)', () => {
+        it('shows next shuttle text with direction on Friday', () => {
             // Arrange
             jest.useFakeTimers().setSystemTime(new Date('2025-02-14T13:00:00Z'));
 
@@ -259,8 +263,6 @@ describe('DirectionsHeader', () => {
 
             // Assert
             expect(getByText(/Next shuttle To Loyola:/i)).toBeTruthy();
-
-            jest.useRealTimers();
         });
 
         it('shows weekend message when it is Saturday', () => {
@@ -272,21 +274,6 @@ describe('DirectionsHeader', () => {
 
             // Assert
             expect(getByText('No shuttle on weekends')).toBeTruthy();
-
-            jest.useRealTimers();
-        });
-
-        it('shows Friday schedule hint when it is Friday', () => {
-            // Arrange
-            jest.useFakeTimers().setSystemTime(new Date('2025-02-14T13:00:00Z'));
-
-            // Act
-            const { getByText } = render(<DirectionsHeader />);
-
-            // Assert
-            expect(getByText(/Next shuttle To Loyola:/i)).toBeTruthy();
-
-            jest.useRealTimers();
         });
 
         it('shows "No more shuttles today" when late at night', () => {
@@ -298,8 +285,6 @@ describe('DirectionsHeader', () => {
 
             // Assert
             expect(getByText('No more shuttles today')).toBeTruthy();
-
-            jest.useRealTimers();
         });
 
         it('does not auto-open schedule modal when shuttle is selected', () => {
