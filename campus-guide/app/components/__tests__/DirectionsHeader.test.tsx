@@ -295,5 +295,36 @@ describe('DirectionsHeader', () => {
             const modalContent = queryByTestId('close-shuttle-modal');
             expect(modalContent).toBeNull();
         });
+
+        it('sets default start and destination when Shuttle mode is pressed', () => {
+            // Arrange — start in walk mode with no buildings selected
+            (useDirections as jest.Mock).mockReturnValue({
+                startBuilding: null,
+                destinationBuilding: null,
+                transportationMode: 'walk',
+                route: null,
+                isLoadingRoute: false,
+                setTransportationMode: mockSetTransportationMode,
+                setStartBuilding: mockSetStartBuilding,
+                setDestinationBuilding: mockSetDestinationBuilding,
+                swapLocations: mockSwapLocations,
+                clearDirections: mockClearDirections,
+                fetchRoute: mockFetchRoute,
+            });
+
+            const { getByText } = render(<DirectionsHeader />);
+
+            // Act — press the Shuttle transport mode button
+            fireEvent.press(getByText('Shuttle'));
+
+            // Assert
+            expect(mockSetTransportationMode).toHaveBeenCalledWith('shuttle');
+            expect(mockSetStartBuilding).toHaveBeenCalledWith(
+                expect.objectContaining({ id: 'h' }),
+            );
+            expect(mockSetDestinationBuilding).toHaveBeenCalledWith(
+                expect.objectContaining({ id: 'fc' }),
+            );
+        });
     });
 });
