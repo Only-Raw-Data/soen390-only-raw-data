@@ -1,3 +1,9 @@
+import type { Campus } from "@/constants/buildings";
+import {
+  SHUTTLE_DISTANCE,
+  SHUTTLE_DURATION,
+  SHUTTLE_ROUTE_SGW_TO_LOYOLA,
+} from "@/constants/shuttleRoute";
 import { TransportationMode } from "../types/transportation";
 import { decode } from "@googlemaps/polyline-codec";
 
@@ -5,6 +11,11 @@ export interface RouteData {
   coordinates: { latitude: number; longitude: number }[];
   duration: string;
   distance: string;
+}
+
+export interface FetchDirectionsOptions {
+  startCampus?: Campus;
+  destinationCampus?: Campus;
 }
 
 const modeMapping: Record<TransportationMode, string> = {
@@ -18,7 +29,32 @@ export const fetchDirections = async (
   origin: { lat: number; lng: number },
   destination: { lat: number; lng: number },
   mode: TransportationMode,
+  options?: FetchDirectionsOptions,
 ): Promise<RouteData | null> => {
+  const { startCampus, destinationCampus } = options ?? {};
+
+  // Shuttle: use fixed route when cross-campus; no API call
+  if (
+    mode === "shuttle" &&
+    startCampus &&
+    destinationCampus &&
+    startCampus !== destinationCampus
+  ) {
+    const coordinates =
+      startCampus === "SGW"
+        ? [...SHUTTLE_ROUTE_SGW_TO_LOYOLA]
+        : [...SHUTTLE_ROUTE_SGW_TO_LOYOLA].reverse();
+    return {
+      coordinates,
+      duration: SHUTTLE_DURATION,
+      distance: SHUTTLE_DISTANCE,
+    };
+  }
+
+  if (mode === "shuttle") {
+    return null;
+  }
+
   const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
 
   if (!apiKey) {

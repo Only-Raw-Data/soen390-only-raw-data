@@ -56,9 +56,10 @@ export default function DirectionsHeader() {
                 return cleanBusTime > currentTimeStr;
             });
 
+            const directionLabel = currentCampus === 'SGW' ? 'To Loyola' : 'To SGW';
             if (nextBus) {
                 const time = currentCampus === 'Loyola' ? nextBus.loyola : nextBus.sgw;
-                setNextShuttleTime(`Next shuttle: ${time}`);
+                setNextShuttleTime(`Next shuttle ${directionLabel}: ${time}`);
             } else {
                 setNextShuttleTime("No more shuttles today");
             }
@@ -66,13 +67,6 @@ export default function DirectionsHeader() {
             setNextShuttleTime(null);
         }
     }, [transportationMode, startBuilding, destinationBuilding]);
-
-    // Show modal when shuttle mode is selected
-    useEffect(() => {
-        if (transportationMode === 'shuttle') {
-            setShowScheduleModal(true);
-        }
-    }, [transportationMode]);
 
     // Auto-update route when inputs change
     useEffect(() => {
@@ -116,6 +110,17 @@ export default function DirectionsHeader() {
         { id: 'shuttle', icon: 'bus', label: 'Shuttle' },
     ];
 
+    const shuttleDefaultStart = SGW_BUILDINGS.find(b => b.id === 'h');
+    const shuttleDefaultDest = LOYOLA_BUILDINGS.find(b => b.id === 'fc');
+
+    const handleModePress = (mode: TransportationMode) => {
+        setTransportationMode(mode);
+        if (mode === 'shuttle' && shuttleDefaultStart && shuttleDefaultDest) {
+            setStartBuilding(shuttleDefaultStart);
+            setDestinationBuilding(shuttleDefaultDest);
+        }
+    };
+
     return (
         <>
         <View style={styles.container}>
@@ -154,7 +159,7 @@ export default function DirectionsHeader() {
                             )}
                         </TouchableOpacity>
                         <TouchableOpacity testID="swap-button" onPress={swapLocations}>
-                            <Ionicons name="refresh-outline" size={20} color="#3B82F6" />
+                            <Ionicons name="swap-vertical-outline" size={20} color="#3B82F6" />
                         </TouchableOpacity>
                     </View>
 
@@ -206,7 +211,7 @@ export default function DirectionsHeader() {
                                 styles.modeButton,
                                 transportationMode === mode.id && styles.modeButtonActive
                             ]}
-                            onPress={() => setTransportationMode(mode.id)}
+                            onPress={() => handleModePress(mode.id)}
                         >
                             <Ionicons
                                 name={mode.icon}
@@ -222,6 +227,12 @@ export default function DirectionsHeader() {
                         </TouchableOpacity>
                     ))}
                 </View>
+
+                {transportationMode === 'shuttle' && startBuilding && destinationBuilding && startBuilding.campus !== destinationBuilding.campus && (
+                    <Text testID="shuttle-direction-label" style={styles.shuttleDirectionLabel}>
+                        Shuttle {startBuilding.campus === 'SGW' ? 'To Loyola' : 'To SGW'}
+                    </Text>
+                )}
 
                 {nextShuttleTime && (
                     <View style={styles.shuttleHint}>
@@ -473,6 +484,13 @@ const styles = StyleSheet.create({
     },
     closeButton: {
         padding: 4,
+    },
+    shuttleDirectionLabel: {
+        fontSize: 14,
+        color: '#912338',
+        fontWeight: '600',
+        marginTop: 4,
+        marginBottom: 2,
     },
     shuttleHint: {
         flexDirection: 'row',

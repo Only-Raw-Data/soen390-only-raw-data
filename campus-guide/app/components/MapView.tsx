@@ -23,6 +23,7 @@ import { CAMPUS_MAP_STYLE } from "../../constants/mapStyle";
 import BuildingInformation from "./BuildingInformation";
 import LocateMeButton from "./LocateMeButton";
 import useUserLocation from "../hooks/useUserLocation";
+import { isWithinShuttleHours } from "../utils/shuttleHours";
 
 interface MapViewAppProps {
   readonly googleMapsApiKey?: string;
@@ -40,7 +41,17 @@ export default function MapViewApp({
     setDestinationBuilding,
     clearDirections,
     route,
+    transportationMode,
   } = useDirections();
+
+  const isShuttleCrossCampus =
+    transportationMode === "shuttle" &&
+    startBuilding &&
+    destinationBuilding &&
+    startBuilding.campus !== destinationBuilding.campus;
+  const showRoute =
+    route &&
+    (!isShuttleCrossCampus || isWithinShuttleHours());
 
   const router = useRouter();
   const mapRef = useRef<MapView>(null);
@@ -185,8 +196,9 @@ export default function MapViewApp({
     router.push("/(tabs)/two");
   };
 
-  // Fit route in view when it changes
+  // Fit route in view when it changes (and when shuttle, only if within service hours)
   React.useEffect(() => {
+    if (!showRoute) return;
     const coords = route?.coordinates;
 
     if ((coords?.length ?? 0) > 0 && mapRef.current?.fitToCoordinates) {
@@ -196,7 +208,7 @@ export default function MapViewApp({
         animated: true,
       });
     }
-  }, [route]);
+  }, [route, showRoute]);
 
   return (
     <View style={styles.container}>
@@ -309,7 +321,7 @@ export default function MapViewApp({
             </Marker>
           ))}
           {/* Render Directions Polyline */}
-          {route && (
+          {showRoute && (
             <Polyline
               key={`route-${route.distance}-${route.duration}-${route.coordinates.length}`}
               coordinates={route.coordinates}
@@ -320,7 +332,7 @@ export default function MapViewApp({
           )}
           
           {/* Add markers for start and destination if they are from different campuses */}
-          {route && startBuilding && destinationBuilding && startBuilding.campus !== destinationBuilding.campus && (
+          {showRoute && startBuilding && destinationBuilding && startBuilding.campus !== destinationBuilding.campus && (
             <>
                <Marker 
                 key={`start-marker-${startBuilding.id}`}
@@ -353,7 +365,7 @@ export default function MapViewApp({
       </View>
 
       {/* Travel Time Display */}
-      {route && (
+      {showRoute && (
         <View style={styles.travelTimeContainer}>
           <View style={styles.travelTimeBadge}>
             <Ionicons name="time-outline" size={16} color="#FFFFFF" />
