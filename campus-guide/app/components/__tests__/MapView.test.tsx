@@ -678,17 +678,12 @@ describe("MapViewApp", () => {
   });
 
   describe("Shuttle route visibility", () => {
-    it("hides shuttle route when outside service hours", () => {
-      // Arrange
-      (isWithinShuttleHours as jest.Mock).mockReturnValue(false);
-
-      const sgwBuilding = SGW_BUILDINGS.find((b) => b.code === "H");
-      const loyolaBuilding = LOYOLA_BUILDINGS[0];
-
+    const setupShuttleMock = (withinHours: boolean) => {
+      (isWithinShuttleHours as jest.Mock).mockReturnValue(withinHours);
       (useDirections as jest.Mock).mockReturnValue(
         createDirectionsMock({
-          startBuilding: sgwBuilding,
-          destinationBuilding: loyolaBuilding,
+          startBuilding: SGW_BUILDINGS.find((b) => b.code === "H"),
+          destinationBuilding: LOYOLA_BUILDINGS[0],
           transportationMode: "shuttle",
           route: {
             coordinates: [
@@ -702,44 +697,28 @@ describe("MapViewApp", () => {
           setDestinationBuilding: mockSetDestinationBuilding,
         }),
       );
+    };
+
+    it("hides shuttle route when outside service hours", () => {
+      // Arrange
+      setupShuttleMock(false);
 
       // Act
       const screen = render(<MapViewApp />);
 
-      // Assert — polyline and travel time badge should NOT render
+      // Assert
       expect(screen.queryByTestId("route-polyline")).toBeNull();
       expect(screen.queryByText("21 mins (8.3 km)")).toBeNull();
     });
 
     it("shows shuttle route when within service hours", () => {
       // Arrange
-      (isWithinShuttleHours as jest.Mock).mockReturnValue(true);
-
-      const sgwBuilding = SGW_BUILDINGS.find((b) => b.code === "H");
-      const loyolaBuilding = LOYOLA_BUILDINGS[0];
-
-      (useDirections as jest.Mock).mockReturnValue(
-        createDirectionsMock({
-          startBuilding: sgwBuilding,
-          destinationBuilding: loyolaBuilding,
-          transportationMode: "shuttle",
-          route: {
-            coordinates: [
-              { latitude: 45.497, longitude: -73.579 },
-              { latitude: 45.458, longitude: -73.640 },
-            ],
-            duration: "21 mins",
-            distance: "8.3 km",
-          },
-          setStartBuilding: mockSetStartBuilding,
-          setDestinationBuilding: mockSetDestinationBuilding,
-        }),
-      );
+      setupShuttleMock(true);
 
       // Act
       const screen = render(<MapViewApp />);
 
-      // Assert — polyline and travel time badge should render
+      // Assert
       expect(screen.getByTestId("route-polyline")).toBeTruthy();
       expect(screen.getByText("21 mins (8.3 km)")).toBeTruthy();
     });
