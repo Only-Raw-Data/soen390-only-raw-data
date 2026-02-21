@@ -1,0 +1,311 @@
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useMemo,
+  useCallback,
+  ReactNode,
+} from "react";
+import {
+  IndoorBuildingConfig,
+  IndoorFeature,
+  IndoorGeoJSON,
+} from "../types/indoorMap";
+
+import hallData from "@/constants/indoorData/hall.json";
+import jmsbData from "@/constants/indoorData/jmsb.json";
+import vlveData from "@/constants/indoorData/VLandVEfloors.json";
+import ccData from "@/constants/indoorData/cc.json";
+import cjData from "@/constants/indoorData/cj.json";
+import clData from "@/constants/indoorData/cl.json";
+import evData from "@/constants/indoorData/ev.json";
+import fbData from "@/constants/indoorData/fb.json";
+import hbData from "@/constants/indoorData/hb.json";
+import hcData from "@/constants/indoorData/hc.json";
+import rfData from "@/constants/indoorData/rf.json";
+import siData from "@/constants/indoorData/si.json";
+import spData from "@/constants/indoorData/sp.json";
+
+export const INDOOR_BUILDINGS: IndoorBuildingConfig[] = [
+  {
+    code: "H",
+    name: "Henry F. Hall Building",
+    campus: "SGW",
+    floors: [1, 2, 3, 8, 9],
+    dataFile: "hall",
+    centerLat: 45.497092,
+    centerLng: -73.5788,
+  },
+  {
+    code: "MB",
+    name: "John Molson Building",
+    campus: "SGW",
+    floors: [-2, 1],
+    dataFile: "jmsb",
+    centerLat: 45.495304,
+    centerLng: -73.579044,
+  },
+  {
+    code: "EV",
+    name: "Engineering & Visual Arts",
+    campus: "SGW",
+    floors: [1],
+    dataFile: "ev",
+    centerLat: 45.495376,
+    centerLng: -73.577997,
+  },
+  {
+    code: "CL",
+    name: "CL Annex",
+    campus: "SGW",
+    floors: [1],
+    dataFile: "cl",
+    centerLat: 45.494259,
+    centerLng: -73.579007,
+  },
+  {
+    code: "FB",
+    name: "Faubourg Building",
+    campus: "SGW",
+    floors: [1],
+    dataFile: "fb",
+    centerLat: 45.494666,
+    centerLng: -73.577603,
+  },
+  {
+    code: "VL",
+    name: "Vanier Library",
+    campus: "Loyola",
+    floors: [1, 2],
+    dataFile: "vlve",
+    centerLat: 45.459026,
+    centerLng: -73.638606,
+  },
+  {
+    code: "VE",
+    name: "Vanier Extension",
+    campus: "Loyola",
+    floors: [1, 2],
+    dataFile: "vlve",
+    centerLat: 45.459026,
+    centerLng: -73.638606,
+  },
+  {
+    code: "CC",
+    name: "Central Building",
+    campus: "Loyola",
+    floors: [1],
+    dataFile: "cc",
+    centerLat: 45.458204,
+    centerLng: -73.6403,
+  },
+  {
+    code: "CJ",
+    name: "Communication Studies & Journalism",
+    campus: "Loyola",
+    floors: [1],
+    dataFile: "cj",
+    centerLat: 45.4572,
+    centerLng: -73.6403,
+  },
+  {
+    code: "HB",
+    name: "Hingston Hall B",
+    campus: "Loyola",
+    floors: [1],
+    dataFile: "hb",
+    centerLat: 45.459308,
+    centerLng: -73.641849,
+  },
+  {
+    code: "HC",
+    name: "Hingston Hall C",
+    campus: "Loyola",
+    floors: [1],
+    dataFile: "hc",
+    centerLat: 45.459663,
+    centerLng: -73.64208,
+  },
+  {
+    code: "RF",
+    name: "Loyola Jesuit Hall & Conference Centre",
+    campus: "Loyola",
+    floors: [1],
+    dataFile: "rf",
+    centerLat: 45.458489,
+    centerLng: -73.641028,
+  },
+  {
+    code: "SI",
+    name: "Saint Ignatius of Loyola",
+    campus: "Loyola",
+    floors: [1],
+    dataFile: "si",
+    centerLat: 45.4581,
+    centerLng: -73.6421,
+  },
+  {
+    code: "SP",
+    name: "Richard J. Renaud Science Complex",
+    campus: "Loyola",
+    floors: [1],
+    dataFile: "sp",
+    centerLat: 45.457881,
+    centerLng: -73.641565,
+  },
+];
+
+const geoJsonMap: Record<string, IndoorGeoJSON> = {
+  hall: hallData as unknown as IndoorGeoJSON,
+  jmsb: jmsbData as unknown as IndoorGeoJSON,
+  vlve: vlveData as unknown as IndoorGeoJSON,
+  cc: ccData as unknown as IndoorGeoJSON,
+  cj: cjData as unknown as IndoorGeoJSON,
+  cl: clData as unknown as IndoorGeoJSON,
+  ev: evData as unknown as IndoorGeoJSON,
+  fb: fbData as unknown as IndoorGeoJSON,
+  hb: hbData as unknown as IndoorGeoJSON,
+  hc: hcData as unknown as IndoorGeoJSON,
+  rf: rfData as unknown as IndoorGeoJSON,
+  si: siData as unknown as IndoorGeoJSON,
+  sp: spData as unknown as IndoorGeoJSON,
+};
+
+export function getGeoJsonForBuilding(
+  config: IndoorBuildingConfig,
+): IndoorGeoJSON | null {
+  return geoJsonMap[config.dataFile] ?? null;
+}
+
+export function getFeaturesForFloor(
+  geoJson: IndoorGeoJSON,
+  floor: number,
+): IndoorFeature[] {
+  const floorStr = floor.toString();
+  return geoJson.features.filter((f) => {
+    if (!f.properties?.level) return false;
+    const levels = f.properties.level.split(";");
+    return levels.includes(floorStr);
+  });
+}
+
+interface IndoorMapContextType {
+  selectedBuilding: IndoorBuildingConfig | null;
+  selectedFloor: number | null;
+  searchQuery: string;
+  highlightedRoomRef: string | null;
+  searchError: string | null;
+  setSelectedBuilding: (building: IndoorBuildingConfig | null) => void;
+  setSelectedFloor: (floor: number | null) => void;
+  setSearchQuery: (query: string) => void;
+  searchRoom: (query: string) => void;
+  clearHighlight: () => void;
+}
+
+const IndoorMapContext = createContext<IndoorMapContextType | undefined>(
+  undefined,
+);
+
+export default function IndoorMapProvider({
+  children,
+}: {
+  readonly children: ReactNode;
+}) {
+  const [selectedBuilding, setSelectedBuilding] =
+    useState<IndoorBuildingConfig | null>(null);
+  const [selectedFloor, setSelectedFloor] = useState<number | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [highlightedRoomRef, setHighlightedRoomRef] = useState<string | null>(
+    null,
+  );
+  const [searchError, setSearchError] = useState<string | null>(null);
+
+  const clearHighlight = useCallback(() => {
+    setHighlightedRoomRef(null);
+    setSearchError(null);
+  }, []);
+
+  const searchRoom = useCallback((query: string) => {
+    setSearchError(null);
+    setHighlightedRoomRef(null);
+
+    const normalized = query.replace(/[\s-]/g, "").toUpperCase();
+    if (!normalized) return;
+
+    // Search across all buildings for a matching ref
+    for (const building of INDOOR_BUILDINGS) {
+      const geoJson = getGeoJsonForBuilding(building);
+      if (!geoJson) continue;
+
+      for (const feature of geoJson.features) {
+        if (!feature.properties?.ref) continue;
+
+        const featureRef = feature.properties.ref
+          .replace(/[\s-]/g, "")
+          .toUpperCase();
+
+        if (featureRef === normalized) {
+          // Check that building code prefix matches this building
+          const refUpper = feature.properties.ref.toUpperCase();
+          if (
+            !refUpper.startsWith(building.code) &&
+            !(building.code === "MB" && refUpper.startsWith("MBS"))
+          )
+            continue;
+
+          // Extract floor from the feature's level
+          const level = feature.properties.level;
+          if (!level) continue;
+
+          const floor = parseInt(level.split(";")[0], 10);
+          if (isNaN(floor)) continue;
+
+          setSelectedBuilding(building);
+          setSelectedFloor(floor);
+          setHighlightedRoomRef(feature.properties.ref);
+          return;
+        }
+      }
+    }
+
+    setSearchError("Room not found");
+  }, []);
+
+  const value = useMemo(
+    () => ({
+      selectedBuilding,
+      selectedFloor,
+      searchQuery,
+      highlightedRoomRef,
+      searchError,
+      setSelectedBuilding,
+      setSelectedFloor,
+      setSearchQuery,
+      searchRoom,
+      clearHighlight,
+    }),
+    [
+      selectedBuilding,
+      selectedFloor,
+      searchQuery,
+      highlightedRoomRef,
+      searchError,
+      searchRoom,
+      clearHighlight,
+    ],
+  );
+
+  return (
+    <IndoorMapContext.Provider value={value}>
+      {children}
+    </IndoorMapContext.Provider>
+  );
+}
+
+export function useIndoorMap() {
+  const context = useContext(IndoorMapContext);
+  if (context === undefined) {
+    throw new Error("useIndoorMap must be used within an IndoorMapProvider");
+  }
+  return context;
+}
