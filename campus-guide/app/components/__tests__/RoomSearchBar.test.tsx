@@ -1,6 +1,6 @@
 import React from "react";
 import { render, fireEvent } from "@testing-library/react-native";
-import RoomSearchBar from "../RoomSearchBar";
+import RoomSearchBar from "@/app/components/RoomSearchBar";
 
 describe("RoomSearchBar", () => {
   const defaultProps = {

@@ -4,8 +4,8 @@ import IndoorMapView from "../IndoorMapView";
 import { useIndoorMap, INDOOR_BUILDINGS } from "../../context/IndoorMapContext";
 
 // Mock the IndoorMapContext
-jest.mock("../../context/IndoorMapContext", () => {
-  const actual = jest.requireActual("../../context/IndoorMapContext");
+jest.mock("@/app/context/IndoorMapContext", () => {
+  const actual = jest.requireActual("@/app/context/IndoorMapContext");
   return {
     ...actual,
     useIndoorMap: jest.fn(),
@@ -13,7 +13,7 @@ jest.mock("../../context/IndoorMapContext", () => {
 });
 
 // Mock mapStyle constant
-jest.mock("../../../constants/mapStyle", () => ({
+jest.mock("@/constants/mapStyle", () => ({
   CAMPUS_MAP_STYLE: [],
 }));
 

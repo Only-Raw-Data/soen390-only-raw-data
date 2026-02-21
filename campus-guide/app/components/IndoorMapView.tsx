@@ -7,14 +7,14 @@ import {
   StyleSheet,
 } from "react-native";
 import MapView, { Marker, Polygon, PROVIDER_GOOGLE } from "react-native-maps";
-import { CAMPUS_MAP_STYLE } from "../../constants/mapStyle";
+import { CAMPUS_MAP_STYLE } from "@/constants/mapStyle";
 import RoomSearchBar from "./RoomSearchBar";
 import {
   useIndoorMap,
   INDOOR_BUILDINGS,
   getGeoJsonForBuilding,
   getFeaturesForFloor,
-} from "../context/IndoorMapContext";
+} from "@/app/context/IndoorMapContext";
 import { IndoorFeature } from "../types/indoorMap";
 
 function getPolygonCentroid(coords: { latitude: number; longitude: number }[]) {

@@ -1,10 +1,10 @@
 import React, { useCallback } from "react";
 import { Tabs, useRouter, usePathname } from "expo-router";
-import BottomNav from "../components/BottomNav";
-import { Screen } from "../types/Screen";
+import BottomNav from "@/app/components/BottomNav";
+import { Screen } from "@/app/types/Screen";
 
-import DirectionsProvider from "../context/DirectionsContext";
-import IndoorMapProvider from "../context/IndoorMapContext";
+import DirectionsProvider from "@/app/context/DirectionsContext";
+import IndoorMapProvider from "@/app/context/IndoorMapContext";
 
 // TabBar component moved outside to prevent recreation on each render
 function TabBar({
