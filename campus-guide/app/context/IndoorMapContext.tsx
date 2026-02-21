@@ -189,6 +189,43 @@ export function getFeaturesForFloor(
   });
 }
 
+function matchesBuildingCode(ref: string, buildingCode: string): boolean {
+  const refUpper = ref.toUpperCase();
+  if (refUpper.startsWith(buildingCode)) return true;
+  return buildingCode === "MB" && refUpper.startsWith("MBS");
+}
+
+function parseFloor(level: string): number | null {
+  const floor = Number.parseInt(level.split(";")[0], 10);
+  return Number.isNaN(floor) ? null : floor;
+}
+
+function findRoomInBuildings(
+  normalized: string,
+): { building: IndoorBuildingConfig; floor: number; ref: string } | null {
+  for (const building of INDOOR_BUILDINGS) {
+    const geoJson = getGeoJsonForBuilding(building);
+    if (!geoJson) continue;
+
+    for (const feature of geoJson.features) {
+      if (!feature.properties?.ref) continue;
+
+      const featureRef = feature.properties.ref
+        .replaceAll(/[\s-]/g, "")
+        .toUpperCase();
+      if (featureRef !== normalized) continue;
+      if (!matchesBuildingCode(feature.properties.ref, building.code)) continue;
+      if (!feature.properties.level) continue;
+
+      const floor = parseFloor(feature.properties.level);
+      if (floor === null) continue;
+
+      return { building, floor, ref: feature.properties.ref };
+    }
+  }
+  return null;
+}
+
 interface IndoorMapContextType {
   selectedBuilding: IndoorBuildingConfig | null;
   selectedFloor: number | null;
@@ -229,46 +266,17 @@ export default function IndoorMapProvider({
     setSearchError(null);
     setHighlightedRoomRef(null);
 
-    const normalized = query.replace(/[\s-]/g, "").toUpperCase();
+    const normalized = query.replaceAll(/[\s-]/g, "").toUpperCase();
     if (!normalized) return;
 
-    // Search across all buildings for a matching ref
-    for (const building of INDOOR_BUILDINGS) {
-      const geoJson = getGeoJsonForBuilding(building);
-      if (!geoJson) continue;
-
-      for (const feature of geoJson.features) {
-        if (!feature.properties?.ref) continue;
-
-        const featureRef = feature.properties.ref
-          .replace(/[\s-]/g, "")
-          .toUpperCase();
-
-        if (featureRef === normalized) {
-          // Check that building code prefix matches this building
-          const refUpper = feature.properties.ref.toUpperCase();
-          if (
-            !refUpper.startsWith(building.code) &&
-            !(building.code === "MB" && refUpper.startsWith("MBS"))
-          )
-            continue;
-
-          // Extract floor from the feature's level
-          const level = feature.properties.level;
-          if (!level) continue;
-
-          const floor = parseInt(level.split(";")[0], 10);
-          if (isNaN(floor)) continue;
-
-          setSelectedBuilding(building);
-          setSelectedFloor(floor);
-          setHighlightedRoomRef(feature.properties.ref);
-          return;
-        }
-      }
+    const result = findRoomInBuildings(normalized);
+    if (result) {
+      setSelectedBuilding(result.building);
+      setSelectedFloor(result.floor);
+      setHighlightedRoomRef(result.ref);
+    } else {
+      setSearchError("Room not found");
     }
-
-    setSearchError("Room not found");
   }, []);
 
   const value = useMemo(
