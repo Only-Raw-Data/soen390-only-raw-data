@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useMemo } from "react";
+import React, { useRef, useEffect, useMemo, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -50,6 +50,17 @@ export default function IndoorMapView() {
   } = useIndoorMap();
 
   const mapRef = useRef<MapView>(null);
+
+  // Only show room labels when zoomed in close enough
+  const LABEL_ZOOM_THRESHOLD = 0.003;
+  const [showLabels, setShowLabels] = useState(!!selectedBuilding);
+
+  const handleRegionChange = useCallback(
+    (region: { latitudeDelta: number; longitudeDelta: number }) => {
+      setShowLabels(region.latitudeDelta < LABEL_ZOOM_THRESHOLD);
+    },
+    [],
+  );
 
   // Animate map to building when selected
   useEffect(() => {
@@ -224,6 +235,7 @@ export default function IndoorMapView() {
           customMapStyle={CAMPUS_MAP_STYLE}
           initialRegion={initialRegion}
           testID="indoor-map"
+          onRegionChangeComplete={handleRegionChange}
         >
           {polygonFeatures.map((feature, index) => {
             const coords = convertCoordinates(feature);
@@ -244,8 +256,8 @@ export default function IndoorMapView() {
               />
             );
           })}
-          {/* Room number labels */}
-          {polygonFeatures.map((feature, index) => {
+          {/* Room number labels — only visible when zoomed in */}
+          {showLabels && polygonFeatures.map((feature, index) => {
             if (!feature.properties?.ref) return null;
             const coords = convertCoordinates(feature);
             if (coords.length === 0) return null;
