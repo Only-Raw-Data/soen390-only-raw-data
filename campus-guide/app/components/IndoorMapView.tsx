@@ -31,8 +31,8 @@ function getPolygonCentroid(coords: { latitude: number; longitude: number }[]) {
 }
 
 // Strip the building prefix to show just the room number, e.g. "H851.02" → "851.02"
-function shortLabel(ref: string): string {
-  return ref.replace(/^[A-Z]+S?/i, "");
+function shortLabel(roomRef: string): string {
+  return roomRef.replace(/^[A-Z]+S?/i, "");
 }
 
 export default function IndoorMapView() {
