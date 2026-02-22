@@ -1,12 +1,12 @@
-import { SHUTTLE_SERVICE_HOURS } from "@/constants/shuttleSchedule";
+import { getServiceWindow } from "@/constants/shuttleSchedule";
 
 /**
  * True if the given time falls within weekday shuttle service hours.
- * Mon–Thu: 09:15–18:30; Friday: 09:15–18:15; Weekend: not running.
+ * Service window is derived from the shuttle schedule's first/last departures.
  */
 export function isWithinShuttleHours(now?: Date): boolean {
   const date = now ?? new Date();
-  const window = SHUTTLE_SERVICE_HOURS[date.getDay() as keyof typeof SHUTTLE_SERVICE_HOURS];
+  const window = getServiceWindow(date.getDay());
   if (!window) return false;
 
   const timeStr =

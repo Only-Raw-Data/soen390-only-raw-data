@@ -11,19 +11,6 @@ export interface ShuttleSchedule {
   friday: ShuttleTime[];
 }
 
-export interface ShuttleServiceWindow {
-  start: string;
-  end: string;
-}
-
-export const SHUTTLE_SERVICE_HOURS: Partial<Record<Weekday, ShuttleServiceWindow>> = {
-  [Weekday.Monday]: { start: "09:15", end: "18:30" },
-  [Weekday.Tuesday]: { start: "09:15", end: "18:30" },
-  [Weekday.Wednesday]: { start: "09:15", end: "18:30" },
-  [Weekday.Thursday]: { start: "09:15", end: "18:30" },
-  [Weekday.Friday]: { start: "09:15", end: "18:15" },
-};
-
 export const SHUTTLE_SCHEDULE: ShuttleSchedule = {
   mondayThursday: [
     { loyola: '09:15', sgw: '09:30' },
@@ -88,4 +75,23 @@ export const SHUTTLE_SCHEDULE: ShuttleSchedule = {
   ],
 };
 
+/** Returns the schedule array for a given weekday, or null on weekends. */
+export function getScheduleForDay(day: Weekday): ShuttleTime[] | null {
+  if (day === Weekday.Saturday || day === Weekday.Sunday) return null;
+  return day === Weekday.Friday
+    ? SHUTTLE_SCHEDULE.friday
+    : SHUTTLE_SCHEDULE.mondayThursday;
+}
 
+/** Derives the first/last departure window from the schedule for a given day. */
+export function getServiceWindow(
+  day: Weekday,
+): { start: string; end: string } | null {
+  const schedule = getScheduleForDay(day);
+  if (!schedule || schedule.length === 0) return null;
+
+  const first = schedule[0].loyola;
+  const last = schedule[schedule.length - 1];
+  const end = (last.sgw ?? last.loyola).replace("*", "");
+  return { start: first, end };
+}

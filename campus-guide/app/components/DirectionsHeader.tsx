@@ -6,8 +6,7 @@ import { TransportationMode } from '../types/transportation';
 import { SGW_BUILDINGS, LOYOLA_BUILDINGS, Building } from './../../constants/buildings';
 import useUserLocation from '@hooks/useUserLocation';
 import ShuttleSchedule from './ShuttleSchedule';
-import { SHUTTLE_SCHEDULE } from './../../constants/shuttleSchedule';
-import { Weekday } from '@/constants/weekday';
+import { getScheduleForDay } from './../../constants/shuttleSchedule';
 
 export default function DirectionsHeader() {
     const {
@@ -35,16 +34,12 @@ export default function DirectionsHeader() {
     useEffect(() => {
         if (transportationMode === 'shuttle' && startBuilding && destinationBuilding && startBuilding.campus !== destinationBuilding.campus) {
             const now = new Date();
-            const day = now.getDay();
-            const isFriday = day === Weekday.Friday;
-            const isWeekend = day === Weekday.Saturday || day === Weekday.Sunday;
-            
-            if (isWeekend) {
+            const schedule = getScheduleForDay(now.getDay());
+
+            if (!schedule) {
                 setNextShuttleTime("No shuttle on weekends");
                 return;
             }
-
-            const schedule = isFriday ? SHUTTLE_SCHEDULE.friday : SHUTTLE_SCHEDULE.mondayThursday;
             const currentCampus = startBuilding.campus;
             const currentTimeStr = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
 
