@@ -200,6 +200,26 @@ function parseFloor(level: string): number | null {
   return Number.isNaN(floor) ? null : floor;
 }
 
+function matchesFeature(
+  feature: IndoorFeature,
+  normalized: string,
+  buildingCode: string,
+): { floor: number; ref: string } | null {
+  if (!feature.properties?.ref) return null;
+
+  const featureRef = feature.properties.ref
+    .replaceAll(/[\s-]/g, "")
+    .toUpperCase();
+  if (featureRef !== normalized) return null;
+  if (!matchesBuildingCode(feature.properties.ref, buildingCode)) return null;
+  if (!feature.properties.level) return null;
+
+  const floor = parseFloor(feature.properties.level);
+  if (floor === null) return null;
+
+  return { floor, ref: feature.properties.ref };
+}
+
 function findRoomInBuildings(
   normalized: string,
 ): { building: IndoorBuildingConfig; floor: number; ref: string } | null {
@@ -208,19 +228,10 @@ function findRoomInBuildings(
     if (!geoJson) continue;
 
     for (const feature of geoJson.features) {
-      if (!feature.properties?.ref) continue;
-
-      const featureRef = feature.properties.ref
-        .replaceAll(/[\s-]/g, "")
-        .toUpperCase();
-      if (featureRef !== normalized) continue;
-      if (!matchesBuildingCode(feature.properties.ref, building.code)) continue;
-      if (!feature.properties.level) continue;
-
-      const floor = parseFloor(feature.properties.level);
-      if (floor === null) continue;
-
-      return { building, floor, ref: feature.properties.ref };
+      const match = matchesFeature(feature, normalized, building.code);
+      if (match) {
+        return { building, ...match };
+      }
     }
   }
   return null;
