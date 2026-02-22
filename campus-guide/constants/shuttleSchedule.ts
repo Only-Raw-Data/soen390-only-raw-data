@@ -1,3 +1,5 @@
+import { Weekday } from "./weekday";
+
 export interface ShuttleTime {
   loyola: string;  // "09:15" or "18:30*"
   sgw?: string;  // "09:30"
@@ -8,6 +10,19 @@ export interface ShuttleSchedule {
   mondayThursday: ShuttleTime[];
   friday: ShuttleTime[];
 }
+
+export interface ShuttleServiceWindow {
+  start: string;
+  end: string;
+}
+
+export const SHUTTLE_SERVICE_HOURS: Partial<Record<Weekday, ShuttleServiceWindow>> = {
+  [Weekday.Monday]: { start: "09:15", end: "18:30" },
+  [Weekday.Tuesday]: { start: "09:15", end: "18:30" },
+  [Weekday.Wednesday]: { start: "09:15", end: "18:30" },
+  [Weekday.Thursday]: { start: "09:15", end: "18:30" },
+  [Weekday.Friday]: { start: "09:15", end: "18:15" },
+};
 
 export const SHUTTLE_SCHEDULE: ShuttleSchedule = {
   mondayThursday: [

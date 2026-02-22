@@ -1,4 +1,4 @@
-import { Weekday } from "@/constants/weekday";
+import { SHUTTLE_SERVICE_HOURS } from "@/constants/shuttleSchedule";
 
 /**
  * True if the given time falls within weekday shuttle service hours.
@@ -6,18 +6,13 @@ import { Weekday } from "@/constants/weekday";
  */
 export function isWithinShuttleHours(now?: Date): boolean {
   const date = now ?? new Date();
-  const day = date.getDay();
-  if (day === Weekday.Saturday || day === Weekday.Sunday) {
-    return false;
-  }
+  const window = SHUTTLE_SERVICE_HOURS[date.getDay() as keyof typeof SHUTTLE_SERVICE_HOURS];
+  if (!window) return false;
+
   const timeStr =
     date.getHours().toString().padStart(2, "0") +
     ":" +
     date.getMinutes().toString().padStart(2, "0");
-  const isFriday = day === Weekday.Friday;
-  const firstDeparture = "09:15";
-  const lastDepartureMonThu = "18:30";
-  const lastDepartureFriday = "18:15";
-  const lastDeparture = isFriday ? lastDepartureFriday : lastDepartureMonThu;
-  return timeStr >= firstDeparture && timeStr <= lastDeparture;
+
+  return timeStr >= window.start && timeStr <= window.end;
 }
