@@ -1,9 +1,10 @@
 import React, { useCallback } from "react";
 import { Tabs, useRouter, usePathname } from "expo-router";
-import BottomNav from "../components/BottomNav";
-import { Screen } from "../types/Screen";
+import BottomNav from "@/app/components/BottomNav";
+import { Screen } from "@/app/types/Screen";
 
-import DirectionsProvider from "../context/DirectionsContext";
+import DirectionsProvider from "@/app/context/DirectionsContext";
+import IndoorMapProvider from "@/app/context/IndoorMapContext";
 
 // TabBar component moved outside to prevent recreation on each render
 function TabBar({
@@ -26,6 +27,7 @@ export default function TabLayout() {
   const getCurrentScreen = (): Screen => {
     if (pathname.includes("index")) return "map";
     if (pathname.includes("two")) return "directions";
+    if (pathname.includes("indoor")) return "indoor";
     return "map";
   };
 
@@ -38,8 +40,10 @@ export default function TabLayout() {
         case "directions":
           router.push("/(tabs)/two");
           break;
-        case "schedule":
         case "indoor":
+          router.push("/(tabs)/indoor");
+          break;
+        case "schedule":
         case "poi":
           router.push("/(tabs)");
           break;
@@ -52,6 +56,7 @@ export default function TabLayout() {
 
   return (
     <DirectionsProvider>
+    <IndoorMapProvider>
       <Tabs
         screenOptions={{
           headerShown: false,
@@ -75,7 +80,14 @@ export default function TabLayout() {
             title: "Directions",
           }}
         />
+        <Tabs.Screen
+          name="indoor"
+          options={{
+            title: "Indoor",
+          }}
+        />
       </Tabs>
+    </IndoorMapProvider>
     </DirectionsProvider>
   );
 }
