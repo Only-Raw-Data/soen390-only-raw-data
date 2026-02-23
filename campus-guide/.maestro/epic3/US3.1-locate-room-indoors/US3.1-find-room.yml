@@ -1,0 +1,33 @@
+appId: com.soen390.campusguide
+---
+- launchApp
+- waitForAnimationToEnd
+
+- assertVisible: "SGW Campus"
+
+- tapOn: "Indoor"
+- waitForAnimationToEnd
+
+- assertVisible: "Enter room (e.g., H-820)"
+- tapOn: "Enter room (e.g., H-820)"
+- inputText: "H-813"
+- pressKey: enter
+- waitForAnimationToEnd
+
+- assertVisible: "H813"
+- assertVisible: "8"
+- assertVisible: "room"
+
+- tapOn:
+    point: "91%,12%"
+
+- tapOn: "Enter room (e.g., H-820)"
+- inputText: "MBS2.437"
+- pressKey: enter
+- waitForAnimationToEnd
+
+- assertVisible: "MBS2.437"
+- assertVisible: "B2"
+- assertVisible: "room"
+
+- stopApp
