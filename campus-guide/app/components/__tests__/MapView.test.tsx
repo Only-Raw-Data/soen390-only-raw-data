@@ -4,7 +4,8 @@ import MapViewApp from "../MapView";
 import { useDirections } from "../../context/DirectionsContext";
 import useBuildingPolygons from "../../hooks/useBuildingPolygons";
 import useUserLocation from "../../hooks/useUserLocation";
-import { SGW_BUILDINGS } from "@/constants/buildings";
+import { SGW_BUILDINGS, LOYOLA_BUILDINGS } from "@/constants/buildings";
+import { isWithinShuttleHours } from "../../utils/shuttleHours";
 
 //Mocks
 jest.mock("../../context/DirectionsContext", () => ({
@@ -34,6 +35,10 @@ jest.mock("../../hooks/useUserLocation", () => ({
 
 jest.mock("../../../constants/mapStyle", () => ({
   CAMPUS_MAP_STYLE: [],
+}));
+
+jest.mock("../../utils/shuttleHours", () => ({
+  isWithinShuttleHours: jest.fn(),
 }));
 
 jest.mock("expo-router", () => ({
@@ -669,6 +674,53 @@ describe("MapViewApp", () => {
       
       // Assert - BuildingInformation modal should be visible
       expect(screen.getByText("Departments")).toBeTruthy();
+    });
+  });
+
+  describe("Shuttle route visibility", () => {
+    const setupShuttleMock = (withinHours: boolean) => {
+      (isWithinShuttleHours as jest.Mock).mockReturnValue(withinHours);
+      (useDirections as jest.Mock).mockReturnValue(
+        createDirectionsMock({
+          startBuilding: SGW_BUILDINGS.find((b) => b.code === "H"),
+          destinationBuilding: LOYOLA_BUILDINGS[0],
+          transportationMode: "shuttle",
+          route: {
+            coordinates: [
+              { latitude: 45.497, longitude: -73.579 },
+              { latitude: 45.458, longitude: -73.640 },
+            ],
+            duration: "21 mins",
+            distance: "8.3 km",
+          },
+          setStartBuilding: mockSetStartBuilding,
+          setDestinationBuilding: mockSetDestinationBuilding,
+        }),
+      );
+    };
+
+    it("hides shuttle route when outside service hours", () => {
+      // Arrange
+      setupShuttleMock(false);
+
+      // Act
+      const screen = render(<MapViewApp />);
+
+      // Assert
+      expect(screen.queryByTestId("route-polyline")).toBeNull();
+      expect(screen.queryByText("21 mins (8.3 km)")).toBeNull();
+    });
+
+    it("shows shuttle route when within service hours", () => {
+      // Arrange
+      setupShuttleMock(true);
+
+      // Act
+      const screen = render(<MapViewApp />);
+
+      // Assert
+      expect(screen.getByTestId("route-polyline")).toBeTruthy();
+      expect(screen.getByText("21 mins (8.3 km)")).toBeTruthy();
     });
   });
 });

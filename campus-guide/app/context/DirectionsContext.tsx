@@ -80,6 +80,10 @@ export default function DirectionsProvider({
         { lat: startBuilding.lat, lng: startBuilding.lng },
         { lat: destinationBuilding.lat, lng: destinationBuilding.lng },
         transportationMode,
+        {
+          startCampus: startBuilding.campus,
+          destinationCampus: destinationBuilding.campus,
+        },
       );
       
       if (requestId === activeRequestRef.current) {

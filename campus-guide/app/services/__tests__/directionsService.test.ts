@@ -1,3 +1,8 @@
+import {
+  SHUTTLE_DISTANCE,
+  SHUTTLE_DURATION,
+  SHUTTLE_ROUTE_SGW_TO_LOYOLA,
+} from "@/constants/shuttleRoute";
 import { fetchDirections } from "../directionsService";
 
 // Mock fetch
@@ -166,7 +171,6 @@ describe("directionsService", () => {
   it.each([
     { mode: "car" as const, expectedTravelMode: "DRIVE" },
     { mode: "transit" as const, expectedTravelMode: "TRANSIT" },
-    { mode: "shuttle" as const, expectedTravelMode: "TRANSIT" },
   ])(
     "uses $expectedTravelMode mode for $mode transportation",
     async ({ mode, expectedTravelMode }) => {
@@ -202,6 +206,73 @@ describe("directionsService", () => {
       );
     },
   );
+
+  describe("shuttle mode", () => {
+    it("returns fixed route for cross-campus SGW to Loyola without calling API", async () => {
+      // Arrange
+      const origin = { lat: 45.497092, lng: -73.5788 };
+      const destination = { lat: 45.4585, lng: -73.639 };
+      const options = { startCampus: "SGW" as const, destinationCampus: "Loyola" as const };
+
+      // Act
+      const result = await fetchDirections(origin, destination, "shuttle", options);
+
+      // Assert
+      expect(globalThis.fetch).not.toHaveBeenCalled();
+      expect(result).not.toBeNull();
+      expect(result?.duration).toBe(SHUTTLE_DURATION);
+      expect(result?.distance).toBe(SHUTTLE_DISTANCE);
+      expect(result?.coordinates).toEqual(SHUTTLE_ROUTE_SGW_TO_LOYOLA);
+    });
+
+    it("returns fixed route for cross-campus Loyola to SGW with reversed polyline", async () => {
+      // Arrange
+      const origin = { lat: 45.4585, lng: -73.639 };
+      const destination = { lat: 45.497092, lng: -73.5788 };
+      const options = { startCampus: "Loyola" as const, destinationCampus: "SGW" as const };
+
+      // Act
+      const result = await fetchDirections(origin, destination, "shuttle", options);
+
+      // Assert
+      expect(globalThis.fetch).not.toHaveBeenCalled();
+      expect(result).not.toBeNull();
+      expect(result?.duration).toBe(SHUTTLE_DURATION);
+      expect(result?.distance).toBe(SHUTTLE_DISTANCE);
+      const expectedReversed = [...SHUTTLE_ROUTE_SGW_TO_LOYOLA].reverse();
+      expect(result?.coordinates).toEqual(expectedReversed);
+    });
+
+    it("returns null for shuttle same-campus without calling API", async () => {
+      // Arrange
+      const options = { startCampus: "SGW" as const, destinationCampus: "SGW" as const };
+
+      // Act
+      const result = await fetchDirections(
+        { lat: 45.497092, lng: -73.5788 },
+        { lat: 45.496, lng: -73.579 },
+        "shuttle",
+        options,
+      );
+
+      // Assert
+      expect(globalThis.fetch).not.toHaveBeenCalled();
+      expect(result).toBeNull();
+    });
+
+    it("returns null for shuttle when options are not provided", async () => {
+      // Arrange
+      const origin = { lat: 45.497092, lng: -73.5788 };
+      const destination = { lat: 45.4585, lng: -73.639 };
+
+      // Act
+      const result = await fetchDirections(origin, destination, "shuttle");
+
+      // Assert
+      expect(globalThis.fetch).not.toHaveBeenCalled();
+      expect(result).toBeNull();
+    });
+  });
 
   it("returns null when routes array is undefined", async () => {
     // Arrange

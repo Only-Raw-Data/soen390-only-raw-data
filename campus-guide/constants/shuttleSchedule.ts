@@ -1,3 +1,5 @@
+import { Weekday } from "./weekday";
+
 export interface ShuttleTime {
   loyola: string;  // "09:15" or "18:30*"
   sgw?: string;  // "09:30"
@@ -73,4 +75,23 @@ export const SHUTTLE_SCHEDULE: ShuttleSchedule = {
   ],
 };
 
+/** Returns the schedule array for a given weekday, or null on weekends. */
+export function getScheduleForDay(day: Weekday): ShuttleTime[] | null {
+  if (day === Weekday.Saturday || day === Weekday.Sunday) return null;
+  return day === Weekday.Friday
+    ? SHUTTLE_SCHEDULE.friday
+    : SHUTTLE_SCHEDULE.mondayThursday;
+}
 
+/** Derives the first/last departure window from the schedule for a given day. */
+export function getServiceWindow(
+  day: Weekday,
+): { start: string; end: string } | null {
+  const schedule = getScheduleForDay(day);
+  if (!schedule || schedule.length === 0) return null;
+
+  const first = schedule[0].loyola;
+  const last = schedule[schedule.length - 1];
+  const end = (last.sgw ?? last.loyola).replace("*", "");
+  return { start: first, end };
+}

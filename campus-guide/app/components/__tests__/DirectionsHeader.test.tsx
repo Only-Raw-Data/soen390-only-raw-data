@@ -4,7 +4,7 @@ import { Alert } from 'react-native';
 import DirectionsHeader from '../DirectionsHeader';
 import { useDirections } from '../../context/DirectionsContext';
 import useUserLocation from '../../hooks/useUserLocation';
-import { SGW_BUILDINGS } from '../../../constants/buildings';
+import { LOYOLA_BUILDINGS, SGW_BUILDINGS } from '../../../constants/buildings';
 
 
 jest.mock('../../context/DirectionsContext', () => ({
@@ -223,57 +223,108 @@ describe('DirectionsHeader', () => {
 
     describe('Shuttle Logic', () => {
         const sgwBuilding = SGW_BUILDINGS.find(b => b.campus === 'SGW');
-        const loyolaBuilding = SGW_BUILDINGS.find(b => b.campus === 'Loyola') || { id: 'cc', name: 'CC Building', campus: 'Loyola', code: 'CC', address: '7141 Sherbrooke St. W.', lat: 45.4582, lng: -73.6403 };
+        const loyolaBuilding = LOYOLA_BUILDINGS[0] || { id: 'cc', name: 'Central Building', code: 'CC', campus: 'Loyola' as const, address: '7141 Sherbrooke St. W.', lat: 45.4582, lng: -73.6403, department: '', overview: '', accessibility: '', x: 0, y: 0 };
 
         beforeEach(() => {
             (useDirections as jest.Mock).mockReturnValue({
                 startBuilding: sgwBuilding,
                 destinationBuilding: loyolaBuilding,
                 transportationMode: 'shuttle',
+                route: null,
+                isLoadingRoute: false,
                 setTransportationMode: mockSetTransportationMode,
                 setStartBuilding: mockSetStartBuilding,
                 setDestinationBuilding: mockSetDestinationBuilding,
+                swapLocations: mockSwapLocations,
+                clearDirections: mockClearDirections,
                 fetchRoute: mockFetchRoute,
             });
         });
 
-        it('shows weekend message when it is Saturday', () => {
-            // Saturday (day 6)
-            jest.useFakeTimers().setSystemTime(new Date('2025-02-15T12:00:00Z'));
-            
-            const { getByText } = render(<DirectionsHeader />);
-            expect(getByText('No shuttle on weekends')).toBeTruthy();
-            
+        afterEach(() => {
             jest.useRealTimers();
         });
 
-        it('shows Friday schedule hint when it is Friday', () => {
-            // Friday (day 5) - 2025-02-14 is Friday
-            // 08:00 AM (local-ish) - should find next shuttle after 08:00
-            jest.useFakeTimers().setSystemTime(new Date('2025-02-14T13:00:00Z')); // 13:00 UTC is ~08:00 EST
-            
+        it('shows direction label "Shuttle To Loyola" when start is SGW and destination is Loyola', () => {
+            // Arrange & Act
+            const { getByTestId } = render(<DirectionsHeader />);
+
+            // Assert
+            expect(getByTestId('shuttle-direction-label')).toBeTruthy();
+            expect(getByTestId('shuttle-direction-label').props.children).toContain('To Loyola');
+        });
+
+        it('shows next shuttle text with direction on Friday', () => {
+            // Arrange
+            jest.useFakeTimers().setSystemTime(new Date('2025-02-14T13:00:00Z'));
+
+            // Act
             const { getByText } = render(<DirectionsHeader />);
-            // Should contain "Next shuttle:"
-            expect(getByText(/Next shuttle:/i)).toBeTruthy();
-            
-            jest.useRealTimers();
+
+            // Assert
+            expect(getByText(/Next shuttle To Loyola:/i)).toBeTruthy();
+        });
+
+        it('shows weekend message when it is Saturday', () => {
+            // Arrange
+            jest.useFakeTimers().setSystemTime(new Date('2025-02-15T12:00:00Z'));
+
+            // Act
+            const { getByText } = render(<DirectionsHeader />);
+
+            // Assert
+            expect(getByText('No shuttle on weekends')).toBeTruthy();
         });
 
         it('shows "No more shuttles today" when late at night', () => {
-            // Monday (day 1) - 23:59
+            // Arrange
             jest.useFakeTimers().setSystemTime(new Date('2025-02-10T23:59:00Z'));
-            
+
+            // Act
             const { getByText } = render(<DirectionsHeader />);
+
+            // Assert
             expect(getByText('No more shuttles today')).toBeTruthy();
-            
-            jest.useRealTimers();
         });
 
-        it('opens schedule modal when transportation mode is shuttle', () => {
-            const { getAllByText } = render(<DirectionsHeader />);
-            // Modal is opened by useEffect when mode is shuttle
-            // There are two "Shuttle Bus Schedule" texts (title and modal header)
-            expect(getAllByText('Shuttle Bus Schedule').length).toBeGreaterThan(0);
+        it('does not auto-open schedule modal when shuttle is selected', () => {
+            // Arrange & Act
+            const { queryByTestId } = render(<DirectionsHeader />);
+
+            // Assert
+            const modalContent = queryByTestId('close-shuttle-modal');
+            expect(modalContent).toBeNull();
+        });
+
+        it('sets default start and destination when Shuttle mode is pressed', () => {
+            // Arrange — start in walk mode with no buildings selected
+            (useDirections as jest.Mock).mockReturnValue({
+                startBuilding: null,
+                destinationBuilding: null,
+                transportationMode: 'walk',
+                route: null,
+                isLoadingRoute: false,
+                setTransportationMode: mockSetTransportationMode,
+                setStartBuilding: mockSetStartBuilding,
+                setDestinationBuilding: mockSetDestinationBuilding,
+                swapLocations: mockSwapLocations,
+                clearDirections: mockClearDirections,
+                fetchRoute: mockFetchRoute,
+            });
+
+            const { getByText } = render(<DirectionsHeader />);
+
+            // Act — press the Shuttle transport mode button
+            fireEvent.press(getByText('Shuttle'));
+
+            // Assert
+            expect(mockSetTransportationMode).toHaveBeenCalledWith('shuttle');
+            expect(mockSetStartBuilding).toHaveBeenCalledWith(
+                expect.objectContaining({ id: 'h' }),
+            );
+            expect(mockSetDestinationBuilding).toHaveBeenCalledWith(
+                expect.objectContaining({ id: 'fc' }),
+            );
         });
     });
 });
