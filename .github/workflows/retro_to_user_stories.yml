@@ -1,0 +1,130 @@
+name: Retro → User Stories
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  generate:
+    if: |
+      github.event.issue.pull_request == null &&
+      contains(github.event.comment.body, '/generate-stories')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate user stories from Add/Remove/Improve
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            const issueNumber = context.payload.issue.number;
+            const issueTitle = context.payload.issue.title;
+            const issueUrl = context.payload.issue.html_url;
+            const issueBody = context.payload.issue.body || "";
+
+            // Only run on retrospective issues (label gate)
+            const labels = (context.payload.issue.labels || []).map(l => l.name);
+            if (!labels.includes("retrospective")) {
+              core.setFailed("This issue is not labeled 'retrospective'. Add the label and try again.");
+              return;
+            }
+
+            // Avoid duplicates: if we already generated once, stop.
+            // We mark completion by adding a label.
+            if (labels.includes("stories-generated")) {
+              core.setFailed("Stories already generated (label 'stories-generated' exists).");
+              return;
+            }
+
+            function extractSection(body, heading) {
+              // Match heading line, then capture until next heading (###) or end
+              const re = new RegExp(`^###\\s+${heading}\\s*\\n([\\s\\S]*?)(?=^###\\s+|\\Z)`, "m");
+              const match = body.match(re);
+              return match ? match[1].trim() : "";
+            }
+
+            function extractBullets(sectionText) {
+              // Accept bullets like "- Add: something" or "- something"
+              // We'll strip optional "Add:"/"Remove:"/"Improve:" prefixes.
+              return sectionText
+                .split("\n")
+                .map(l => l.trim())
+                .filter(l => l.startsWith("- "))
+                .map(l => l.replace(/^- /, ""))
+                .map(l => l.replace(/^(Add|Remove|Improve)\s*:\s*/i, ""))
+                .filter(Boolean);
+            }
+
+            const addText = extractSection(issueBody, "Add");
+            const removeText = extractSection(issueBody, "Remove");
+            const improveText = extractSection(issueBody, "Improve");
+
+            const addItems = extractBullets(addText);
+            const removeItems = extractBullets(removeText);
+            const improveItems = extractBullets(improveText);
+
+            const all = [
+              ...addItems.map(t => ({ type: "Add", title: t })),
+              ...removeItems.map(t => ({ type: "Remove", title: t })),
+              ...improveItems.map(t => ({ type: "Improve", title: t })),
+            ];
+
+            if (all.length === 0) {
+              core.setFailed("No bullet items found under Add/Remove/Improve.");
+              return;
+            }
+
+            // Create issues (user stories)
+            const created = [];
+            for (const item of all) {
+              const storyTitle = `[Story] (${item.type}) ${item.title}`.slice(0, 240);
+
+              const storyBody = [
+                `**Source retrospective:** #${issueNumber} (${issueTitle})`,
+                `**Link:** ${issueUrl}`,
+                "",
+                "## User Story",
+                `As a team, we want to ${item.title.toLowerCase()}, so that we improve the product/process.`,
+                "",
+                "## Acceptance Criteria",
+                "- [ ] Clearly defined outcome",
+                "- [ ] Implementation merged via PR",
+                "- [ ] Verified (tests / manual check)",
+                "",
+                "## Notes",
+                `Generated automatically from the retrospective command \`/generate-stories\`.`,
+              ].join("\n");
+
+              const resp = await github.rest.issues.create({
+                owner,
+                repo,
+                title: storyTitle,
+                body: storyBody,
+                labels: ["user-story", `retro-${item.type.toLowerCase()}`],
+              });
+
+              created.push(resp.data.html_url);
+            }
+
+            // Comment back with created links
+            const commentBody =
+              `Generated **${created.length}** user story issue(s) from Add/Remove/Improve:\n` +
+              created.map(u => `- ${u}`).join("\n");
+
+            await github.rest.issues.createComment({
+              owner, repo,
+              issue_number: issueNumber,
+              body: commentBody,
+            });
+
+            // Add label to prevent duplicates
+            await github.rest.issues.addLabels({
+              owner, repo,
+              issue_number: issueNumber,
+              labels: ["stories-generated"],
+            });
