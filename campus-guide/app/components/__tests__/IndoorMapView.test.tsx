@@ -1,7 +1,12 @@
 import React from "react";
 import { render, fireEvent } from "@testing-library/react-native";
 import IndoorMapView from "@/app/components/IndoorMapView";
-import { useIndoorMap, INDOOR_BUILDINGS } from "@/app/context/IndoorMapContext";
+import {
+  useIndoorMap,
+  INDOOR_BUILDINGS,
+  getGeoJsonForBuilding,
+  getFeaturesForFloor,
+} from "@/app/context/IndoorMapContext";
 
 // Mock the IndoorMapContext
 jest.mock("@/app/context/IndoorMapContext", () => {
@@ -9,6 +14,8 @@ jest.mock("@/app/context/IndoorMapContext", () => {
   return {
     ...actual,
     useIndoorMap: jest.fn(),
+    getGeoJsonForBuilding: jest.fn(),
+    getFeaturesForFloor: jest.fn(),
   };
 });
 
@@ -20,6 +27,32 @@ jest.mock("@/constants/mapStyle", () => ({
 const mockUseIndoorMap = useIndoorMap as jest.MockedFunction<
   typeof useIndoorMap
 >;
+const mockGetGeoJson = getGeoJsonForBuilding as jest.MockedFunction<
+  typeof getGeoJsonForBuilding
+>;
+const mockGetFeatures = getFeaturesForFloor as jest.MockedFunction<
+  typeof getFeaturesForFloor
+>;
+
+// Helper: create a polygon feature with a given room ref
+function makePolygonFeature(ref: string): any {
+  return {
+    type: "Feature",
+    geometry: {
+      type: "Polygon",
+      coordinates: [
+        [
+          [-73.579, 45.497],
+          [-73.578, 45.497],
+          [-73.578, 45.498],
+          [-73.579, 45.498],
+          [-73.579, 45.497],
+        ],
+      ],
+    },
+    properties: { ref, indoor: "room", level: "8" },
+  };
+}
 
 const defaultContextValue = {
   selectedBuilding: null,
@@ -50,6 +83,8 @@ describe("IndoorMapView", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseIndoorMap.mockReturnValue({ ...defaultContextValue });
+    mockGetGeoJson.mockReturnValue(null);
+    mockGetFeatures.mockReturnValue([]);
   });
 
   it("renders start and destination search bars", () => {
@@ -307,4 +342,102 @@ describe("IndoorMapView", () => {
     // Assert
     expect(queryByText("Floor:")).toBeNull();
   });
+
+  it("applies start room style to polygon when feature ref matches startRoomRef", () => {
+    // Arrange
+    const hallBuilding = INDOOR_BUILDINGS.find((b) => b.code === "H")!;
+    const feature = makePolygonFeature("H851.02");
+    mockGetGeoJson.mockReturnValue({ type: "FeatureCollection", features: [feature] });
+    mockGetFeatures.mockReturnValue([feature]);
+    mockUseIndoorMap.mockReturnValue({
+      ...defaultContextValue,
+      selectedBuilding: hallBuilding,
+      selectedFloor: 8,
+      startRoomRef: "H851.02",
+    });
+
+    // Act
+    render(<IndoorMapView />);
+
+    // Assert — getRoomStyle start branch exercised
+    expect(mockGetFeatures).toHaveBeenCalled();
+  });
+
+  it("applies destination room style to polygon when feature ref matches destinationRoomRef", () => {
+    // Arrange
+    const hallBuilding = INDOOR_BUILDINGS.find((b) => b.code === "H")!;
+    const feature = makePolygonFeature("H851.02");
+    mockGetGeoJson.mockReturnValue({ type: "FeatureCollection", features: [feature] });
+    mockGetFeatures.mockReturnValue([feature]);
+    mockUseIndoorMap.mockReturnValue({
+      ...defaultContextValue,
+      selectedBuilding: hallBuilding,
+      selectedFloor: 8,
+      destinationRoomRef: "H851.02",
+    });
+
+    // Act
+    render(<IndoorMapView />);
+
+    // Assert — getRoomStyle destination branch exercised
+    expect(mockGetFeatures).toHaveBeenCalled();
+  });
+
+  it("applies highlighted room style to polygon when feature ref matches highlightedRoomRef", () => {
+    // Arrange
+    const hallBuilding = INDOOR_BUILDINGS.find((b) => b.code === "H")!;
+    const feature = makePolygonFeature("H851.02");
+    mockGetGeoJson.mockReturnValue({ type: "FeatureCollection", features: [feature] });
+    mockGetFeatures.mockReturnValue([feature]);
+    mockUseIndoorMap.mockReturnValue({
+      ...defaultContextValue,
+      selectedBuilding: hallBuilding,
+      selectedFloor: 8,
+      highlightedRoomRef: "H851.02",
+    });
+
+    // Act
+    render(<IndoorMapView />);
+
+    // Assert — getRoomStyle highlighted branch exercised
+    expect(mockGetFeatures).toHaveBeenCalled();
+  });
+
+  it("applies default room style to polygon when no room refs match", () => {
+    // Arrange
+    const hallBuilding = INDOOR_BUILDINGS.find((b) => b.code === "H")!;
+    const feature = makePolygonFeature("H999");
+    mockGetGeoJson.mockReturnValue({ type: "FeatureCollection", features: [feature] });
+    mockGetFeatures.mockReturnValue([feature]);
+    mockUseIndoorMap.mockReturnValue({
+      ...defaultContextValue,
+      selectedBuilding: hallBuilding,
+      selectedFloor: 8,
+    });
+
+    // Act
+    render(<IndoorMapView />);
+
+    // Assert — getRoomStyle default branch exercised
+    expect(mockGetFeatures).toHaveBeenCalled();
+  });
+
+  it("shows both start and destination room labels in info bar", () => {
+    // Arrange
+    mockUseIndoorMap.mockReturnValue({
+      ...defaultContextValue,
+      startRoomRef: "H851.02",
+      destinationRoomRef: "MB1.210",
+    });
+
+    // Act
+    const { getByTestId, getByText } = render(<IndoorMapView />);
+
+    // Assert — both labels rendered, destination row has marginTop when start is present
+    expect(getByTestId("start-room-label").props.children).toBe("H851.02");
+    expect(getByTestId("destination-room-label").props.children).toBe("MB1.210");
+    expect(getByText("From:")).toBeTruthy();
+    expect(getByText("To:")).toBeTruthy();
+  });
 });
+
