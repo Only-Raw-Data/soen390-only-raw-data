@@ -42,11 +42,23 @@ export default function IndoorMapView() {
     searchQuery,
     highlightedRoomRef,
     searchError,
+    startRoomRef,
+    destinationRoomRef,
+    startSearchQuery,
+    destinationSearchQuery,
+    startSearchError,
+    destinationSearchError,
     setSelectedBuilding,
     setSelectedFloor,
     setSearchQuery,
     searchRoom,
     clearHighlight,
+    setStartSearchQuery,
+    setDestinationSearchQuery,
+    searchStartRoom,
+    searchDestinationRoom,
+    clearStartRoom,
+    clearDestinationRoom,
   } = useIndoorMap();
 
   const mapRef = useRef<MapView>(null);
@@ -101,6 +113,24 @@ export default function IndoorMapView() {
     clearHighlight();
   };
 
+  const handleStartSearchSubmit = () => {
+    searchStartRoom(startSearchQuery);
+  };
+
+  const handleClearStartSearch = () => {
+    setStartSearchQuery("");
+    clearStartRoom();
+  };
+
+  const handleDestinationSearchSubmit = () => {
+    searchDestinationRoom(destinationSearchQuery);
+  };
+
+  const handleClearDestinationSearch = () => {
+    setDestinationSearchQuery("");
+    clearDestinationRoom();
+  };
+
   const handleBuildingSelect = (building: typeof INDOOR_BUILDINGS[0]) => {
     clearHighlight();
     setSelectedBuilding(building);
@@ -128,6 +158,20 @@ export default function IndoorMapView() {
     );
   };
 
+  const getRoomStyle = (feature: IndoorFeature) => {
+    const ref = feature.properties?.ref;
+    if (ref && ref === startRoomRef) {
+      return { fill: "rgba(22, 163, 74, 0.4)", stroke: "#16A34A", width: 3 };
+    }
+    if (ref && ref === destinationRoomRef) {
+      return { fill: "rgba(37, 99, 235, 0.4)", stroke: "#2563EB", width: 3 };
+    }
+    if (isHighlighted(feature)) {
+      return { fill: "rgba(37, 99, 235, 0.4)", stroke: "#2563EB", width: 3 };
+    }
+    return { fill: "rgba(145, 35, 56, 0.15)", stroke: "#912338", width: 1 };
+  };
+
   // Find the highlighted feature for the info bar
   const highlightedFeature = highlightedRoomRef
     ? polygonFeatures.find((f) => f.properties?.ref === highlightedRoomRef)
@@ -149,14 +193,36 @@ export default function IndoorMapView() {
 
   return (
     <View style={styles.container}>
-      {/* Search Bar */}
-      <RoomSearchBar
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-        onSubmit={handleSearchSubmit}
-        onClear={handleClearSearch}
-        error={searchError}
-      />
+      {/* Start Room Search Bar */}
+      <View style={styles.searchRow}>
+        <View style={[styles.searchDot, styles.searchDotStart]} />
+        <View style={styles.searchBarFlex}>
+          <RoomSearchBar
+            value={startSearchQuery}
+            onChangeText={setStartSearchQuery}
+            onSubmit={handleStartSearchSubmit}
+            onClear={handleClearStartSearch}
+            error={startSearchError}
+            placeholder="Start room (e.g., H-820)"
+            testIDPrefix="room-search-start"
+          />
+        </View>
+      </View>
+      {/* Destination Room Search Bar */}
+      <View style={styles.searchRow}>
+        <View style={[styles.searchDot, styles.searchDotDestination]} />
+        <View style={styles.searchBarFlex}>
+          <RoomSearchBar
+            value={destinationSearchQuery}
+            onChangeText={setDestinationSearchQuery}
+            onSubmit={handleDestinationSearchSubmit}
+            onClear={handleClearDestinationSearch}
+            error={destinationSearchError}
+            placeholder="Destination room (e.g., H-820)"
+            testIDPrefix="room-search-destination"
+          />
+        </View>
+      </View>
 
       {/* Building Selector */}
       <View style={styles.buildingSelectorContainer}>
@@ -240,18 +306,14 @@ export default function IndoorMapView() {
           {polygonFeatures.map((feature, index) => {
             const coords = convertCoordinates(feature);
             if (coords.length === 0) return null;
-            const highlighted = isHighlighted(feature);
+            const roomStyle = getRoomStyle(feature);
             return (
               <Polygon
                 key={`${feature.properties?.ref ?? "poly"}-${index}`}
                 coordinates={coords}
-                fillColor={
-                  highlighted
-                    ? "rgba(37, 99, 235, 0.4)"
-                    : "rgba(145, 35, 56, 0.15)"
-                }
-                strokeColor={highlighted ? "#2563EB" : "#912338"}
-                strokeWidth={highlighted ? 3 : 1}
+                fillColor={roomStyle.fill}
+                strokeColor={roomStyle.stroke}
+                strokeWidth={roomStyle.width}
                 tappable
               />
             );
@@ -288,27 +350,45 @@ export default function IndoorMapView() {
       </View>
 
       {/* Room Info Bar */}
-      {highlightedFeature && (
+      {(startRoomRef || destinationRoomRef || highlightedFeature) && (
         <View style={styles.infoBar}>
-          <Text style={styles.infoTitle}>{highlightedFeature.properties?.ref}</Text>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Floor: </Text>
-            <Text style={styles.infoValue}>
-              {selectedFloor !== null && selectedFloor < 0
-                ? `B${Math.abs(selectedFloor)}`
-                : selectedFloor}
-            </Text>
-            {highlightedFeature.properties?.indoor && (
-              <>
-                <Text style={[styles.infoLabel, { marginLeft: 16 }]}>
-                  Type:{" "}
-                </Text>
+          {startRoomRef && (
+            <View style={styles.infoRow}>
+              <View style={[styles.infoDot, styles.infoDotStart]} />
+              <Text style={styles.infoLabel}>From: </Text>
+              <Text style={styles.infoValue} testID="start-room-label">{startRoomRef}</Text>
+            </View>
+          )}
+          {destinationRoomRef && (
+            <View style={[styles.infoRow, startRoomRef ? { marginTop: 4 } : undefined]}>
+              <View style={[styles.infoDot, styles.infoDotDestination]} />
+              <Text style={styles.infoLabel}>To: </Text>
+              <Text style={styles.infoValue} testID="destination-room-label">{destinationRoomRef}</Text>
+            </View>
+          )}
+          {highlightedFeature && !startRoomRef && !destinationRoomRef && (
+            <>
+              <Text style={styles.infoTitle}>{highlightedFeature.properties?.ref}</Text>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Floor: </Text>
                 <Text style={styles.infoValue}>
-                  {highlightedFeature.properties.indoor}
+                  {selectedFloor !== null && selectedFloor < 0
+                    ? `B${Math.abs(selectedFloor)}`
+                    : selectedFloor}
                 </Text>
-              </>
-            )}
-          </View>
+                {highlightedFeature.properties?.indoor && (
+                  <>
+                    <Text style={[styles.infoLabel, { marginLeft: 16 }]}>
+                      Type:{" "}
+                    </Text>
+                    <Text style={styles.infoValue}>
+                      {highlightedFeature.properties.indoor}
+                    </Text>
+                  </>
+                )}
+              </View>
+            </>
+          )}
         </View>
       )}
     </View>
@@ -319,6 +399,29 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#FFFFFF",
+  },
+  searchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+  },
+  searchDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginLeft: 12,
+    flexShrink: 0,
+  },
+  searchDotStart: {
+    backgroundColor: "#16A34A",
+  },
+  searchDotDestination: {
+    backgroundColor: "#2563EB",
+  },
+  searchBarFlex: {
+    flex: 1,
   },
   buildingSelectorContainer: {
     backgroundColor: "#FFFFFF",
@@ -429,5 +532,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: "#1F2937",
+  },
+  infoDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 6,
+  },
+  infoDotStart: {
+    backgroundColor: "#16A34A",
+  },
+  infoDotDestination: {
+    backgroundColor: "#2563EB",
   },
 });

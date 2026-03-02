@@ -27,11 +27,23 @@ const defaultContextValue = {
   searchQuery: "",
   highlightedRoomRef: null,
   searchError: null,
+  startRoomRef: null,
+  destinationRoomRef: null,
+  startSearchQuery: "",
+  destinationSearchQuery: "",
+  startSearchError: null,
+  destinationSearchError: null,
   setSelectedBuilding: jest.fn(),
   setSelectedFloor: jest.fn(),
   setSearchQuery: jest.fn(),
   searchRoom: jest.fn(),
   clearHighlight: jest.fn(),
+  setStartSearchQuery: jest.fn(),
+  setDestinationSearchQuery: jest.fn(),
+  searchStartRoom: jest.fn(),
+  searchDestinationRoom: jest.fn(),
+  clearStartRoom: jest.fn(),
+  clearDestinationRoom: jest.fn(),
 };
 
 describe("IndoorMapView", () => {
@@ -40,12 +52,13 @@ describe("IndoorMapView", () => {
     mockUseIndoorMap.mockReturnValue({ ...defaultContextValue });
   });
 
-  it("renders search bar", () => {
+  it("renders start and destination search bars", () => {
     // Arrange + Act
     const { getByTestId } = render(<IndoorMapView />);
 
     // Assert
-    expect(getByTestId("room-search-input")).toBeTruthy();
+    expect(getByTestId("room-search-start-input")).toBeTruthy();
+    expect(getByTestId("room-search-destination-input")).toBeTruthy();
   });
 
   it("renders all building pills", () => {
@@ -157,55 +170,134 @@ describe("IndoorMapView", () => {
     expect(setSelectedFloor).toHaveBeenCalledWith(8);
   });
 
-  it("calls searchRoom on search submit", () => {
+  it("calls searchStartRoom on start search submit", () => {
     // Arrange
-    const searchRoom = jest.fn();
+    const searchStartRoom = jest.fn();
     mockUseIndoorMap.mockReturnValue({
       ...defaultContextValue,
-      searchQuery: "H-851",
-      searchRoom,
+      startSearchQuery: "H-851",
+      searchStartRoom,
     });
 
     // Act
     const { getByTestId } = render(<IndoorMapView />);
-    fireEvent(getByTestId("room-search-input"), "submitEditing");
+    fireEvent(getByTestId("room-search-start-input"), "submitEditing");
 
     // Assert
-    expect(searchRoom).toHaveBeenCalledWith("H-851");
+    expect(searchStartRoom).toHaveBeenCalledWith("H-851");
   });
 
-  it("clears search on clear button press", () => {
+  it("calls searchDestinationRoom on destination search submit", () => {
     // Arrange
-    const setSearchQuery = jest.fn();
-    const clearHighlight = jest.fn();
+    const searchDestinationRoom = jest.fn();
     mockUseIndoorMap.mockReturnValue({
       ...defaultContextValue,
-      searchQuery: "H-851",
-      setSearchQuery,
-      clearHighlight,
+      destinationSearchQuery: "MB1.210",
+      searchDestinationRoom,
     });
 
     // Act
     const { getByTestId } = render(<IndoorMapView />);
-    fireEvent.press(getByTestId("room-search-clear"));
+    fireEvent(getByTestId("room-search-destination-input"), "submitEditing");
 
     // Assert
-    expect(setSearchQuery).toHaveBeenCalledWith("");
-    expect(clearHighlight).toHaveBeenCalled();
+    expect(searchDestinationRoom).toHaveBeenCalledWith("MB1.210");
   });
 
-  it("displays search error", () => {
+  it("clears start room on start clear button press", () => {
     // Arrange
+    const setStartSearchQuery = jest.fn();
+    const clearStartRoom = jest.fn();
     mockUseIndoorMap.mockReturnValue({
       ...defaultContextValue,
-      searchError: "Room not found",
+      startSearchQuery: "H-851",
+      setStartSearchQuery,
+      clearStartRoom,
     });
 
     // Act
-    const { getByText } = render(<IndoorMapView />);
+    const { getByTestId } = render(<IndoorMapView />);
+    fireEvent.press(getByTestId("room-search-start-clear"));
 
     // Assert
-    expect(getByText("Room not found")).toBeTruthy();
+    expect(setStartSearchQuery).toHaveBeenCalledWith("");
+    expect(clearStartRoom).toHaveBeenCalled();
+  });
+
+  it("clears destination room on destination clear button press", () => {
+    // Arrange
+    const setDestinationSearchQuery = jest.fn();
+    const clearDestinationRoom = jest.fn();
+    mockUseIndoorMap.mockReturnValue({
+      ...defaultContextValue,
+      destinationSearchQuery: "MB1.210",
+      setDestinationSearchQuery,
+      clearDestinationRoom,
+    });
+
+    // Act
+    const { getByTestId } = render(<IndoorMapView />);
+    fireEvent.press(getByTestId("room-search-destination-clear"));
+
+    // Assert
+    expect(setDestinationSearchQuery).toHaveBeenCalledWith("");
+    expect(clearDestinationRoom).toHaveBeenCalled();
+  });
+
+  it("displays start search error", () => {
+    // Arrange
+    mockUseIndoorMap.mockReturnValue({
+      ...defaultContextValue,
+      startSearchError: "Room not found",
+    });
+
+    // Act
+    const { getAllByText } = render(<IndoorMapView />);
+
+    // Assert
+    expect(getAllByText("Room not found").length).toBeGreaterThan(0);
+  });
+
+  it("displays destination search error", () => {
+    // Arrange
+    mockUseIndoorMap.mockReturnValue({
+      ...defaultContextValue,
+      destinationSearchError: "Room not found",
+    });
+
+    // Act
+    const { getAllByText } = render(<IndoorMapView />);
+
+    // Assert
+    expect(getAllByText("Room not found").length).toBeGreaterThan(0);
+  });
+
+  it("shows start room label in info bar when startRoomRef is set", () => {
+    // Arrange
+    mockUseIndoorMap.mockReturnValue({
+      ...defaultContextValue,
+      startRoomRef: "H851.02",
+    });
+
+    // Act
+    const { getByTestId } = render(<IndoorMapView />);
+
+    // Assert
+    expect(getByTestId("start-room-label").props.children).toBe("H851.02");
+  });
+
+  it("shows destination room label in info bar when destinationRoomRef is set", () => {
+    // Arrange
+    mockUseIndoorMap.mockReturnValue({
+      ...defaultContextValue,
+      destinationRoomRef: "MB1.210",
+    });
+
+    // Act
+    const { getByTestId } = render(<IndoorMapView />);
+
+    // Assert
+    expect(getByTestId("destination-room-label").props.children).toBe("MB1.210");
   });
 
   it("does not render info bar when no room is highlighted", () => {
