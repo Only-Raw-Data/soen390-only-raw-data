@@ -10,6 +10,7 @@ export interface IndoorFeatureProperties {
   door?: string;
   entrance?: string;
   conveying?: string;
+  stairs?: string;
 }
 
 export interface IndoorFeature {
