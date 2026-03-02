@@ -23,6 +23,12 @@ describe("IndoorMapContext", () => {
       expect(result.current.searchQuery).toBe("");
       expect(result.current.highlightedRoomRef).toBeNull();
       expect(result.current.searchError).toBeNull();
+      expect(result.current.startRoomRef).toBeNull();
+      expect(result.current.destinationRoomRef).toBeNull();
+      expect(result.current.startSearchQuery).toBe("");
+      expect(result.current.destinationSearchQuery).toBe("");
+      expect(result.current.startSearchError).toBeNull();
+      expect(result.current.destinationSearchError).toBeNull();
     });
   });
 
@@ -227,6 +233,139 @@ describe("IndoorMapContext", () => {
 
       // Assert
       expect(result.current.searchError).toBeNull();
+    });
+  });
+
+  describe("searchStartRoom", () => {
+    it("should find a start room and set building, floor, and startRoomRef", () => {
+      // Arrange
+      const { result } = renderHook(() => useIndoorMap(), { wrapper });
+
+      // Act
+      act(() => {
+        result.current.searchStartRoom("H851.02");
+      });
+
+      // Assert
+      expect(result.current.startSearchError).toBeNull();
+      expect(result.current.selectedBuilding?.code).toBe("H");
+      expect(result.current.selectedFloor).toBe(8);
+      expect(result.current.startRoomRef).toBe("H851.02");
+    });
+
+    it("should set startSearchError for non-existent room", () => {
+      // Arrange
+      const { result } = renderHook(() => useIndoorMap(), { wrapper });
+
+      // Act
+      act(() => {
+        result.current.searchStartRoom("XYZ-999");
+      });
+
+      // Assert
+      expect(result.current.startSearchError).toBe("Room not found");
+      expect(result.current.startRoomRef).toBeNull();
+    });
+
+    it("should do nothing for empty query", () => {
+      // Arrange
+      const { result } = renderHook(() => useIndoorMap(), { wrapper });
+
+      // Act
+      act(() => {
+        result.current.searchStartRoom("");
+      });
+
+      // Assert
+      expect(result.current.startRoomRef).toBeNull();
+      expect(result.current.startSearchError).toBeNull();
+    });
+  });
+
+  describe("searchDestinationRoom", () => {
+    it("should find a destination room and set destinationRoomRef without changing building/floor", () => {
+      // Arrange
+      const { result } = renderHook(() => useIndoorMap(), { wrapper });
+
+      // Act
+      act(() => {
+        result.current.searchDestinationRoom("H851.02");
+      });
+
+      // Assert
+      expect(result.current.destinationSearchError).toBeNull();
+      expect(result.current.destinationRoomRef).toBe("H851.02");
+      // building/floor not changed by destination search
+      expect(result.current.selectedBuilding).toBeNull();
+      expect(result.current.selectedFloor).toBeNull();
+    });
+
+    it("should set destinationSearchError for non-existent room", () => {
+      // Arrange
+      const { result } = renderHook(() => useIndoorMap(), { wrapper });
+
+      // Act
+      act(() => {
+        result.current.searchDestinationRoom("XYZ-999");
+      });
+
+      // Assert
+      expect(result.current.destinationSearchError).toBe("Room not found");
+      expect(result.current.destinationRoomRef).toBeNull();
+    });
+
+    it("should do nothing for empty query", () => {
+      // Arrange
+      const { result } = renderHook(() => useIndoorMap(), { wrapper });
+
+      // Act
+      act(() => {
+        result.current.searchDestinationRoom("");
+      });
+
+      // Assert
+      expect(result.current.destinationRoomRef).toBeNull();
+      expect(result.current.destinationSearchError).toBeNull();
+    });
+  });
+
+  describe("clearStartRoom", () => {
+    it("should clear startRoomRef and startSearchError", () => {
+      // Arrange
+      const { result } = renderHook(() => useIndoorMap(), { wrapper });
+      act(() => {
+        result.current.searchStartRoom("H851.02");
+      });
+      expect(result.current.startRoomRef).toBe("H851.02");
+
+      // Act
+      act(() => {
+        result.current.clearStartRoom();
+      });
+
+      // Assert
+      expect(result.current.startRoomRef).toBeNull();
+      expect(result.current.startSearchError).toBeNull();
+    });
+  });
+
+  describe("clearDestinationRoom", () => {
+    it("should clear destinationRoomRef and destinationSearchError", () => {
+      // Arrange
+      const { result } = renderHook(() => useIndoorMap(), { wrapper });
+      act(() => {
+        result.current.searchDestinationRoom("H851.02");
+      });
+      expect(result.current.destinationRoomRef).toBe("H851.02");
+
+      // Act
+      act(() => {
+        result.current.clearDestinationRoom();
+      });
+
+      // Assert
+      expect(result.current.destinationRoomRef).toBeNull();
+      expect(result.current.destinationSearchError).toBeNull();
     });
   });
 

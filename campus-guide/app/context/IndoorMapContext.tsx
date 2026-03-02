@@ -243,11 +243,23 @@ interface IndoorMapContextType {
   searchQuery: string;
   highlightedRoomRef: string | null;
   searchError: string | null;
+  startRoomRef: string | null;
+  destinationRoomRef: string | null;
+  startSearchQuery: string;
+  destinationSearchQuery: string;
+  startSearchError: string | null;
+  destinationSearchError: string | null;
   setSelectedBuilding: (building: IndoorBuildingConfig | null) => void;
   setSelectedFloor: (floor: number | null) => void;
   setSearchQuery: (query: string) => void;
   searchRoom: (query: string) => void;
   clearHighlight: () => void;
+  setStartSearchQuery: (query: string) => void;
+  setDestinationSearchQuery: (query: string) => void;
+  searchStartRoom: (query: string) => void;
+  searchDestinationRoom: (query: string) => void;
+  clearStartRoom: () => void;
+  clearDestinationRoom: () => void;
 }
 
 const IndoorMapContext = createContext<IndoorMapContextType | undefined>(
@@ -267,6 +279,12 @@ export default function IndoorMapProvider({
     null,
   );
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [startRoomRef, setStartRoomRef] = useState<string | null>(null);
+  const [destinationRoomRef, setDestinationRoomRef] = useState<string | null>(null);
+  const [startSearchQuery, setStartSearchQuery] = useState("");
+  const [destinationSearchQuery, setDestinationSearchQuery] = useState("");
+  const [startSearchError, setStartSearchError] = useState<string | null>(null);
+  const [destinationSearchError, setDestinationSearchError] = useState<string | null>(null);
 
   const clearHighlight = useCallback(() => {
     setHighlightedRoomRef(null);
@@ -290,6 +308,42 @@ export default function IndoorMapProvider({
     }
   }, []);
 
+  const searchStartRoom = useCallback((query: string) => {
+    setStartSearchError(null);
+    const normalized = query.replaceAll(/[\s-]/g, "").toUpperCase();
+    if (!normalized) return;
+    const result = findRoomInBuildings(normalized);
+    if (result) {
+      setSelectedBuilding(result.building);
+      setSelectedFloor(result.floor);
+      setStartRoomRef(result.ref);
+    } else {
+      setStartSearchError("Room not found");
+    }
+  }, []);
+
+  const searchDestinationRoom = useCallback((query: string) => {
+    setDestinationSearchError(null);
+    const normalized = query.replaceAll(/[\s-]/g, "").toUpperCase();
+    if (!normalized) return;
+    const result = findRoomInBuildings(normalized);
+    if (result) {
+      setDestinationRoomRef(result.ref);
+    } else {
+      setDestinationSearchError("Room not found");
+    }
+  }, []);
+
+  const clearStartRoom = useCallback(() => {
+    setStartRoomRef(null);
+    setStartSearchError(null);
+  }, []);
+
+  const clearDestinationRoom = useCallback(() => {
+    setDestinationRoomRef(null);
+    setDestinationSearchError(null);
+  }, []);
+
   const value = useMemo(
     () => ({
       selectedBuilding,
@@ -297,11 +351,23 @@ export default function IndoorMapProvider({
       searchQuery,
       highlightedRoomRef,
       searchError,
+      startRoomRef,
+      destinationRoomRef,
+      startSearchQuery,
+      destinationSearchQuery,
+      startSearchError,
+      destinationSearchError,
       setSelectedBuilding,
       setSelectedFloor,
       setSearchQuery,
       searchRoom,
       clearHighlight,
+      setStartSearchQuery,
+      setDestinationSearchQuery,
+      searchStartRoom,
+      searchDestinationRoom,
+      clearStartRoom,
+      clearDestinationRoom,
     }),
     [
       selectedBuilding,
@@ -309,8 +375,18 @@ export default function IndoorMapProvider({
       searchQuery,
       highlightedRoomRef,
       searchError,
+      startRoomRef,
+      destinationRoomRef,
+      startSearchQuery,
+      destinationSearchQuery,
+      startSearchError,
+      destinationSearchError,
       searchRoom,
       clearHighlight,
+      searchStartRoom,
+      searchDestinationRoom,
+      clearStartRoom,
+      clearDestinationRoom,
     ],
   );
 

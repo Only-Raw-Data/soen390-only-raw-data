@@ -14,6 +14,8 @@ interface RoomSearchBarProps {
   readonly onSubmit: () => void;
   readonly onClear: () => void;
   readonly error?: string | null;
+  readonly placeholder?: string;
+  readonly testIDPrefix?: string;
 }
 
 export default function RoomSearchBar({
@@ -22,6 +24,8 @@ export default function RoomSearchBar({
   onSubmit,
   onClear,
   error,
+  placeholder = "Enter room (e.g., H-820)",
+  testIDPrefix = "room-search",
 }: RoomSearchBarProps) {
   return (
     <View style={styles.container}>
@@ -34,20 +38,20 @@ export default function RoomSearchBar({
         />
         <TextInput
           style={styles.input}
-          placeholder="Enter room (e.g., H-820)"
+          placeholder={placeholder}
           placeholderTextColor="#9CA3AF"
           value={value}
           onChangeText={onChangeText}
           onSubmitEditing={onSubmit}
           returnKeyType="search"
           autoCapitalize="characters"
-          testID="room-search-input"
+          testID={`${testIDPrefix}-input`}
         />
         {value.length > 0 && (
           <TouchableOpacity
             onPress={onClear}
             style={styles.clearButton}
-            testID="room-search-clear"
+            testID={`${testIDPrefix}-clear`}
           >
             <Ionicons name="close-circle" size={20} color="#9CA3AF" />
           </TouchableOpacity>
