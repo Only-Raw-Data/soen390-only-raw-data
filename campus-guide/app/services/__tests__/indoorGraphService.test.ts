@@ -234,7 +234,7 @@ describe("buildIndoorGraph – room features", () => {
     ]));
     const roomNodes = [...g.nodes.values()].filter((n) => n.type === "room");
     expect(roomNodes).toHaveLength(2);
-    const floors = roomNodes.map((n) => n.floor).sort();
+    const floors = roomNodes.map((n) => n.floor).sort((a, b) => a - b);
     expect(floors).toEqual([1, 2]);
   });
 });
