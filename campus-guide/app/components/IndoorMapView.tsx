@@ -35,6 +35,11 @@ function shortLabel(roomRef: string): string {
   return roomRef.replace(/^[A-Z]+S?/i, "");
 }
 
+const ROOM_STYLE_START = { fill: "rgba(22, 163, 74, 0.4)", stroke: "#16A34A", width: 3 };
+const ROOM_STYLE_DESTINATION = { fill: "rgba(37, 99, 235, 0.4)", stroke: "#2563EB", width: 3 };
+const ROOM_STYLE_HIGHLIGHTED = { fill: "rgba(37, 99, 235, 0.4)", stroke: "#2563EB", width: 3 };
+const ROOM_STYLE_DEFAULT = { fill: "rgba(145, 35, 56, 0.15)", stroke: "#912338", width: 1 };
+
 export default function IndoorMapView() {
   const {
     selectedBuilding,
@@ -131,6 +136,24 @@ export default function IndoorMapView() {
     clearDestinationRoom();
   };
 
+  const handleStartSearchSubmit = () => {
+    searchStartRoom(startSearchQuery);
+  };
+
+  const handleClearStartSearch = () => {
+    setStartSearchQuery("");
+    clearStartRoom();
+  };
+
+  const handleDestinationSearchSubmit = () => {
+    searchDestinationRoom(destinationSearchQuery);
+  };
+
+  const handleClearDestinationSearch = () => {
+    setDestinationSearchQuery("");
+    clearDestinationRoom();
+  };
+
   const handleBuildingSelect = (building: typeof INDOOR_BUILDINGS[0]) => {
     clearHighlight();
     setSelectedBuilding(building);
@@ -159,17 +182,17 @@ export default function IndoorMapView() {
   };
 
   const getRoomStyle = (feature: IndoorFeature) => {
-    const ref = feature.properties?.ref;
-    if (ref && ref === startRoomRef) {
-      return { fill: "rgba(22, 163, 74, 0.4)", stroke: "#16A34A", width: 3 };
+    const roomRef = feature.properties?.ref;
+    if (roomRef && roomRef === startRoomRef) {
+      return ROOM_STYLE_START;
     }
-    if (ref && ref === destinationRoomRef) {
-      return { fill: "rgba(37, 99, 235, 0.4)", stroke: "#2563EB", width: 3 };
+    if (roomRef && roomRef === destinationRoomRef) {
+      return ROOM_STYLE_DESTINATION;
     }
     if (isHighlighted(feature)) {
-      return { fill: "rgba(37, 99, 235, 0.4)", stroke: "#2563EB", width: 3 };
+      return ROOM_STYLE_HIGHLIGHTED;
     }
-    return { fill: "rgba(145, 35, 56, 0.15)", stroke: "#912338", width: 1 };
+    return ROOM_STYLE_DEFAULT;
   };
 
   // Find the highlighted feature for the info bar
@@ -179,17 +202,17 @@ export default function IndoorMapView() {
 
   const initialRegion = selectedBuilding
     ? {
-        latitude: selectedBuilding.centerLat,
-        longitude: selectedBuilding.centerLng,
-        latitudeDelta: 0.002,
-        longitudeDelta: 0.002,
-      }
+      latitude: selectedBuilding.centerLat,
+      longitude: selectedBuilding.centerLng,
+      latitudeDelta: 0.002,
+      longitudeDelta: 0.002,
+    }
     : {
-        latitude: 45.497092,
-        longitude: -73.5788,
-        latitudeDelta: 0.005,
-        longitudeDelta: 0.005,
-      };
+      latitude: 45.497092,
+      longitude: -73.5788,
+      latitudeDelta: 0.005,
+      longitudeDelta: 0.005,
+    };
 
   return (
     <View style={styles.container}>
