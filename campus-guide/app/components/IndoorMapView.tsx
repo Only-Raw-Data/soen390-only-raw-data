@@ -136,24 +136,6 @@ export default function IndoorMapView() {
     clearDestinationRoom();
   };
 
-  const handleStartSearchSubmit = () => {
-    searchStartRoom(startSearchQuery);
-  };
-
-  const handleClearStartSearch = () => {
-    setStartSearchQuery("");
-    clearStartRoom();
-  };
-
-  const handleDestinationSearchSubmit = () => {
-    searchDestinationRoom(destinationSearchQuery);
-  };
-
-  const handleClearDestinationSearch = () => {
-    setDestinationSearchQuery("");
-    clearDestinationRoom();
-  };
-
   const handleBuildingSelect = (building: typeof INDOOR_BUILDINGS[0]) => {
     clearHighlight();
     setSelectedBuilding(building);
