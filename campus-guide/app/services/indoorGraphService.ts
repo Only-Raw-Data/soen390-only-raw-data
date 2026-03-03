@@ -1,7 +1,17 @@
 import { IndoorGeoJSON } from "../types/indoorMap";
 
-export type NodeType = "room" | "waypoint" | "elevator" | "staircase";
-export type EdgeType = "corridor" | "elevator" | "staircase";
+export enum NodeType {
+  Room = "room",
+  Waypoint = "waypoint",
+  Elevator = "elevator",
+  Staircase = "staircase",
+}
+
+export enum EdgeType {
+  Corridor = "corridor",
+  Elevator = "elevator",
+  Staircase = "staircase",
+}
 
 export interface GraphNode {
   id: string;
@@ -116,6 +126,44 @@ export function buildIndoorGraph(geoJson: IndoorGeoJSON): IndoorGraph {
   // Tracks which coordinate keys belong to corridor waypoints, keyed by floor
   const waypointsByFloor = new Map<number, Set<string>>();
 
+  // Connects a polygon node to any corridor waypoints whose coordinates appear
+  // in the polygon's outer ring on the given floor.
+  function connectToCorridors(
+    nodeId: string,
+    cLat: number,
+    cLng: number,
+    floor: number,
+    outerRing: number[][],
+  ): void {
+    const floorWaypoints = waypointsByFloor.get(floor);
+    if (!floorWaypoints) return;
+    for (const coord of outerRing) {
+      const key = coordKey(coord[0], coord[1]);
+      if (floorWaypoints.has(key)) {
+        const wp = nodes.get(key)!;
+        addEdge(nodeId, key, haversineDistance(cLat, cLng, wp.lat, wp.lng), EdgeType.Corridor);
+      }
+    }
+  }
+
+  // Builds one node per floor for a vertical-transition polygon (elevator or
+  // staircase), connects each to the corridor network, and returns the ordered
+  // list of node ids (parallel to the floors array).
+  function buildTransitionNodes(
+    floors: number[],
+    cLat: number,
+    cLng: number,
+    outerRing: number[][],
+    prefix: NodeType.Elevator | NodeType.Staircase,
+  ): string[] {
+    return floors.map((floor) => {
+      const id = `${prefix}:${coordKey(cLng, cLat)}:${floor}`;
+      addNode({ id, lat: cLat, lng: cLng, floor, type: prefix });
+      connectToCorridors(id, cLat, cLng, floor, outerRing);
+      return id;
+    });
+  }
+
   // ── Pass 1: corridors (LineString + highway=footway) ──────────────────────
   // Each coordinate in a corridor becomes a waypoint node; consecutive
   // coordinates on the same LineString are joined by a corridor edge.
@@ -136,10 +184,10 @@ export function buildIndoorGraph(geoJson: IndoorGeoJSON): IndoorGraph {
         const [lng, lat] = coord;
         const id = coordKey(lng, lat);
         floorWaypoints.add(id);
-        addNode({ id, lat, lng, floor, type: "waypoint" });
+        addNode({ id, lat, lng, floor, type: NodeType.Waypoint });
         if (prevId) {
           const prev = nodes.get(prevId)!;
-          addEdge(prevId, id, haversineDistance(prev.lat, prev.lng, lat, lng), "corridor");
+          addEdge(prevId, id, haversineDistance(prev.lat, prev.lng, lat, lng), EdgeType.Corridor);
         }
         prevId = id;
       }
@@ -165,94 +213,38 @@ export function buildIndoorGraph(geoJson: IndoorGeoJSON): IndoorGraph {
         ? `room:${ref}:${floor}`
         : `room:${coordKey(cLng, cLat)}:${floor}`;
 
-      addNode({ id: roomId, lat: cLat, lng: cLng, floor, type: "room", ref });
-
-      const floorWaypoints = waypointsByFloor.get(floor);
-      if (floorWaypoints) {
-        for (const coord of outerRing) {
-          const key = coordKey(coord[0], coord[1]);
-          if (floorWaypoints.has(key)) {
-            const wp = nodes.get(key)!;
-            addEdge(roomId, key, haversineDistance(cLat, cLng, wp.lat, wp.lng), "corridor");
-          }
-        }
-      }
+      addNode({ id: roomId, lat: cLat, lng: cLng, floor, type: NodeType.Room, ref });
+      connectToCorridors(roomId, cLat, cLng, floor, outerRing);
     }
   }
 
-  // ── Pass 3: elevators (Polygon + highway=elevator) ─────────────────────────
-  // One node per floor served; cross-floor elevator edges join every pair of
-  // floors, weighted by floor distance × ELEVATOR_FLOOR_PENALTY.
+  // ── Passes 3 & 4: elevators and staircases ────────────────────────────────
+  // Both share the same per-floor node + corridor-connection pattern.
+  // Elevators connect every pair of floors; staircases connect adjacent floors only.
   for (const feature of geoJson.features) {
     if (feature.geometry.type !== "Polygon") continue;
-    if (feature.properties?.highway !== "elevator") continue;
     if (!feature.properties?.level) continue;
+
+    const isElevator = feature.properties?.highway === "elevator";
+    const isStaircase = !!feature.properties?.stairs;
+    if (!isElevator && !isStaircase) continue;
 
     const floors = parseFloors(feature.properties.level);
     const outerRing = (feature.geometry.coordinates as number[][][])[0];
     const [cLng, cLat] = polygonCentroid(outerRing);
-    const elevatorIds: string[] = [];
 
-    for (const floor of floors) {
-      const id = `elevator:${coordKey(cLng, cLat)}:${floor}`;
-      elevatorIds.push(id);
-      addNode({ id, lat: cLat, lng: cLng, floor, type: "elevator" });
-
-      const floorWaypoints = waypointsByFloor.get(floor);
-      if (floorWaypoints) {
-        for (const coord of outerRing) {
-          const key = coordKey(coord[0], coord[1]);
-          if (floorWaypoints.has(key)) {
-            const wp = nodes.get(key)!;
-            addEdge(id, key, haversineDistance(cLat, cLng, wp.lat, wp.lng), "corridor");
-          }
+    if (isElevator) {
+      const ids = buildTransitionNodes(floors, cLat, cLng, outerRing, NodeType.Elevator);
+      for (let i = 0; i < ids.length; i++) {
+        for (let j = i + 1; j < ids.length; j++) {
+          addEdge(ids[i], ids[j], Math.abs(floors[i] - floors[j]) * ELEVATOR_FLOOR_PENALTY, EdgeType.Elevator);
         }
       }
-    }
-
-    // Cross-floor edges between every pair of floors this elevator serves
-    for (let i = 0; i < elevatorIds.length; i++) {
-      for (let j = i + 1; j < elevatorIds.length; j++) {
-        const weight = Math.abs(floors[i] - floors[j]) * ELEVATOR_FLOOR_PENALTY;
-        addEdge(elevatorIds[i], elevatorIds[j], weight, "elevator");
+    } else {
+      const ids = buildTransitionNodes(floors, cLat, cLng, outerRing, NodeType.Staircase);
+      for (let i = 0; i < ids.length - 1; i++) {
+        addEdge(ids[i], ids[i + 1], Math.abs(floors[i] - floors[i + 1]) * STAIRCASE_FLOOR_PENALTY, EdgeType.Staircase);
       }
-    }
-  }
-
-  // ── Pass 4: staircases (Polygon + stairs=yes) ─────────────────────────────
-  // Same pattern as elevators but weighted by STAIRCASE_FLOOR_PENALTY and
-  // cross-floor edges connect only adjacent floors.
-  for (const feature of geoJson.features) {
-    if (feature.geometry.type !== "Polygon") continue;
-    if (!feature.properties?.stairs) continue;
-    if (!feature.properties?.level) continue;
-
-    const floors = parseFloors(feature.properties.level);
-    const outerRing = (feature.geometry.coordinates as number[][][])[0];
-    const [cLng, cLat] = polygonCentroid(outerRing);
-    const staircaseIds: string[] = [];
-
-    for (const floor of floors) {
-      const id = `staircase:${coordKey(cLng, cLat)}:${floor}`;
-      staircaseIds.push(id);
-      addNode({ id, lat: cLat, lng: cLng, floor, type: "staircase" });
-
-      const floorWaypoints = waypointsByFloor.get(floor);
-      if (floorWaypoints) {
-        for (const coord of outerRing) {
-          const key = coordKey(coord[0], coord[1]);
-          if (floorWaypoints.has(key)) {
-            const wp = nodes.get(key)!;
-            addEdge(id, key, haversineDistance(cLat, cLng, wp.lat, wp.lng), "corridor");
-          }
-        }
-      }
-    }
-
-    // Cross-floor edges between adjacent floors only (stairs are sequential)
-    for (let i = 0; i < staircaseIds.length - 1; i++) {
-      const weight = Math.abs(floors[i] - floors[i + 1]) * STAIRCASE_FLOOR_PENALTY;
-      addEdge(staircaseIds[i], staircaseIds[i + 1], weight, "staircase");
     }
   }
 
