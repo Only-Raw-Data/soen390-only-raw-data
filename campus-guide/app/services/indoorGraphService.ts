@@ -194,40 +194,20 @@ export function buildIndoorGraph(geoJson: IndoorGeoJSON): IndoorGraph {
     }
   }
 
-  // ── Pass 2: rooms and areas (Polygon + indoor property, not elevators) ────
-  // Room nodes sit at the polygon centroid; they connect to the corridor
-  // network wherever a polygon vertex coincides with a corridor waypoint.
-  for (const feature of geoJson.features) {
-    if (feature.geometry.type !== "Polygon") continue;
-    if (!feature.properties?.indoor) continue;
-    if (feature.properties?.highway === "elevator") continue;
-    if (!feature.properties?.level) continue;
-
-    const floors = parseFloors(feature.properties.level);
-    const outerRing = (feature.geometry.coordinates as number[][][])[0];
-    const [cLng, cLat] = polygonCentroid(outerRing);
-
-    for (const floor of floors) {
-      const ref = feature.properties.ref ?? undefined;
-      const roomId = ref
-        ? `room:${ref}:${floor}`
-        : `room:${coordKey(cLng, cLat)}:${floor}`;
-
-      addNode({ id: roomId, lat: cLat, lng: cLng, floor, type: NodeType.Room, ref });
-      connectToCorridors(roomId, cLat, cLng, floor, outerRing);
-    }
-  }
-
-  // ── Passes 3 & 4: elevators and staircases ────────────────────────────────
-  // Both share the same per-floor node + corridor-connection pattern.
-  // Elevators connect every pair of floors; staircases connect adjacent floors only.
+  // ── Pass 2: polygons (rooms, elevators, staircases) ─────────────────────
+  // Merged into a single pass over all Polygon features.  Room nodes sit at
+  // the polygon centroid; elevators and staircases create per-floor nodes.
+  // All polygon node types connect to the corridor network wherever a polygon
+  // vertex coincides with a corridor waypoint.
   for (const feature of geoJson.features) {
     if (feature.geometry.type !== "Polygon") continue;
     if (!feature.properties?.level) continue;
 
     const isElevator = feature.properties?.highway === "elevator";
     const isStaircase = !!feature.properties?.stairs;
-    if (!isElevator && !isStaircase) continue;
+    const isRoom = !!feature.properties?.indoor && !isElevator;
+
+    if (!isElevator && !isStaircase && !isRoom) continue;
 
     const floors = parseFloors(feature.properties.level);
     const outerRing = (feature.geometry.coordinates as number[][][])[0];
@@ -240,10 +220,21 @@ export function buildIndoorGraph(geoJson: IndoorGeoJSON): IndoorGraph {
           addEdge(ids[i], ids[j], Math.abs(floors[i] - floors[j]) * ELEVATOR_FLOOR_PENALTY, EdgeType.Elevator);
         }
       }
-    } else {
+    } else if (isStaircase) {
       const ids = buildTransitionNodes(floors, cLat, cLng, outerRing, NodeType.Staircase);
       for (let i = 0; i < ids.length - 1; i++) {
         addEdge(ids[i], ids[i + 1], Math.abs(floors[i] - floors[i + 1]) * STAIRCASE_FLOOR_PENALTY, EdgeType.Staircase);
+      }
+    } else {
+      // Room / area
+      for (const floor of floors) {
+        const ref = feature.properties.ref ?? undefined;
+        const roomId = ref
+          ? `room:${ref}:${floor}`
+          : `room:${coordKey(cLng, cLat)}:${floor}`;
+
+        addNode({ id: roomId, lat: cLat, lng: cLng, floor, type: NodeType.Room, ref });
+        connectToCorridors(roomId, cLat, cLng, floor, outerRing);
       }
     }
   }
