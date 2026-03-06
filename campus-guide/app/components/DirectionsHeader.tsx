@@ -96,7 +96,7 @@ export default function DirectionsHeader() {
     setSearchQuery('');
   };
 
-  const modes: { id: TransportationMode; icon: any; label: string }[] = [
+  const modes: { id: TransportationMode; icon: React.ComponentProps<typeof Ionicons>['name']; label: string }[] = [
     { id: 'walk', icon: 'walk', label: 'Walk' },
     { id: 'car', icon: 'car', label: 'Car' },
     { id: 'transit', icon: 'bus', label: 'Transit' },

@@ -301,15 +301,18 @@ describe('DirectionsHeader', () => {
             expect(mockSetStartBuilding).toHaveBeenCalledWith(
                 expect.objectContaining({ id: 'h' }),
             );
+            // Assert
             expect(mockSetDestinationBuilding).toHaveBeenCalledWith(
                 expect.objectContaining({ id: 'fc' }),
             );
         });
 
         it('sets startCoords and clears startBuilding when Use Current Location succeeds', async () => {
+            // Arrange & Act
             mockGetRawLocation.mockResolvedValue({ lat: 45.497, lng: -73.578 });
             const { getByTestId } = render(<DirectionsHeader />);
             fireEvent.press(getByTestId('current location'));
+            // Assert
             await waitFor(() => {
                 expect(mockSetStartCoords).toHaveBeenCalledWith({ lat: 45.497, lng: -73.578 });
                 expect(mockSetStartBuilding).toHaveBeenCalledWith(null);
@@ -317,9 +320,11 @@ describe('DirectionsHeader', () => {
         });
 
         it('shows alert when Use Current Location returns null', async () => {
+            // Arrange & Act
             mockGetRawLocation.mockResolvedValue(null);
             const { getByTestId } = render(<DirectionsHeader />);
             fireEvent.press(getByTestId('current location'));
+            // Assert
             await waitFor(() => {
                 expect(Alert.alert).toHaveBeenCalledWith(
                     'Location Error',
@@ -329,19 +334,23 @@ describe('DirectionsHeader', () => {
         });
 
         it('selects a building from search results for start', () => {
+            // Arrange & Act
             const { getByTestId, getByText } = render(<DirectionsHeader />);
             fireEvent(getByTestId('start-input'), 'focus');
             fireEvent.changeText(getByTestId('start-input'), 'Hall');
             fireEvent.press(getByText('Henry F. Hall Building'));
+            // Assert
             expect(mockSetStartBuilding).toHaveBeenCalledWith(expect.objectContaining({ id: 'h' }));
             expect(mockSetStartCoords).toHaveBeenCalledWith(null);
         });
 
         it('selects a building from search results for destination', () => {
+            // Arrange & Act
             const { getByTestId, getByText } = render(<DirectionsHeader />);
             fireEvent(getByTestId('dest-input'), 'focus');
             fireEvent.changeText(getByTestId('dest-input'), 'Hall');
             fireEvent.press(getByText('Henry F. Hall Building'));
+            // Assert
             expect(mockSetDestinationBuilding).toHaveBeenCalledWith(expect.objectContaining({ id: 'h' }));
         });
 

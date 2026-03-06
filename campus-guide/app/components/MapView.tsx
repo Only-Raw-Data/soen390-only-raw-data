@@ -145,8 +145,8 @@ export default function MapViewApp({
 
     if (isCurrentLocation) {
       return {
-        fillColor: "rgba(22, 163, 74, 0.45)",
-        strokeColor: "#16A34A",
+        fillColor: "#16A34A73",
+        strokeColor: "#9123384D",
         strokeWidth: 5,
       };
     }
