@@ -445,5 +445,108 @@ describe("IndoorMapView", () => {
     // Assert
     expect(queryByTestId("path-error-banner")).toBeNull();
   });
+
+  describe("transition points", () => {
+    it("renders staircase transition marker with up arrow and target floor", () => {
+      // Arrange — path goes from floor 8 room → staircase on floor 8 → room on floor 9
+      const hallBuilding = INDOOR_BUILDINGS.find((b) => b.code === "H")!;
+      const pathNodes = [
+        { id: "room:H851.02:8", lat: 45.497, lng: -73.578, floor: 8, type: "room", ref: "H851.02" },
+        { id: "stair:1",        lat: 45.497, lng: -73.579, floor: 8, type: "staircase" },
+        { id: "room:H961:9",    lat: 45.498, lng: -73.579, floor: 9, type: "room", ref: "H961" },
+      ];
+      mockUseIndoorMap.mockReturnValue({
+        ...defaultContextValue,
+        selectedBuilding: hallBuilding,
+        selectedFloor: 8,
+        startRoomRef: "H851.02",
+        destinationRoomRef: "H961",
+        currentPath: pathNodes,
+      });
+
+      // Act
+      const { getByText } = render(<IndoorMapView />);
+
+      // Assert — staircase marker shows "ST" label and "▲9" for going up to floor 9
+      expect(getByText("ST")).toBeTruthy();
+      expect(getByText("▲9")).toBeTruthy();
+    });
+
+    it("renders elevator transition marker with down arrow and target floor", () => {
+      // Arrange — path goes from room on floor 1 → elevator on floor 1 → room on floor -2
+      const hallBuilding = INDOOR_BUILDINGS.find((b) => b.code === "H")!;
+      const pathNodes = [
+        { id: "room:start:1",   lat: 45.497, lng: -73.578, floor: 1, type: "room", ref: "H110" },
+        { id: "room:prev:1",    lat: 45.497, lng: -73.578, floor: 1, type: "waypoint" },
+        { id: "elev:1",         lat: 45.497, lng: -73.579, floor: 1, type: "elevator" },
+        { id: "room:dest:-2",   lat: 45.498, lng: -73.579, floor: -2, type: "room", ref: "MBS2.437" },
+      ];
+      mockUseIndoorMap.mockReturnValue({
+        ...defaultContextValue,
+        selectedBuilding: hallBuilding,
+        selectedFloor: 1,
+        startRoomRef: "H110",
+        destinationRoomRef: "MBS2.437",
+        currentPath: pathNodes,
+      });
+
+      // Act
+      const { getByText } = render(<IndoorMapView />);
+
+      // Assert — elevator marker shows "EL" label and "▼B2" for going down to basement 2
+      expect(getByText("EL")).toBeTruthy();
+      expect(getByText("▼B2")).toBeTruthy();
+    });
+
+    it("skips transition nodes with non-finite coordinates", () => {
+      // Arrange — staircase node has NaN coordinates
+      const hallBuilding = INDOOR_BUILDINGS.find((b) => b.code === "H")!;
+      const pathNodes = [
+        { id: "room:H851.02:8", lat: 45.497, lng: -73.578, floor: 8, type: "room", ref: "H851.02" },
+        { id: "stair:bad",      lat: NaN,    lng: NaN,     floor: 8, type: "staircase" },
+        { id: "room:H961:9",    lat: 45.498, lng: -73.579, floor: 9, type: "room", ref: "H961" },
+      ];
+      mockUseIndoorMap.mockReturnValue({
+        ...defaultContextValue,
+        selectedBuilding: hallBuilding,
+        selectedFloor: 8,
+        startRoomRef: "H851.02",
+        destinationRoomRef: "H961",
+        currentPath: pathNodes,
+      });
+
+      // Act
+      const { queryByText } = render(<IndoorMapView />);
+
+      // Assert — no transition marker rendered due to NaN coords
+      expect(queryByText("ST")).toBeNull();
+      expect(queryByText("EL")).toBeNull();
+    });
+
+    it("renders transition marker without floor label when neighbor is on same floor", () => {
+      // Arrange — staircase with both neighbors on the same floor (no floor change detected)
+      const hallBuilding = INDOOR_BUILDINGS.find((b) => b.code === "H")!;
+      const pathNodes = [
+        { id: "room:A:8",  lat: 45.497, lng: -73.578, floor: 8, type: "room", ref: "H851.02" },
+        { id: "stair:mid", lat: 45.497, lng: -73.579, floor: 8, type: "staircase" },
+        { id: "room:B:8",  lat: 45.498, lng: -73.579, floor: 8, type: "room", ref: "H857" },
+      ];
+      mockUseIndoorMap.mockReturnValue({
+        ...defaultContextValue,
+        selectedBuilding: hallBuilding,
+        selectedFloor: 8,
+        startRoomRef: "H851.02",
+        destinationRoomRef: "H857",
+        currentPath: pathNodes,
+      });
+
+      // Act
+      const { getByText, queryByText } = render(<IndoorMapView />);
+
+      // Assert — "ST" marker exists but no arrow/floor label
+      expect(getByText("ST")).toBeTruthy();
+      expect(queryByText(/[▲▼]/)).toBeNull();
+    });
+  });
 });
 
