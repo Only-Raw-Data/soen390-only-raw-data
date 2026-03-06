@@ -66,6 +66,8 @@ const defaultContextValue = {
   destinationSearchQuery: "",
   startSearchError: null,
   destinationSearchError: null,
+  currentPath: null,
+  pathError: null,
   setSelectedBuilding: jest.fn(),
   setSelectedFloor: jest.fn(),
   setSearchQuery: jest.fn(),
@@ -77,6 +79,7 @@ const defaultContextValue = {
   searchDestinationRoom: jest.fn(),
   clearStartRoom: jest.fn(),
   clearDestinationRoom: jest.fn(),
+  clearPath: jest.fn(),
 };
 
 describe("IndoorMapView", () => {
@@ -208,34 +211,30 @@ describe("IndoorMapView", () => {
   it("calls searchStartRoom on start search submit", () => {
     // Arrange
     const searchStartRoom = jest.fn();
-    mockUseIndoorMap.mockReturnValue({
-      ...defaultContextValue,
-      startSearchQuery: "H-851",
-      searchStartRoom,
-    });
+    mockUseIndoorMap.mockReturnValue({ ...defaultContextValue, searchStartRoom });
 
     // Act
     const { getByTestId } = render(<IndoorMapView />);
-    fireEvent(getByTestId("room-search-start-input"), "submitEditing");
+    fireEvent(getByTestId("room-search-start-input"), "submitEditing", {
+      nativeEvent: { text: "H-851" },
+    });
 
-    // Assert
+    // Assert — text comes from nativeEvent, not React state
     expect(searchStartRoom).toHaveBeenCalledWith("H-851");
   });
 
   it("calls searchDestinationRoom on destination search submit", () => {
     // Arrange
     const searchDestinationRoom = jest.fn();
-    mockUseIndoorMap.mockReturnValue({
-      ...defaultContextValue,
-      destinationSearchQuery: "MB1.210",
-      searchDestinationRoom,
-    });
+    mockUseIndoorMap.mockReturnValue({ ...defaultContextValue, searchDestinationRoom });
 
     // Act
     const { getByTestId } = render(<IndoorMapView />);
-    fireEvent(getByTestId("room-search-destination-input"), "submitEditing");
+    fireEvent(getByTestId("room-search-destination-input"), "submitEditing", {
+      nativeEvent: { text: "MB1.210" },
+    });
 
-    // Assert
+    // Assert — text comes from nativeEvent, not React state
     expect(searchDestinationRoom).toHaveBeenCalledWith("MB1.210");
   });
 
@@ -389,6 +388,62 @@ describe("IndoorMapView", () => {
     expect(getByTestId("destination-room-label").props.children).toBe("MB1.210");
     expect(getByText("From:")).toBeTruthy();
     expect(getByText("To:")).toBeTruthy();
+  });
+
+  it("renders path polyline when currentPath has nodes on current floor", () => {
+    // Arrange
+    const hallBuilding = INDOOR_BUILDINGS.find((b) => b.code === "H")!;
+    const pathNodes = [
+      { id: "room:H851.02:8", lat: 45.497, lng: -73.578, floor: 8, type: "room", ref: "H851.02" },
+      { id: "wp:1",           lat: 45.497, lng: -73.579, floor: 8, type: "waypoint" },
+      { id: "room:H857:8",   lat: 45.498, lng: -73.579, floor: 8, type: "room", ref: "H857" },
+    ];
+    mockUseIndoorMap.mockReturnValue({
+      ...defaultContextValue,
+      selectedBuilding: hallBuilding,
+      selectedFloor: 8,
+      startRoomRef: "H851.02",
+      destinationRoomRef: "H857",
+      currentPath: pathNodes,
+    });
+
+    // Act
+    const { getByTestId } = render(<IndoorMapView />);
+
+    // Assert — polyline rendered with correct number of coordinates
+    const polyline = getByTestId("path-polyline");
+    expect(polyline.props.accessibilityLabel).toBe("polyline-3-coords");
+  });
+
+  it("does not render polyline when currentPath is null", () => {
+    // Arrange + Act
+    const { queryByTestId } = render(<IndoorMapView />);
+
+    // Assert
+    expect(queryByTestId("path-polyline")).toBeNull();
+  });
+
+  it("shows path error banner when pathError is set", () => {
+    // Arrange
+    mockUseIndoorMap.mockReturnValue({
+      ...defaultContextValue,
+      pathError: "No path found between these rooms",
+    });
+
+    // Act
+    const { getByTestId, getByText } = render(<IndoorMapView />);
+
+    // Assert
+    expect(getByTestId("path-error-banner")).toBeTruthy();
+    expect(getByText("No path found between these rooms")).toBeTruthy();
+  });
+
+  it("does not show path error banner when pathError is null", () => {
+    // Arrange + Act
+    const { queryByTestId } = render(<IndoorMapView />);
+
+    // Assert
+    expect(queryByTestId("path-error-banner")).toBeNull();
   });
 });
 

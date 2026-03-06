@@ -5,8 +5,10 @@ import {
   TouchableOpacity,
   ScrollView,
   StyleSheet,
+  Platform,
 } from "react-native";
-import MapView, { Marker, Polygon, PROVIDER_GOOGLE } from "react-native-maps";
+import MapView, { Marker, Polygon, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
+import { NodeType, GraphNode } from "@/app/services/indoorGraphService";
 import { CAMPUS_MAP_STYLE } from "@/constants/mapStyle";
 import RoomSearchBar from "./RoomSearchBar";
 import {
@@ -53,6 +55,8 @@ export default function IndoorMapView() {
     destinationSearchQuery,
     startSearchError,
     destinationSearchError,
+    currentPath,
+    pathError,
     setSelectedBuilding,
     setSelectedFloor,
     setSearchQuery,
@@ -68,6 +72,11 @@ export default function IndoorMapView() {
 
   const mapRef = useRef<MapView>(null);
 
+  // Hide Polyline during floor transitions to prevent react-native-maps Android crash
+  // (same key Polyline remounted too rapidly causes native layer crash)
+  const [pathReady, setPathReady] = useState(true);
+  const pathReadyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Only show room labels when zoomed in close enough
   const LABEL_ZOOM_THRESHOLD = 0.003;
   const [showLabels, setShowLabels] = useState(!!selectedBuilding);
@@ -79,7 +88,23 @@ export default function IndoorMapView() {
     [],
   );
 
-  // Animate map to building when selected
+  // Clean up floor-transition timer on unmount
+  useEffect(() => {
+    return () => {
+      if (pathReadyTimer.current) clearTimeout(pathReadyTimer.current);
+    };
+  }, []);
+
+  // When a new path arrives, ensure pathReady is true so the Polyline renders
+  useEffect(() => {
+    if (currentPath) {
+      setPathReady(true);
+    }
+  }, [currentPath]);
+
+  // Animate map to building when selected, then show labels after animation settles.
+  // We set showLabels explicitly here because onRegionChangeComplete is unreliable
+  // on Android after programmatic animateToRegion calls.
   useEffect(() => {
     if (selectedBuilding && mapRef.current) {
       mapRef.current.animateToRegion(
@@ -91,6 +116,9 @@ export default function IndoorMapView() {
         },
         500,
       );
+      // Show labels once the animation is done (500ms) + small buffer
+      const labelTimer = setTimeout(() => setShowLabels(true), 650);
+      return () => clearTimeout(labelTimer);
     }
   }, [selectedBuilding]);
 
@@ -118,17 +146,9 @@ export default function IndoorMapView() {
     clearHighlight();
   };
 
-  const handleStartSearchSubmit = () => {
-    searchStartRoom(startSearchQuery);
-  };
-
   const handleClearStartSearch = () => {
     setStartSearchQuery("");
     clearStartRoom();
-  };
-
-  const handleDestinationSearchSubmit = () => {
-    searchDestinationRoom(destinationSearchQuery);
   };
 
   const handleClearDestinationSearch = () => {
@@ -144,7 +164,11 @@ export default function IndoorMapView() {
 
   const handleFloorSelect = (floor: number) => {
     clearHighlight();
+    // Unmount Polyline first, let the native layer settle, then remount on new floor
+    setPathReady(false);
+    if (pathReadyTimer.current) clearTimeout(pathReadyTimer.current);
     setSelectedFloor(floor);
+    pathReadyTimer.current = setTimeout(() => setPathReady(true), 150);
   };
 
   const convertCoordinates = (feature: IndoorFeature) => {
@@ -182,6 +206,49 @@ export default function IndoorMapView() {
     ? polygonFeatures.find((f) => f.properties?.ref === highlightedRoomRef)
     : null;
 
+  // Filter path nodes to the current floor for per-floor polyline rendering.
+  // Prefer showing only corridor/staircase/elevator waypoints (keeps line in hallways).
+  // Fall back to including Room nodes if fewer than 2 waypoints remain.
+  const pathCoordinates = useMemo(() => {
+    if (!currentPath || selectedFloor === null) return [];
+
+    const onFloor = currentPath
+      .filter((node) => node.floor === selectedFloor)
+      .filter((c) => isFinite(c.lat) && isFinite(c.lng));
+
+    // Exclude Room centroid nodes so the line stays in hallways.
+    // Start/destination rooms are already highlighted by colored polygons.
+    const filtered = onFloor.filter((n) => n.type !== NodeType.Room);
+    const chosen = filtered.length >= 2 ? filtered : onFloor;
+
+    return chosen.map((node) => ({ latitude: node.lat, longitude: node.lng }));
+  }, [currentPath, selectedFloor]);
+
+  // Staircase / elevator nodes on the current floor that lead to another floor.
+  // These are rendered as labelled markers so the user can see exactly where
+  // to take stairs/elevator and which floor they lead to.
+  const transitionPoints = useMemo(() => {
+    if (!currentPath || selectedFloor === null) return [] as {
+      node: GraphNode; toFloor: number | null; direction: "up" | "down" | null;
+    }[];
+    return currentPath.flatMap((node, i) => {
+      if (node.floor !== selectedFloor) return [];
+      if (node.type !== NodeType.Staircase && node.type !== NodeType.Elevator) return [];
+      if (!isFinite(node.lat) || !isFinite(node.lng)) return [];
+      // Look at neighboring nodes to find which floor this transition leads to
+      const prev = currentPath[i - 1];
+      const next = currentPath[i + 1];
+      const neighbor =
+        next && next.floor !== selectedFloor ? next :
+        prev && prev.floor !== selectedFloor ? prev :
+        null;
+      const toFloor = neighbor?.floor ?? null;
+      const direction: "up" | "down" | null =
+        toFloor !== null ? (toFloor > selectedFloor ? "up" : "down") : null;
+      return [{ node, toFloor, direction }];
+    });
+  }, [currentPath, selectedFloor]);
+
   const initialRegion = selectedBuilding
     ? {
       latitude: selectedBuilding.centerLat,
@@ -205,7 +272,7 @@ export default function IndoorMapView() {
           <RoomSearchBar
             value={startSearchQuery}
             onChangeText={setStartSearchQuery}
-            onSubmit={handleStartSearchSubmit}
+            onSubmit={searchStartRoom}
             onClear={handleClearStartSearch}
             error={startSearchError}
             placeholder="Start room (e.g., H-820)"
@@ -220,7 +287,7 @@ export default function IndoorMapView() {
           <RoomSearchBar
             value={destinationSearchQuery}
             onChangeText={setDestinationSearchQuery}
-            onSubmit={handleDestinationSearchSubmit}
+            onSubmit={searchDestinationRoom}
             onClear={handleClearDestinationSearch}
             error={destinationSearchError}
             placeholder="Destination room (e.g., H-820)"
@@ -297,6 +364,13 @@ export default function IndoorMapView() {
         </View>
       )}
 
+      {/* Path error banner */}
+      {pathError && (
+        <View style={styles.pathErrorBanner} testID="path-error-banner">
+          <Text style={styles.pathErrorText}>{pathError}</Text>
+        </View>
+      )}
+
       {/* Map */}
       <View style={styles.mapContainer}>
         <MapView
@@ -323,7 +397,48 @@ export default function IndoorMapView() {
               />
             );
           })}
-          {/* Room number labels — only visible when zoomed in */}
+          {/* Shortest path polyline — filtered to current floor */}
+          {startRoomRef && destinationRoomRef && pathCoordinates.length > 1 && pathReady && (
+            <Polyline
+              key={`path-floor-${selectedFloor ?? "none"}`}
+              coordinates={pathCoordinates}
+              strokeColor="#007AFF"
+              strokeWidth={4}
+              geodesic={false}
+              testID="path-polyline"
+            />
+          )}
+
+          {/* Staircase / elevator transition markers */}
+          {transitionPoints.map(({ node, toFloor, direction }) => {
+            const isElevator = node.type === NodeType.Elevator;
+            const floorStr =
+              toFloor === null ? "" :
+              toFloor < 0 ? `B${Math.abs(toFloor)}` : `${toFloor}`;
+            const arrow = direction === "up" ? "▲" : direction === "down" ? "▼" : "";
+            return (
+              <Marker
+                key={`transition-${node.id}`}
+                coordinate={{ latitude: node.lat, longitude: node.lng }}
+                anchor={{ x: 0.5, y: 0.5 }}
+                tracksViewChanges={false}
+              >
+                <View style={[
+                  styles.transitionMarker,
+                  isElevator ? styles.elevatorMarker : styles.staircaseMarker,
+                ]}>
+                  <Text style={styles.transitionIcon}>
+                    {isElevator ? "EL" : "ST"}
+                  </Text>
+                  {floorStr !== "" && (
+                    <Text style={styles.transitionFloor}>{arrow}{floorStr}</Text>
+                  )}
+                </View>
+              </Marker>
+            );
+          })}
+
+          {/* Room number labels — only when zoomed in */}
           {showLabels && polygonFeatures.map((feature, index) => {
             if (!feature.properties?.ref) return null;
             const coords = convertCoordinates(feature);
@@ -335,7 +450,7 @@ export default function IndoorMapView() {
                 key={`label-${feature.properties.ref}-${index}`}
                 coordinate={centroid}
                 anchor={{ x: 0.5, y: 0.5 }}
-                tracksViewChanges={false}
+                tracksViewChanges={Platform.OS === "android"}
               >
                 <View style={styles.roomLabelContainer}>
                   <Text
@@ -371,6 +486,34 @@ export default function IndoorMapView() {
               <Text style={styles.infoValue} testID="destination-room-label">{destinationRoomRef}</Text>
             </View>
           )}
+          {startRoomRef && destinationRoomRef && (() => {
+            if (!currentPath) {
+              return (
+                <View style={styles.infoRow}>
+                  <View style={[styles.infoDot, { backgroundColor: "#9CA3AF" }]} />
+                  <Text style={styles.infoLabel} testID="path-status">Computing route…</Text>
+                </View>
+              );
+            }
+            const floors = [...new Set(currentPath.map((n) => n.floor))].sort((a, b) => a - b);
+            const isMultiFloor = floors.length > 1;
+            return (
+              <>
+                <View style={styles.infoRow}>
+                  <View style={[styles.infoDot, { backgroundColor: "#007AFF" }]} />
+                  <Text style={styles.infoLabel} testID="path-status">
+                    {`Route: ${currentPath.length} steps`}
+                    {isMultiFloor && ` · floors ${floors.map((f) => f < 0 ? `B${Math.abs(f)}` : f).join("→")}`}
+                  </Text>
+                </View>
+                {isMultiFloor && pathCoordinates.length === 0 && (
+                  <Text style={[styles.infoLabel, { marginTop: 2, color: "#F59E0B" }]}>
+                    Switch floor to see this segment
+                  </Text>
+                )}
+              </>
+            );
+          })()}
           {highlightedFeature && !startRoomRef && !destinationRoomRef && (
             <>
               <Text style={styles.infoTitle}>{highlightedFeature.properties?.ref}</Text>
@@ -549,5 +692,52 @@ const styles = StyleSheet.create({
   },
   infoDotDestination: {
     backgroundColor: "#2563EB",
+  },
+  pathErrorBanner: {
+    backgroundColor: "#FEF2F2",
+    borderBottomWidth: 1,
+    borderBottomColor: "#FECACA",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  pathErrorText: {
+    fontSize: 13,
+    color: "#DC2626",
+    textAlign: "center",
+  },
+  transitionMarker: {
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    borderWidth: 1.5,
+    borderColor: "#FFFFFF",
+    minWidth: 36,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  staircaseMarker: {
+    backgroundColor: "#F59E0B",   // amber — stairs
+    borderColor: "#B45309",
+  },
+  elevatorMarker: {
+    backgroundColor: "#7C3AED",   // purple — elevator
+    borderColor: "#5B21B6",
+  },
+  transitionIcon: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    letterSpacing: 0.5,
+  },
+  transitionFloor: {
+    fontSize: 9,
+    fontWeight: "700",
+    color: "#FFFFFF",
+    marginTop: 1,
   },
 });

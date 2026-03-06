@@ -2,6 +2,8 @@ import React, {
   createContext,
   useContext,
   useState,
+  useEffect,
+  useRef,
   useMemo,
   useCallback,
   ReactNode,
@@ -11,6 +13,8 @@ import {
   IndoorFeature,
   IndoorGeoJSON,
 } from "../types/indoorMap";
+import { buildIndoorGraph, GraphNode, IndoorGraph } from "../services/indoorGraphService";
+import { findIndoorPath } from "../services/indoorPathService";
 
 import hallData from "@/constants/indoorData/hall.json";
 import jmsbData from "@/constants/indoorData/jmsb.json";
@@ -249,6 +253,8 @@ interface IndoorMapContextType {
   destinationSearchQuery: string;
   startSearchError: string | null;
   destinationSearchError: string | null;
+  currentPath: GraphNode[] | null;
+  pathError: string | null;
   setSelectedBuilding: (building: IndoorBuildingConfig | null) => void;
   setSelectedFloor: (floor: number | null) => void;
   setSearchQuery: (query: string) => void;
@@ -260,6 +266,7 @@ interface IndoorMapContextType {
   searchDestinationRoom: (query: string) => void;
   clearStartRoom: () => void;
   clearDestinationRoom: () => void;
+  clearPath: () => void;
 }
 
 const IndoorMapContext = createContext<IndoorMapContextType | undefined>(
@@ -285,6 +292,11 @@ export default function IndoorMapProvider({
   const [destinationSearchQuery, setDestinationSearchQuery] = useState("");
   const [startSearchError, setStartSearchError] = useState<string | null>(null);
   const [destinationSearchError, setDestinationSearchError] = useState<string | null>(null);
+  const [currentPath, setCurrentPath] = useState<GraphNode[] | null>(null);
+  const [pathError, setPathError] = useState<string | null>(null);
+
+  // Cache built graphs per building dataFile to avoid rebuilding on every render
+  const graphCache = useRef<Map<string, IndoorGraph>>(new Map());
 
   const clearHighlight = useCallback(() => {
     setHighlightedRoomRef(null);
@@ -337,12 +349,58 @@ export default function IndoorMapProvider({
   const clearStartRoom = useCallback(() => {
     setStartRoomRef(null);
     setStartSearchError(null);
+    setCurrentPath(null);
+    setPathError(null);
   }, []);
 
   const clearDestinationRoom = useCallback(() => {
     setDestinationRoomRef(null);
     setDestinationSearchError(null);
+    setCurrentPath(null);
+    setPathError(null);
   }, []);
+
+  const clearPath = useCallback(() => {
+    setCurrentPath(null);
+    setPathError(null);
+  }, []);
+
+  // Auto-compute shortest path whenever both rooms are set
+  useEffect(() => {
+    if (!startRoomRef || !destinationRoomRef || !selectedBuilding) {
+      clearPath();
+      return;
+    }
+
+    const geoJson = getGeoJsonForBuilding(selectedBuilding);
+    if (!geoJson) {
+      setPathError("No map data for this building");
+      return;
+    }
+
+    try {
+      // Build (or reuse cached) graph for this building
+      const cacheKey = selectedBuilding.dataFile;
+      let graph = graphCache.current.get(cacheKey);
+      if (!graph) {
+        graph = buildIndoorGraph(geoJson);
+        graphCache.current.set(cacheKey, graph);
+      }
+
+      const path = findIndoorPath(graph, startRoomRef, destinationRoomRef);
+      if (path) {
+        setCurrentPath(path);
+        setPathError(null);
+      } else {
+        setCurrentPath(null);
+        setPathError("No path found between these rooms");
+      }
+    } catch (err) {
+      console.error("[IndoorMapContext] ERROR in path computation:", err);
+      setCurrentPath(null);
+      setPathError("Error computing path");
+    }
+  }, [startRoomRef, destinationRoomRef, selectedBuilding, clearPath]);
 
   const value = useMemo(
     () => ({
@@ -357,6 +415,8 @@ export default function IndoorMapProvider({
       destinationSearchQuery,
       startSearchError,
       destinationSearchError,
+      currentPath,
+      pathError,
       setSelectedBuilding,
       setSelectedFloor,
       setSearchQuery,
@@ -368,6 +428,7 @@ export default function IndoorMapProvider({
       searchDestinationRoom,
       clearStartRoom,
       clearDestinationRoom,
+      clearPath,
     }),
     [
       selectedBuilding,
@@ -381,12 +442,15 @@ export default function IndoorMapProvider({
       destinationSearchQuery,
       startSearchError,
       destinationSearchError,
+      currentPath,
+      pathError,
       searchRoom,
       clearHighlight,
       searchStartRoom,
       searchDestinationRoom,
       clearStartRoom,
       clearDestinationRoom,
+      clearPath,
     ],
   );
 
