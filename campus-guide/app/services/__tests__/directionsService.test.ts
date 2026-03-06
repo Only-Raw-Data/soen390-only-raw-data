@@ -274,6 +274,240 @@ describe("directionsService", () => {
     });
   });
 
+  describe("transit segment parsing", () => {
+    it("requests step-level field mask for transit mode", async () => {
+      // Arrange
+      const mockResponse = {
+        routes: [{
+          polyline: { encodedPolyline: "a~l~Fjk~uOnA?jxD" },
+          duration: "600s",
+          distanceMeters: 2500,
+          legs: [],
+        }],
+      };
+
+      (globalThis.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: jest.fn().mockResolvedValue(mockResponse),
+      });
+
+      // Act
+      await fetchDirections(
+        { lat: 45.4971, lng: -73.5791 },
+        { lat: 45.4953, lng: -73.5782 },
+        "transit",
+      );
+
+      // Assert
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            "X-Goog-FieldMask": expect.stringContaining("routes.legs.steps.travelMode"),
+          }),
+        }),
+      );
+    });
+
+    it("does not request step-level fields for non-transit modes", async () => {
+      // Arrange
+      const mockResponse = {
+        routes: [{
+          polyline: { encodedPolyline: "a~l~Fjk~uOnA?jxD" },
+          duration: "300s",
+          distanceMeters: 1000,
+        }],
+      };
+
+      (globalThis.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: jest.fn().mockResolvedValue(mockResponse),
+      });
+
+      // Act
+      await fetchDirections(
+        { lat: 45.4971, lng: -73.5791 },
+        { lat: 45.4953, lng: -73.5782 },
+        "walk",
+      );
+
+      // Assert
+      const calledWith = (globalThis.fetch as jest.Mock).mock.calls[0][1];
+      expect(calledWith.headers["X-Goog-FieldMask"]).not.toContain("legs.steps");
+    });
+
+    it("parses walk and bus steps into typed segments", async () => {
+      // Arrange
+      const mockResponse = {
+        routes: [{
+          polyline: { encodedPolyline: "a~l~Fjk~uOnA?jxD" },
+          duration: "900s",
+          distanceMeters: 3000,
+          legs: [{
+            steps: [
+              {
+                travelMode: "WALK",
+                polyline: { encodedPolyline: "a~l~Fjk~uOnA?jxD" },
+              },
+              {
+                travelMode: "TRANSIT",
+                polyline: { encodedPolyline: "a~l~Fjk~uOnA?jxD" },
+                transitDetails: {
+                  transitLine: { vehicle: { type: "BUS" }, nameShort: "80" },
+                },
+              },
+            ],
+          }],
+        }],
+      };
+
+      (globalThis.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: jest.fn().mockResolvedValue(mockResponse),
+      });
+
+      // Act
+      const result = await fetchDirections(
+        { lat: 45.4971, lng: -73.5791 },
+        { lat: 45.4953, lng: -73.5782 },
+        "transit",
+      );
+
+      // Assert
+      expect(result?.segments).toHaveLength(2);
+      expect(result?.segments?.[0].mode).toBe("WALK");
+      expect(result?.segments?.[1].mode).toBe("BUS");
+      expect(result?.segments?.[1].lineName).toBe("80");
+    });
+
+    it.each([
+      { vehicleType: "SUBWAY", expected: "SUBWAY" },
+      { vehicleType: "METRO_RAIL", expected: "SUBWAY" },
+      { vehicleType: "TRAM", expected: "TRAM" },
+      { vehicleType: "LIGHT_RAIL", expected: "TRAM" },
+      { vehicleType: "RAIL", expected: "RAIL" },
+      { vehicleType: "COMMUTER_TRAIN", expected: "RAIL" },
+      { vehicleType: "INTERCITY_BUS", expected: "BUS" },
+      { vehicleType: "UNKNOWN_VEHICLE", expected: "BUS" },
+    ])("classifies $vehicleType as $expected segment mode", async ({ vehicleType, expected }) => {
+      // Arrange
+      const mockResponse = {
+        routes: [{
+          polyline: { encodedPolyline: "a~l~Fjk~uOnA?jxD" },
+          duration: "600s",
+          distanceMeters: 2000,
+          legs: [{
+            steps: [{
+              travelMode: "TRANSIT",
+              polyline: { encodedPolyline: "a~l~Fjk~uOnA?jxD" },
+              transitDetails: {
+                transitLine: { vehicle: { type: vehicleType } },
+              },
+            }],
+          }],
+        }],
+      };
+
+      (globalThis.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: jest.fn().mockResolvedValue(mockResponse),
+      });
+
+      // Act
+      const result = await fetchDirections(
+        { lat: 45.4971, lng: -73.5791 },
+        { lat: 45.4953, lng: -73.5782 },
+        "transit",
+      );
+
+      // Assert
+      expect(result?.segments?.[0].mode).toBe(expected);
+    });
+
+    it("returns no segments when transit response has no legs", async () => {
+      // Arrange
+      const mockResponse = {
+        routes: [{
+          polyline: { encodedPolyline: "a~l~Fjk~uOnA?jxD" },
+          duration: "600s",
+          distanceMeters: 2500,
+        }],
+      };
+
+      (globalThis.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: jest.fn().mockResolvedValue(mockResponse),
+      });
+
+      // Act
+      const result = await fetchDirections(
+        { lat: 45.4971, lng: -73.5791 },
+        { lat: 45.4953, lng: -73.5782 },
+        "transit",
+      );
+
+      // Assert
+      expect(result?.segments).toBeUndefined();
+    });
+
+    it("returns no segments for non-transit modes", async () => {
+      // Arrange
+      const mockResponse = {
+        routes: [{
+          polyline: { encodedPolyline: "a~l~Fjk~uOnA?jxD" },
+          duration: "300s",
+          distanceMeters: 1000,
+        }],
+      };
+
+      (globalThis.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: jest.fn().mockResolvedValue(mockResponse),
+      });
+
+      // Act
+      const result = await fetchDirections(
+        { lat: 45.4971, lng: -73.5791 },
+        { lat: 45.4953, lng: -73.5782 },
+        "car",
+      );
+
+      // Assert
+      expect(result?.segments).toBeUndefined();
+    });
+
+    it("handles step with missing polyline gracefully", async () => {
+      // Arrange
+      const mockResponse = {
+        routes: [{
+          polyline: { encodedPolyline: "a~l~Fjk~uOnA?jxD" },
+          duration: "600s",
+          distanceMeters: 2000,
+          legs: [{
+            steps: [{
+              travelMode: "WALK",
+            }],
+          }],
+        }],
+      };
+
+      (globalThis.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: jest.fn().mockResolvedValue(mockResponse),
+      });
+
+      // Act
+      const result = await fetchDirections(
+        { lat: 45.4971, lng: -73.5791 },
+        { lat: 45.4953, lng: -73.5782 },
+        "transit",
+      );
+
+      // Assert
+      expect(result?.segments?.[0].coordinates).toEqual([]);
+    });
+  });
+
   it("returns null when routes array is undefined", async () => {
     // Arrange
     const mockResponse = {};

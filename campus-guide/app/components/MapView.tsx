@@ -24,6 +24,15 @@ import BuildingInformation from "./BuildingInformation";
 import LocateMeButton from "./LocateMeButton";
 import useUserLocation from "../hooks/useUserLocation";
 import { isWithinShuttleHours } from "../utils/shuttleHours";
+import { SegmentMode } from "../types/transportation";
+
+const SEGMENT_COLORS: Record<SegmentMode, string> = {
+  WALK:   '#3B82F6',
+  BUS:    '#16A34A',
+  SUBWAY: '#F97316',
+  TRAM:   '#DC2626',
+  RAIL:   '#DC2626',
+};
 
 interface MapViewAppProps {
   readonly googleMapsApiKey?: string;
@@ -370,15 +379,11 @@ export default function MapViewApp({
     {transportationMode === 'transit' && route.segments && route.segments.length > 0
       ? route.segments.map((seg, i) => {
           const isWalk = seg.mode === 'WALK';
-          const color =
-            seg.mode === 'BUS'    ? '#16A34A' :
-            seg.mode === 'SUBWAY' ? '#F97316' :
-            seg.mode === 'TRAM'   ? '#DC2626' :
-            seg.mode === 'RAIL'   ? '#DC2626' :
-            '#3B82F6'; // WALK
+          const color = SEGMENT_COLORS[seg.mode];
+          const segKey = `transit-seg-${seg.mode}-${i}-${seg.coordinates[0]?.latitude ?? i}`;
           return (
             <Polyline
-              key={`transit-seg-${i}`}
+              key={segKey}
               coordinates={seg.coordinates}
               strokeWidth={isWalk ? 3 : 5}
               strokeColor={color}
