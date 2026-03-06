@@ -255,6 +255,7 @@ interface IndoorMapContextType {
   destinationSearchError: string | null;
   currentPath: GraphNode[] | null;
   pathError: string | null;
+  accessible: boolean;
   setSelectedBuilding: (building: IndoorBuildingConfig | null) => void;
   setSelectedFloor: (floor: number | null) => void;
   setSearchQuery: (query: string) => void;
@@ -267,6 +268,7 @@ interface IndoorMapContextType {
   clearStartRoom: () => void;
   clearDestinationRoom: () => void;
   clearPath: () => void;
+  toggleAccessible: () => void;
 }
 
 const IndoorMapContext = createContext<IndoorMapContextType | undefined>(
@@ -294,6 +296,11 @@ export default function IndoorMapProvider({
   const [destinationSearchError, setDestinationSearchError] = useState<string | null>(null);
   const [currentPath, setCurrentPath] = useState<GraphNode[] | null>(null);
   const [pathError, setPathError] = useState<string | null>(null);
+  const [accessible, setAccessible] = useState(false);
+
+  const toggleAccessible = useCallback(() => {
+    setAccessible((prev) => !prev);
+  }, []);
 
   // Cache built graphs per building dataFile to avoid rebuilding on every render
   const graphCache = useRef<Map<string, IndoorGraph>>(new Map());
@@ -387,20 +394,23 @@ export default function IndoorMapProvider({
         graphCache.current.set(cacheKey, graph);
       }
 
-      const path = findIndoorPath(graph, startRoomRef, destinationRoomRef);
+      const path = findIndoorPath(graph, startRoomRef, destinationRoomRef, accessible);
       if (path) {
         setCurrentPath(path);
         setPathError(null);
       } else {
+        const msg = accessible
+          ? "No accessible route found (no elevator/ramp between these rooms)"
+          : "No path found between these rooms";
         setCurrentPath(null);
-        setPathError("No path found between these rooms");
+        setPathError(msg);
       }
     } catch (err) {
       console.error("[IndoorMapContext] ERROR in path computation:", err);
       setCurrentPath(null);
       setPathError("Error computing path");
     }
-  }, [startRoomRef, destinationRoomRef, selectedBuilding, clearPath]);
+  }, [startRoomRef, destinationRoomRef, selectedBuilding, accessible, clearPath]);
 
   const value = useMemo(
     () => ({
@@ -417,6 +427,7 @@ export default function IndoorMapProvider({
       destinationSearchError,
       currentPath,
       pathError,
+      accessible,
       setSelectedBuilding,
       setSelectedFloor,
       setSearchQuery,
@@ -429,6 +440,7 @@ export default function IndoorMapProvider({
       clearStartRoom,
       clearDestinationRoom,
       clearPath,
+      toggleAccessible,
     }),
     [
       selectedBuilding,
@@ -444,6 +456,7 @@ export default function IndoorMapProvider({
       destinationSearchError,
       currentPath,
       pathError,
+      accessible,
       searchRoom,
       clearHighlight,
       searchStartRoom,
@@ -451,6 +464,7 @@ export default function IndoorMapProvider({
       clearStartRoom,
       clearDestinationRoom,
       clearPath,
+      toggleAccessible,
     ],
   );
 

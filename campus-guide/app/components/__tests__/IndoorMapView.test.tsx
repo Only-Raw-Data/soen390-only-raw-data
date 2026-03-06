@@ -83,6 +83,7 @@ const defaultContextValue = {
   destinationSearchError: null,
   currentPath: null,
   pathError: null,
+  accessible: false,
   setSelectedBuilding: jest.fn(),
   setSelectedFloor: jest.fn(),
   setSearchQuery: jest.fn(),
@@ -95,6 +96,7 @@ const defaultContextValue = {
   clearStartRoom: jest.fn(),
   clearDestinationRoom: jest.fn(),
   clearPath: jest.fn(),
+  toggleAccessible: jest.fn(),
 };
 
 describe("IndoorMapView", () => {
@@ -112,6 +114,40 @@ describe("IndoorMapView", () => {
     // Assert
     expect(getByTestId("room-search-start-input")).toBeTruthy();
     expect(getByTestId("room-search-destination-input")).toBeTruthy();
+  });
+
+  it("renders accessibility toggle", () => {
+    // Arrange + Act
+    const { getByTestId, getByText } = render(<IndoorMapView />);
+
+    // Assert
+    expect(getByTestId("accessible-toggle")).toBeTruthy();
+    expect(getByText("Accessible Route")).toBeTruthy();
+    expect(getByText("OFF")).toBeTruthy();
+  });
+
+  it("shows ON state when accessible mode is enabled", () => {
+    // Arrange
+    mockUseIndoorMap.mockReturnValue({ ...defaultContextValue, accessible: true });
+
+    // Act
+    const { getByText } = render(<IndoorMapView />);
+
+    // Assert
+    expect(getByText("ON")).toBeTruthy();
+  });
+
+  it("calls toggleAccessible when accessibility toggle is pressed", () => {
+    // Arrange
+    const toggleAccessible = jest.fn();
+    mockUseIndoorMap.mockReturnValue({ ...defaultContextValue, toggleAccessible });
+
+    // Act
+    const { getByTestId } = render(<IndoorMapView />);
+    fireEvent.press(getByTestId("accessible-toggle"));
+
+    // Assert
+    expect(toggleAccessible).toHaveBeenCalledTimes(1);
   });
 
   it("renders all building pills", () => {

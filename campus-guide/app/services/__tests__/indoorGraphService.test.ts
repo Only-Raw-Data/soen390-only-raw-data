@@ -10,6 +10,11 @@ const WP1 = [-73.579, 45.497];
 const WP2 = [-73.578, 45.497];
 const WP3 = [-73.577, 45.497];
 
+// Waypoint node IDs now include the floor: "coordKey:floor"
+function wpId(coord: number[], floor = 1): string {
+  return `${coordKey(coord[0], coord[1])}:${floor}`;
+}
+
 // Room polygon whose first vertex coincides with WP1
 const ROOM_COORDS = [
   WP1,
@@ -112,9 +117,9 @@ describe("buildIndoorGraph – corridor (hallway) features", () => {
 
   it("creates a waypoint node for every corridor coordinate", () => {
     const g = buildIndoorGraph(geoJson);
-    expect(g.nodes.has(coordKey(WP1[0], WP1[1]))).toBe(true);
-    expect(g.nodes.has(coordKey(WP2[0], WP2[1]))).toBe(true);
-    expect(g.nodes.has(coordKey(WP3[0], WP3[1]))).toBe(true);
+    expect(g.nodes.has(wpId(WP1))).toBe(true);
+    expect(g.nodes.has(wpId(WP2))).toBe(true);
+    expect(g.nodes.has(wpId(WP3))).toBe(true);
   });
 
   it("assigns type 'waypoint' to all corridor nodes", () => {
@@ -153,12 +158,12 @@ describe("buildIndoorGraph – corridor (hallway) features", () => {
 
   it("builds a bidirectional adjacency list", () => {
     const g = buildIndoorGraph(geoJson);
-    const wp1Id = coordKey(WP1[0], WP1[1]);
-    const wp2Id = coordKey(WP2[0], WP2[1]);
-    const neighborsOfWp1 = g.adjacency.get(wp1Id)!.map((e) => e.nodeId);
-    const neighborsOfWp2 = g.adjacency.get(wp2Id)!.map((e) => e.nodeId);
-    expect(neighborsOfWp1).toContain(wp2Id);
-    expect(neighborsOfWp2).toContain(wp1Id);
+    const wp1 = wpId(WP1);
+    const wp2 = wpId(WP2);
+    const neighborsOfWp1 = g.adjacency.get(wp1)!.map((e) => e.nodeId);
+    const neighborsOfWp2 = g.adjacency.get(wp2)!.map((e) => e.nodeId);
+    expect(neighborsOfWp1).toContain(wp2);
+    expect(neighborsOfWp2).toContain(wp1);
   });
 
   it("does not duplicate nodes for shared corridor coordinates", () => {
@@ -168,10 +173,10 @@ describe("buildIndoorGraph – corridor (hallway) features", () => {
       corridor([WP2, WP3]),
     ]);
     const g = buildIndoorGraph(gj);
-    expect(g.nodes.has(coordKey(WP2[0], WP2[1]))).toBe(true);
+    expect(g.nodes.has(wpId(WP2))).toBe(true);
     // WP2 should be stored exactly once
     const wp2Count = [...g.nodes.keys()].filter(
-      (k) => k === coordKey(WP2[0], WP2[1]),
+      (k) => k === wpId(WP2),
     ).length;
     expect(wp2Count).toBe(1);
   });
@@ -267,8 +272,8 @@ describe("buildIndoorGraph – elevator features", () => {
   it("weights the elevator edge by floor difference × penalty", () => {
     const g = buildIndoorGraph(geoJson);
     const elevEdge = g.edges.find((e) => e.type === "elevator")!;
-    // 8 floors apart × 5 m/floor = 40 m
-    expect(elevEdge.weight).toBe(40);
+    // 8 floors apart × 100 m/floor = 800 m
+    expect(elevEdge.weight).toBe(800);
   });
 
   it("connects elevator nodes to the corridor network", () => {
@@ -317,9 +322,9 @@ describe("buildIndoorGraph – staircase features", () => {
   it("weights staircase edges by floor difference × penalty", () => {
     const g = buildIndoorGraph(geoJson);
     const stairEdges = g.edges.filter((e) => e.type === "staircase");
-    // Each adjacent pair is 1 floor apart × 10 m/floor = 10 m
+    // Each adjacent pair is 1 floor apart × 5 m/floor = 5 m
     for (const edge of stairEdges) {
-      expect(edge.weight).toBe(10);
+      expect(edge.weight).toBe(5);
     }
   });
 

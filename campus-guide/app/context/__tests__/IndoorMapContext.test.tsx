@@ -29,6 +29,7 @@ describe("IndoorMapContext", () => {
       expect(result.current.destinationSearchQuery).toBe("");
       expect(result.current.startSearchError).toBeNull();
       expect(result.current.destinationSearchError).toBeNull();
+      expect(result.current.accessible).toBe(false);
     });
   });
 
@@ -479,6 +480,50 @@ describe("IndoorMapContext", () => {
       // Assert — path can't be computed because geoJson is null for "nonexistent"
       // The building was overridden so either pathError is set or path is cleared
       expect(result.current.currentPath).toBeNull();
+    });
+  });
+
+  describe("accessible mode", () => {
+    it("should toggle accessible state", () => {
+      // Arrange
+      const { result } = renderHook(() => useIndoorMap(), { wrapper });
+      expect(result.current.accessible).toBe(false);
+
+      // Act
+      act(() => {
+        result.current.toggleAccessible();
+      });
+
+      // Assert
+      expect(result.current.accessible).toBe(true);
+
+      // Act — toggle back
+      act(() => {
+        result.current.toggleAccessible();
+      });
+
+      // Assert
+      expect(result.current.accessible).toBe(false);
+    });
+
+    it("should recompute path when accessible mode is toggled", () => {
+      // Arrange
+      const { result } = renderHook(() => useIndoorMap(), { wrapper });
+      act(() => {
+        result.current.searchStartRoom("H851.02");
+      });
+      act(() => {
+        result.current.searchDestinationRoom("H857");
+      });
+      expect(result.current.currentPath).not.toBeNull();
+// Act — enable accessible mode
+      act(() => {
+        result.current.toggleAccessible();
+      });
+
+      // Assert — path recomputed (same floor so should still find one)
+      expect(result.current.accessible).toBe(true);
+      expect(result.current.currentPath).not.toBeNull();
     });
   });
 

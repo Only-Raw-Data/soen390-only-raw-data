@@ -128,6 +128,96 @@ describe("findIndoorPath", () => {
     });
   });
 
+  describe("accessible mode", () => {
+    it("avoids staircase edges when accessible is true", () => {
+      // Arrange: A → stair → B (staircase) and A → elev → B (elevator)
+      const nodes = new Map<string, GraphNode>([
+        ["room:A:1",  { id: "room:A:1",  lat: 0, lng: 0, floor: 1, type: NodeType.Room, ref: "A" }],
+        ["stair:1",   { id: "stair:1",   lat: 0, lng: 1, floor: 1, type: NodeType.Staircase }],
+        ["stair:2",   { id: "stair:2",   lat: 0, lng: 1, floor: 2, type: NodeType.Staircase }],
+        ["elev:1",    { id: "elev:1",    lat: 0, lng: 2, floor: 1, type: NodeType.Elevator }],
+        ["elev:2",    { id: "elev:2",    lat: 0, lng: 2, floor: 2, type: NodeType.Elevator }],
+        ["room:B:2",  { id: "room:B:2",  lat: 0, lng: 3, floor: 2, type: NodeType.Room, ref: "B" }],
+      ]);
+      const adjacency = new Map([
+        ["room:A:1", [
+          { nodeId: "stair:1", weight: 1, type: EdgeType.Corridor },
+          { nodeId: "elev:1",  weight: 1, type: EdgeType.Corridor },
+        ]],
+        ["stair:1", [
+          { nodeId: "room:A:1", weight: 1, type: EdgeType.Corridor },
+          { nodeId: "stair:2",  weight: 2, type: EdgeType.Staircase },
+        ]],
+        ["stair:2", [
+          { nodeId: "stair:1",  weight: 2, type: EdgeType.Staircase },
+          { nodeId: "room:B:2", weight: 1, type: EdgeType.Corridor },
+        ]],
+        ["elev:1", [
+          { nodeId: "room:A:1", weight: 1, type: EdgeType.Corridor },
+          { nodeId: "elev:2",   weight: 3, type: EdgeType.Elevator },
+        ]],
+        ["elev:2", [
+          { nodeId: "elev:1",   weight: 3, type: EdgeType.Elevator },
+          { nodeId: "room:B:2", weight: 1, type: EdgeType.Corridor },
+        ]],
+        ["room:B:2", [
+          { nodeId: "stair:2", weight: 1, type: EdgeType.Corridor },
+          { nodeId: "elev:2",  weight: 1, type: EdgeType.Corridor },
+        ]],
+      ]);
+      const graph: IndoorGraph = { nodes, edges: [], adjacency };
+
+      // Act
+      const normalPath = findIndoorPath(graph, "A", "B");
+      const accessiblePath = findIndoorPath(graph, "A", "B", true);
+
+      // Assert — normal path uses stairs (shorter), accessible uses elevator
+      expect(normalPath).not.toBeNull();
+      expect(normalPath!.some((n) => n.type === NodeType.Staircase)).toBe(true);
+
+      expect(accessiblePath).not.toBeNull();
+      expect(accessiblePath!.some((n) => n.type === NodeType.Staircase)).toBe(false);
+      expect(accessiblePath!.some((n) => n.type === NodeType.Elevator)).toBe(true);
+    });
+
+    it("returns null when only staircase path exists and accessible is true", () => {
+      // Arrange: A → stair → B (only stairs, no elevator)
+      const nodes = new Map<string, GraphNode>([
+        ["room:A:1",  { id: "room:A:1",  lat: 0, lng: 0, floor: 1, type: NodeType.Room, ref: "A" }],
+        ["stair:1",   { id: "stair:1",   lat: 0, lng: 1, floor: 1, type: NodeType.Staircase }],
+        ["stair:2",   { id: "stair:2",   lat: 0, lng: 1, floor: 2, type: NodeType.Staircase }],
+        ["room:B:2",  { id: "room:B:2",  lat: 0, lng: 2, floor: 2, type: NodeType.Room, ref: "B" }],
+      ]);
+      const adjacency = new Map([
+        ["room:A:1", [{ nodeId: "stair:1", weight: 1, type: EdgeType.Corridor }]],
+        ["stair:1",  [{ nodeId: "room:A:1", weight: 1, type: EdgeType.Corridor },
+                      { nodeId: "stair:2",  weight: 2, type: EdgeType.Staircase }]],
+        ["stair:2",  [{ nodeId: "stair:1",  weight: 2, type: EdgeType.Staircase },
+                      { nodeId: "room:B:2", weight: 1, type: EdgeType.Corridor }]],
+        ["room:B:2", [{ nodeId: "stair:2",  weight: 1, type: EdgeType.Corridor }]],
+      ]);
+      const graph: IndoorGraph = { nodes, edges: [], adjacency };
+
+      // Act
+      const path = findIndoorPath(graph, "A", "B", true);
+
+      // Assert
+      expect(path).toBeNull();
+    });
+
+    it("still finds same-floor path in accessible mode (no stairs involved)", () => {
+      // Arrange
+      const graph = makeSimpleGraph();
+
+      // Act
+      const path = findIndoorPath(graph, "A", "C", true);
+
+      // Assert — corridor-only path still works
+      expect(path).not.toBeNull();
+      expect(path).toHaveLength(3);
+    });
+  });
+
   describe("integration with real hall.json data", () => {
     let graph: IndoorGraph;
 

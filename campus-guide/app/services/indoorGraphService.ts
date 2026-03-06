@@ -36,8 +36,10 @@ export interface IndoorGraph {
 }
 
 // Metres added per floor for cross-floor traversal
-const ELEVATOR_FLOOR_PENALTY = 5;
-const STAIRCASE_FLOOR_PENALTY = 10;
+// Stairs are cheaper in normal mode (faster); elevator is cheaper only when
+// staircase edges are excluded in accessible mode.
+const ELEVATOR_FLOOR_PENALTY = 20;
+const STAIRCASE_FLOOR_PENALTY = 5;
 
 // Coordinate key rounded to ~1 cm precision (6 decimal places ≈ 0.11 m)
 export function coordKey(lng: number, lat: number): string {
@@ -126,6 +128,11 @@ export function buildIndoorGraph(geoJson: IndoorGeoJSON): IndoorGraph {
   // Tracks which coordinate keys belong to corridor waypoints, keyed by floor
   const waypointsByFloor = new Map<number, Set<string>>();
 
+  // Builds a floor-specific waypoint node ID from a coordinate key and floor.
+  function waypointId(key: string, floor: number): string {
+    return `${key}:${floor}`;
+  }
+
   // Connects a polygon node to any corridor waypoints whose coordinates appear
   // in the polygon's outer ring on the given floor.
   function connectToCorridors(
@@ -140,8 +147,9 @@ export function buildIndoorGraph(geoJson: IndoorGeoJSON): IndoorGraph {
     for (const coord of outerRing) {
       const key = coordKey(coord[0], coord[1]);
       if (floorWaypoints.has(key)) {
-        const wp = nodes.get(key)!;
-        addEdge(nodeId, key, haversineDistance(cLat, cLng, wp.lat, wp.lng), EdgeType.Corridor);
+        const wpId = waypointId(key, floor);
+        const wp = nodes.get(wpId)!;
+        addEdge(nodeId, wpId, haversineDistance(cLat, cLng, wp.lat, wp.lng), EdgeType.Corridor);
       }
     }
   }
@@ -182,8 +190,9 @@ export function buildIndoorGraph(geoJson: IndoorGeoJSON): IndoorGraph {
       let prevId: string | null = null;
       for (const coord of coords) {
         const [lng, lat] = coord;
-        const id = coordKey(lng, lat);
-        floorWaypoints.add(id);
+        const key = coordKey(lng, lat);
+        floorWaypoints.add(key);
+        const id = waypointId(key, floor);
         addNode({ id, lat, lng, floor, type: NodeType.Waypoint });
         if (prevId) {
           const prev = nodes.get(prevId)!;

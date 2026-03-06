@@ -68,6 +68,8 @@ export default function IndoorMapView() {
     searchDestinationRoom,
     clearStartRoom,
     clearDestinationRoom,
+    accessible,
+    toggleAccessible,
   } = useIndoorMap();
 
   const mapRef = useRef<MapView>(null);
@@ -134,6 +136,19 @@ export default function IndoorMapView() {
   const polygonFeatures = useMemo(() => {
     return floorFeatures.filter(
       (f) => f.geometry.type === "Polygon" && f.properties?.indoor,
+    );
+  }, [floorFeatures]);
+
+  // Elevator and staircase polygon features on the current floor
+  const elevatorFeatures = useMemo(() => {
+    return floorFeatures.filter(
+      (f) => f.geometry.type === "Polygon" && f.properties?.highway === "elevator",
+    );
+  }, [floorFeatures]);
+
+  const staircaseFeatures = useMemo(() => {
+    return floorFeatures.filter(
+      (f) => f.geometry.type === "Polygon" && !!f.properties?.stairs,
     );
   }, [floorFeatures]);
 
@@ -300,6 +315,24 @@ export default function IndoorMapView() {
         </View>
       </View>
 
+      {/* Accessibility Toggle */}
+      <TouchableOpacity
+        style={[styles.accessibleToggle, accessible && styles.accessibleToggleActive]}
+        onPress={toggleAccessible}
+        testID="accessible-toggle"
+        accessibilityRole="switch"
+        accessibilityState={{ checked: accessible }}
+        accessibilityLabel="Accessible route"
+      >
+        <Text style={styles.accessibleIcon}>♿</Text>
+        <Text style={[styles.accessibleLabel, accessible && styles.accessibleLabelActive]}>
+          Accessible Route
+        </Text>
+        <View style={[styles.accessibleIndicator, accessible && styles.accessibleIndicatorActive]}>
+          <Text style={styles.accessibleIndicatorText}>{accessible ? "ON" : "OFF"}</Text>
+        </View>
+      </TouchableOpacity>
+
       {/* Building Selector */}
       <View style={styles.buildingSelectorContainer}>
         <ScrollView
@@ -401,12 +434,68 @@ export default function IndoorMapView() {
               />
             );
           })}
+          {/* Elevator polygons — always visible */}
+          {elevatorFeatures.map((feature, index) => {
+            const coords = convertCoordinates(feature);
+            if (coords.length === 0) return null;
+            const centroid = getPolygonCentroid(coords);
+            return (
+              <React.Fragment key={`elevator-${index}`}>
+                <Polygon
+                  coordinates={coords}
+                  fillColor="rgba(124, 58, 237, 0.35)"
+                  strokeColor="#7C3AED"
+                  strokeWidth={2}
+                />
+                <Marker
+                  coordinate={centroid}
+                  anchor={{ x: 0.5, y: 0.5 }}
+                  tracksViewChanges={Platform.OS === "android"}
+                >
+                  <View style={styles.facilityMarker}>
+                    <View style={styles.facilityMarkerElevator}>
+                      <Text style={styles.facilityMarkerText}>EL</Text>
+                    </View>
+                  </View>
+                </Marker>
+              </React.Fragment>
+            );
+          })}
+
+          {/* Staircase polygons — always visible */}
+          {staircaseFeatures.map((feature, index) => {
+            const coords = convertCoordinates(feature);
+            if (coords.length === 0) return null;
+            const centroid = getPolygonCentroid(coords);
+            return (
+              <React.Fragment key={`staircase-${index}`}>
+                <Polygon
+                  coordinates={coords}
+                  fillColor="rgba(245, 158, 11, 0.35)"
+                  strokeColor="#F59E0B"
+                  strokeWidth={2}
+                />
+                <Marker
+                  coordinate={centroid}
+                  anchor={{ x: 0.5, y: 0.5 }}
+                  tracksViewChanges={Platform.OS === "android"}
+                >
+                  <View style={styles.facilityMarker}>
+                    <View style={styles.facilityMarkerStaircase}>
+                      <Text style={styles.facilityMarkerText}>ST</Text>
+                    </View>
+                  </View>
+                </Marker>
+              </React.Fragment>
+            );
+          })}
+
           {/* Shortest path polyline — filtered to current floor */}
           {startRoomRef && destinationRoomRef && pathCoordinates.length > 1 && pathReady && (
             <Polyline
-              key={`path-floor-${selectedFloor ?? "none"}`}
+              key={`path-floor-${selectedFloor ?? "none"}-${accessible ? "acc" : "std"}`}
               coordinates={pathCoordinates}
-              strokeColor="#007AFF"
+              strokeColor={accessible ? "#16A34A" : "#007AFF"}
               strokeWidth={4}
               geodesic={false}
               testID="path-polyline"
@@ -511,9 +600,9 @@ export default function IndoorMapView() {
             return (
               <>
                 <View style={styles.infoRow}>
-                  <View style={[styles.infoDot, { backgroundColor: "#007AFF" }]} />
+                  <View style={[styles.infoDot, { backgroundColor: accessible ? "#16A34A" : "#007AFF" }]} />
                   <Text style={styles.infoLabel} testID="path-status">
-                    {`Route: ${currentPath.length} steps`}
+                    {accessible ? "♿ " : ""}{`Route: ${currentPath.length} steps`}
                     {isMultiFloor && ` · floors ${floorLabels}`}
                   </Text>
                 </View>
@@ -750,5 +839,84 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#FFFFFF",
     marginTop: 1,
+  },
+  accessibleToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F3F4F6",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+  },
+  accessibleToggleActive: {
+    backgroundColor: "#ECFDF5",
+  },
+  accessibleIcon: {
+    fontSize: 18,
+    marginRight: 8,
+  },
+  accessibleLabel: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#374151",
+  },
+  accessibleLabelActive: {
+    color: "#16A34A",
+  },
+  accessibleIndicator: {
+    backgroundColor: "#9CA3AF",
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  accessibleIndicatorActive: {
+    backgroundColor: "#16A34A",
+  },
+  accessibleIndicatorText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  facilityMarker: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  facilityMarkerElevator: {
+    backgroundColor: "#7C3AED",
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: "#FFFFFF",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  facilityMarkerStaircase: {
+    backgroundColor: "#F59E0B",
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: "#FFFFFF",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  facilityMarkerText: {
+    fontSize: 8,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    letterSpacing: 0.5,
   },
 });
