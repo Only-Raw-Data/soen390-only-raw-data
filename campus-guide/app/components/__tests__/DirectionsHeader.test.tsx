@@ -305,5 +305,46 @@ describe('DirectionsHeader', () => {
                 expect.objectContaining({ id: 'fc' }),
             );
         });
+
+        it('sets startCoords and clears startBuilding when Use Current Location succeeds', async () => {
+            mockGetRawLocation.mockResolvedValue({ lat: 45.497, lng: -73.578 });
+            const { getByTestId } = render(<DirectionsHeader />);
+            fireEvent.press(getByTestId('current location'));
+            await waitFor(() => {
+                expect(mockSetStartCoords).toHaveBeenCalledWith({ lat: 45.497, lng: -73.578 });
+                expect(mockSetStartBuilding).toHaveBeenCalledWith(null);
+            });
+        });
+
+        it('shows alert when Use Current Location returns null', async () => {
+            mockGetRawLocation.mockResolvedValue(null);
+            const { getByTestId } = render(<DirectionsHeader />);
+            fireEvent.press(getByTestId('current location'));
+            await waitFor(() => {
+                expect(Alert.alert).toHaveBeenCalledWith(
+                    'Location Error',
+                    'Could not determine your location. Please ensure location permissions are enabled.',
+                );
+            });
+        });
+
+        it('selects a building from search results for start', () => {
+            const { getByTestId, getByText } = render(<DirectionsHeader />);
+            fireEvent(getByTestId('start-input'), 'focus');
+            fireEvent.changeText(getByTestId('start-input'), 'Hall');
+            fireEvent.press(getByText('Henry F. Hall Building'));
+            expect(mockSetStartBuilding).toHaveBeenCalledWith(expect.objectContaining({ id: 'h' }));
+            expect(mockSetStartCoords).toHaveBeenCalledWith(null);
+        });
+
+        it('selects a building from search results for destination', () => {
+            const { getByTestId, getByText } = render(<DirectionsHeader />);
+            fireEvent(getByTestId('dest-input'), 'focus');
+            fireEvent.changeText(getByTestId('dest-input'), 'Hall');
+            fireEvent.press(getByText('Henry F. Hall Building'));
+            expect(mockSetDestinationBuilding).toHaveBeenCalledWith(expect.objectContaining({ id: 'h' }));
+        });
+
+        
     });
 });
