@@ -23,4 +23,11 @@ appId: com.soen390.campusguide
 - assertVisible: "H813"
 - assertVisible: "8"
 
+- tapOn: "Destination room (e.g., H-820)"
+- inputText: "H-827"
+- pressKey: enter
+- waitForAnimationToEnd
+
+- assertVisible: "Navigation successful"
+
 - stopApp

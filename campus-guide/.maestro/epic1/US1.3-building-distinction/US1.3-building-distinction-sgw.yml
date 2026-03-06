@@ -1,7 +1,9 @@
 appId: com.soen390.campusguide
 ---
 - launchApp
-- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "SGW Campus"
+    timeout: 1800000
 
 - assertVisible: "SGW Campus"
 - waitForAnimationToEnd
