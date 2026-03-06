@@ -115,11 +115,14 @@ export default function DirectionsHeader() {
     }
   };
 
-  const startDisplayValue = isSearchingStart
-    ? searchQuery
-    : startCoords
-    ? 'Current Location'
-    : (startBuilding?.name || '');
+  let startDisplayValue: string;
+if (isSearchingStart) {
+  startDisplayValue = searchQuery;
+} else if (startCoords) {
+  startDisplayValue = 'Current Location';
+} else {
+  startDisplayValue = startBuilding?.name || '';
+}
 
   return (
     <>

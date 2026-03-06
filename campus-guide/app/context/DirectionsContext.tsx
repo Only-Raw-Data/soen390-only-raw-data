@@ -58,9 +58,7 @@ export default function DirectionsProvider({ children }: { readonly children: Re
   const fetchRoute = useCallback(async () => {
     if ((!startBuilding && !startCoords) || !destinationBuilding) return;
 
-    const origin = startCoords
-      ? startCoords
-      : { lat: startBuilding!.lat, lng: startBuilding!.lng };
+    const origin = startCoords ?? { lat: startBuilding!.lat, lng: startBuilding!.lng };
 
     const requestId = ++activeRequestRef.current;
     setIsLoadingRoute(true);
