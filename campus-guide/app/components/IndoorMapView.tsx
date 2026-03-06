@@ -416,10 +416,16 @@ export default function IndoorMapView() {
           {/* Staircase / elevator transition markers */}
           {transitionPoints.map(({ node, toFloor, direction }) => {
             const isElevator = node.type === NodeType.Elevator;
-            const floorStr =
-              toFloor === null ? "" :
-              toFloor < 0 ? `B${Math.abs(toFloor)}` : `${toFloor}`;
-            const arrow = direction === "up" ? "▲" : direction === "down" ? "▼" : "";
+            let floorStr = "";
+            if (toFloor !== null) {
+              floorStr = toFloor < 0 ? `B${Math.abs(toFloor)}` : `${toFloor}`;
+            }
+            let arrow = "";
+            if (direction === "up") {
+              arrow = "▲";
+            } else if (direction === "down") {
+              arrow = "▼";
+            }
             return (
               <Marker
                 key={`transition-${node.id}`}
@@ -501,13 +507,14 @@ export default function IndoorMapView() {
             }
             const floors = [...new Set(currentPath.map((n) => n.floor))].sort((a, b) => a - b);
             const isMultiFloor = floors.length > 1;
+            const floorLabels = floors.map((f) => (f < 0 ? `B${Math.abs(f)}` : String(f))).join("→");
             return (
               <>
                 <View style={styles.infoRow}>
                   <View style={[styles.infoDot, { backgroundColor: "#007AFF" }]} />
                   <Text style={styles.infoLabel} testID="path-status">
                     {`Route: ${currentPath.length} steps`}
-                    {isMultiFloor && ` · floors ${floors.map((f) => f < 0 ? `B${Math.abs(f)}` : f).join("→")}`}
+                    {isMultiFloor && ` · floors ${floorLabels}`}
                   </Text>
                 </View>
                 {isMultiFloor && pathCoordinates.length === 0 && (
