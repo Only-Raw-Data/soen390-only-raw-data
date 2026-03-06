@@ -81,9 +81,10 @@ jest.mock("react-native-maps", () => {
     },
   );
 
-  const MockMarker = ({ title, onPress, testID }: any) => (
+  const MockMarker = ({ title, onPress, testID, children }: any) => (
     <TouchableOpacity accessibilityRole="button" onPress={onPress} testID={testID}>
       <Text>{title}</Text>
+      {children}
     </TouchableOpacity>
   );
 
@@ -101,6 +102,8 @@ jest.mock("react-native-maps", () => {
       accessibilityLabel={`polyline-${coordinates?.length || 0}-coords`}
     />
   );
+  
+  const MockCallout = ({ children }: any) => <View>{children}</View>;
 
   const MockCircle = () => null;
 
@@ -110,6 +113,7 @@ jest.mock("react-native-maps", () => {
     Marker: MockMarker,
     Polygon: MockPolygon,
     Polyline: MockPolyline,
+    Callout: MockCallout,
     Circle: MockCircle,
     PROVIDER_GOOGLE: "google",
   };
@@ -133,7 +137,7 @@ jest.mock("../LocateMeButton", () => {
       capturedOnBuildingHighlight = onBuildingHighlight;
 
       return (
-        <TouchableOpacity testID="locate-me-button" onPress={onLocate}>
+        <TouchableOpacity testID="locate-me-button-wrapper" onPress={onLocate}>
           <Text>Locate Me</Text>
         </TouchableOpacity>
       );
@@ -179,10 +183,13 @@ const mockLoyolaPolygons = [
 const createDirectionsMock = (overrides = {}) => ({
   startBuilding: null,
   destinationBuilding: null,
+  startCoords: null,
   route: null,
   isLoadingRoute: false,
+  transportationMode: "walk",
   setStartBuilding: jest.fn(),
   setDestinationBuilding: jest.fn(),
+  setStartCoords: jest.fn(),
   clearDirections: jest.fn(),
   ...overrides,
 });
@@ -514,12 +521,12 @@ describe("MapViewApp", () => {
   describe("Location Feature", () => {
     it("renders locate me button", () => {
       const screen = render(<MapViewApp />);
-      expect(screen.getByTestId("locate-me-button")).toBeTruthy();
+      expect(screen.getByTestId("locate-me-button-wrapper")).toBeTruthy();
     });
 
     it("calls getCurrentLocation when locate button pressed", () => {
       const screen = render(<MapViewApp />);
-      fireEvent.press(screen.getByTestId("locate-me-button"));
+      fireEvent.press(screen.getByTestId("locate-me-button-wrapper"));
       expect(mockGetCurrentLocation).toHaveBeenCalled();
     });
 

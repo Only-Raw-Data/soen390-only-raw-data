@@ -125,11 +125,6 @@ export default function MapViewApp({
     return building.code+" - "+building.address;
   };
 
-  const getMarkerColor = (building: Building) => {
-    if (startBuilding?.id === building.id) return "#10B981";
-    if (destinationBuilding?.id === building.id) return "#FFEA00";
-    return "#912338";
-  };
 
   const getStrokeColorForBuilding = (isStart: boolean, isDest: boolean) => {
     if (isStart) return "#10B981";
@@ -140,19 +135,18 @@ export default function MapViewApp({
   const getPolygonColors = (buildingId: string) => {
     const isStart = startBuilding?.id === buildingId;
     const isDest = destinationBuilding?.id === buildingId;
-    const isHighlighted = highlightedBuildingId === buildingId;
+    const isCurrentLocation = highlightedBuildingId === buildingId;
 
-    // User location highlight takes precedence for visual emphasis
-    if (isHighlighted) {
+    if (isCurrentLocation) {
       return {
-        fillColor: "rgba(59, 130, 246, 0.4)", // Blue with transparency
-        strokeColor: "#3B82F6",
-        strokeWidth: 4,
+        fillColor: "#16A34A73",
+        strokeColor: "#9123384D",
+        strokeWidth: 5,
       };
     }
 
     return {
-      fillColor: "rgba(145, 35, 56, 0.3)", // Maroon with transparency
+      fillColor: "rgba(145, 35, 56, 0.3)",
       strokeColor: getStrokeColorForBuilding(isStart, isDest),
       strokeWidth: isStart || isDest ? 3 : 2,
     };
@@ -308,28 +302,93 @@ export default function MapViewApp({
 
           {/* Existing Markers */}
           {filteredBuildings
-            .filter(b => b.campus === selectedCampus)
-            .map((building) => (
-            <Marker
-              key={building.id}
-              testID={`building-marker-${building.id}`}
-              coordinate={{ latitude: building.lat, longitude: building.lng }}
-              title={getMarkerTitle(building)}
-              onPress={() => handleBuildingPress(building)}
-              pinColor={getMarkerColor(building)}
-            >
-            </Marker>
-          ))}
+            .filter((b) => b.campus === selectedCampus)
+            .map((building) => {
+              const isCurrentLocation = highlightedBuildingId === building.id;
+              return (
+                <Marker
+                key={building.id}
+                testID={`building-marker-${building.id}`}
+                coordinate={{ latitude: building.lat, longitude: building.lng }}
+                title={getMarkerTitle(building)}
+                onPress={() => handleBuildingPress(building)}
+                anchor={{ x: 0.5, y: 0.5 }}
+                tracksViewChanges={false}
+              >
+                <View style={[
+                  styles.labelMarker,
+                  isCurrentLocation && styles.labelMarkerCurrent,
+                  startBuilding?.id === building.id && styles.labelMarkerStart,
+                  destinationBuilding?.id === building.id && styles.labelMarkerDest,
+                ]}>
+                  <Text style={[
+                    styles.labelMarkerText,
+                    isCurrentLocation && styles.labelMarkerTextCurrent,
+                    (startBuilding?.id === building.id || destinationBuilding?.id === building.id) && styles.labelMarkerTextAlt,
+                  ]} numberOfLines={1}>
+                    {building.code}
+                  </Text>
+                </View>
+              
+                {isCurrentLocation && (
+                  <Callout tooltip>
+                    <View style={styles.youAreHereCallout}>
+                      <View style={styles.youAreHereDot} />
+                      <Text style={styles.youAreHereText}>You are here</Text>
+                    </View>
+                  </Callout>
+                )}
+              </Marker>
+              );
+            })}
+
           {/* Render Directions Polyline */}
           {showRoute && (
-            <Polyline
-              key={`route-${route.distance}-${route.duration}-${route.coordinates.length}`}
-              coordinates={route.coordinates}
-              strokeWidth={4}
-              strokeColor="#3B82F6"
-              zIndex={10}
-            />
-          )}
+  <>
+    {/* Walking — dashed */}
+    {transportationMode === 'walk' && (
+      <Polyline
+        coordinates={route.coordinates}
+        strokeWidth={4}
+        strokeColor="#3B82F6"
+        lineDashPattern={[8, 6]}
+        zIndex={10}
+      />
+    )}
+
+    {/* Driving — solid */}
+    {transportationMode === 'car' && (
+      <Polyline
+        coordinates={route.coordinates}
+        strokeWidth={5}
+        strokeColor="#F59E0B"
+        zIndex={10}
+      />
+    )}
+
+    {/* Transit — long dashes */}
+    {transportationMode === 'transit' && (
+      <Polyline
+        coordinates={route.coordinates}
+        strokeWidth={4}
+        strokeColor="#8B5CF6"
+        lineDashPattern={[16, 8]}
+        zIndex={10}
+      />
+    )}
+
+    {/* Shuttle — dotted */}
+    {transportationMode === 'shuttle' && (
+      <Polyline
+        coordinates={route.coordinates}
+        strokeWidth={4}
+        strokeColor="#EC4899"
+        lineDashPattern={[2, 6]}
+        zIndex={10}
+      />
+    )}
+  </>
+)}
           
           {/* Add markers for start and destination if they are from different campuses */}
           {showRoute && startBuilding && destinationBuilding && startBuilding.campus !== destinationBuilding.campus && (
@@ -399,7 +458,17 @@ export default function MapViewApp({
       {selectedBuilding && (
         <View style={styles.bottomBar} testID="bottom-bar">
           <View style={styles.bottomBarInfo}>
-            <Text style={styles.bottomBarCode} testID="bottom-bar-code">{selectedBuilding.code}</Text>
+          <View style={styles.bottomBarCodeRow}>
+              <Text style={styles.bottomBarCode} testID="bottom-bar-code">
+                {selectedBuilding.code}
+              </Text>
+              {highlightedBuildingId === selectedBuilding.id && (
+                <View style={styles.youAreHereBadge}>
+                  <Ionicons name="location" size={12} color="#FFFFFF" />
+                  <Text style={styles.youAreHereBadgeText}>You are here</Text>
+                </View>
+              )}
+            </View>
             <Text style={styles.bottomBarName} numberOfLines={1} testID="bottom-bar-name">
               {selectedBuilding.name}
             </Text>
@@ -790,5 +859,117 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
     zIndex: 30,
+  },
+  currentLocationLegend: {
+    position: "absolute",
+    top: 140,
+    left: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
+    zIndex: 50,
+    maxWidth: "55%",
+  },
+  currentLocationLegendDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#16A34A",
+    flexShrink: 0,
+  },
+  currentLocationLegendText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#16A34A",
+    flexShrink: 1,
+  },
+  youAreHereCallout: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#16A34A",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    gap: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 6,
+  },
+  youAreHereDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#FFFFFF",
+  },
+  youAreHereText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  bottomBarCodeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 2,
+  },
+  youAreHereBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#16A34A",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    gap: 4,
+  },
+  youAreHereBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  labelMarker: {
+    backgroundColor: '#912338',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  labelMarkerCurrent: {
+    backgroundColor: '#16A34A',
+    borderColor: '#FFFFFF',
+    borderWidth: 1.5,
+  },
+  labelMarkerStart: {
+    backgroundColor: '#10B981',
+  },
+  labelMarkerDest: {
+    backgroundColor: '#D97706',
+  },
+  labelMarkerText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  labelMarkerTextCurrent: {
+    color: '#FFFFFF',
+  },
+  labelMarkerTextAlt: {
+    color: '#FFFFFF',
   },
 });

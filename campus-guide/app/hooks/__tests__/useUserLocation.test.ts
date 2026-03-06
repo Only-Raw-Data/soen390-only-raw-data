@@ -492,4 +492,96 @@ describe("useUserLocation", () => {
     //Assert
     expect(result.current.isLoading).toBe(false);
   });
+
+  it("getRawLocation returns coords when permission granted and location succeeds", async () => {
+    //Arrange
+    mockPermission("granted");
+    (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValue(
+      createMockLocation(COORDS.H_BUILDING.lat, COORDS.H_BUILDING.lng),
+    );
+    const { result } = renderHook(() => useUserLocation());
+
+    //Act
+    let coords: any;
+    await act(async () => {
+      coords = await result.current.getRawLocation();
+    });
+
+    //Assert
+    expect(coords).not.toBeNull();
+    expect(coords.lat).toBe(COORDS.H_BUILDING.lat);
+    expect(coords.lng).toBe(COORDS.H_BUILDING.lng);
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it("getRawLocation returns null when permission denied", async () => {
+    //Arrange
+    mockPermission("denied");
+    const { result } = renderHook(() => useUserLocation());
+
+    //Act
+    let coords: any;
+    await act(async () => {
+      coords = await result.current.getRawLocation();
+    });
+
+    //Assert
+    expect(coords).toBeNull();
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it("getRawLocation returns null when location fetch throws", async () => {
+    //Arrange
+    mockPermission("granted");
+    (Location.getCurrentPositionAsync as jest.Mock).mockRejectedValue(
+      new Error("GPS unavailable"),
+    );
+    const { result } = renderHook(() => useUserLocation());
+
+    //Act
+    let coords: any;
+    await act(async () => {
+      coords = await result.current.getRawLocation();
+    });
+
+    //Assert
+    expect(coords).toBeNull();
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it("getRawLocation resets isLoading to false in finally block", async () => {
+    //Arrange
+    mockPermission("granted");
+    (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValue(
+      createMockLocation(COORDS.CC_BUILDING.lat, COORDS.CC_BUILDING.lng),
+    );
+    const { result } = renderHook(() => useUserLocation());
+
+    //Act
+    await act(async () => {
+      await result.current.getRawLocation();
+    });
+
+    //Assert
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it("getRawLocation uses High accuracy when fetching position", async () => {
+    //Arrange
+    mockPermission("granted");
+    (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValue(
+      createMockLocation(COORDS.H_BUILDING.lat, COORDS.H_BUILDING.lng),
+    );
+    const { result } = renderHook(() => useUserLocation());
+
+    //Act
+    await act(async () => {
+      await result.current.getRawLocation();
+    });
+
+    //Assert
+    expect(Location.getCurrentPositionAsync).toHaveBeenCalledWith({
+      accuracy: Location.Accuracy.High,
+    });
+  });
 });

@@ -13,89 +13,73 @@ import { fetchDirections, RouteData } from "../services/directionsService";
 interface DirectionsContextType {
   startBuilding: Building | null;
   destinationBuilding: Building | null;
+  startCoords: { lat: number; lng: number } | null;
   transportationMode: TransportationMode;
   route: RouteData | null;
   isLoadingRoute: boolean;
   setStartBuilding: (building: Building | null) => void;
   setDestinationBuilding: (building: Building | null) => void;
+  setStartCoords: (coords: { lat: number; lng: number } | null) => void;
   setTransportationMode: (mode: TransportationMode) => void;
   clearDirections: () => void;
   swapLocations: () => void;
   fetchRoute: () => Promise<void>;
 }
 
-const DirectionsContext = createContext<DirectionsContextType | undefined>(
-  undefined,
-);
+const DirectionsContext = createContext<DirectionsContextType | undefined>(undefined);
 
-export default function DirectionsProvider({
-  children,
-}: {
-  readonly children: ReactNode;
-}) {
+export default function DirectionsProvider({ children }: { readonly children: ReactNode }) {
   const [startBuilding, setStartBuilding] = useState<Building | null>(null);
-  const [destinationBuilding, setDestinationBuilding] =
-    useState<Building | null>(null);
-  const [transportationMode, setTransportationMode] =
-    useState<TransportationMode>("walk");
+  const [destinationBuilding, setDestinationBuilding] = useState<Building | null>(null);
+  const [startCoords, setStartCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [transportationMode, setTransportationMode] = useState<TransportationMode>("walk");
   const [route, setRoute] = useState<RouteData | null>(null);
   const [isLoadingRoute, setIsLoadingRoute] = useState(false);
 
   const activeRequestRef = React.useRef(0);
 
   const clearDirections = useCallback(() => {
-    console.log('Clearing directions state');
-    activeRequestRef.current++; // Invalidate any pending requests
+    activeRequestRef.current++;
     setStartBuilding(null);
     setDestinationBuilding(null);
+    setStartCoords(null);
     setTransportationMode("walk");
     setRoute(null);
     setIsLoadingRoute(false);
   }, []);
 
   const swapLocations = useCallback(() => {
-    console.log('Swapping locations');
     setStartBuilding(destinationBuilding);
     setDestinationBuilding(startBuilding);
+    setStartCoords(null);
     setRoute(null);
   }, [startBuilding, destinationBuilding]);
 
   const fetchRoute = useCallback(async () => {
-    if (!startBuilding || !destinationBuilding) {
-      console.log('fetchRoute called but missing buildings:', { start: !!startBuilding, dest: !!destinationBuilding });
-      return;
-    }
+    if ((!startBuilding && !startCoords) || !destinationBuilding) return;
+
+    const origin = startCoords ?? { lat: startBuilding!.lat, lng: startBuilding!.lng };
 
     const requestId = ++activeRequestRef.current;
-    console.log(`Starting fetchRoute request #${requestId}`, {
-      start: startBuilding.code,
-      dest: destinationBuilding.code,
-      mode: transportationMode
-    });
-    
     setIsLoadingRoute(true);
-    
+
     try {
       const data = await fetchDirections(
-        { lat: startBuilding.lat, lng: startBuilding.lng },
+        origin,
         { lat: destinationBuilding.lat, lng: destinationBuilding.lng },
         transportationMode,
         {
-          startCampus: startBuilding.campus,
+          startCampus: startBuilding?.campus,
           destinationCampus: destinationBuilding.campus,
         },
       );
-      
+
       if (requestId === activeRequestRef.current) {
-        if (data && startBuilding && destinationBuilding) {
-          console.log(`Successfully fetched route #${requestId}`);
+        if (data && destinationBuilding) {
           setRoute(data);
         } else {
-          console.log(`Fetch finished for #${requestId} but data or buildings missing, clearing route`);
           setRoute(null);
         }
-      } else {
-        console.log(`Ignoring stale route response for request #${requestId}`);
       }
     } catch (error) {
       console.error(`Failed to fetch route #${requestId}:`, error);
@@ -107,17 +91,19 @@ export default function DirectionsProvider({
         setIsLoadingRoute(false);
       }
     }
-  }, [startBuilding, destinationBuilding, transportationMode]);
+  }, [startBuilding, startCoords, destinationBuilding, transportationMode]);
 
   const value = useMemo(
     () => ({
       startBuilding,
       destinationBuilding,
+      startCoords,
       transportationMode,
       route,
       isLoadingRoute,
       setStartBuilding,
       setDestinationBuilding,
+      setStartCoords,
       setTransportationMode,
       clearDirections,
       swapLocations,
@@ -126,6 +112,7 @@ export default function DirectionsProvider({
     [
       startBuilding,
       destinationBuilding,
+      startCoords,
       transportationMode,
       route,
       isLoadingRoute,

@@ -24,9 +24,11 @@ describe('DirectionsHeader', () => {
     const mockSetStartBuilding = jest.fn();
     const mockSetDestinationBuilding = jest.fn();
     const mockGetNearestBuilding = jest.fn();
+    const mockGetRawLocation = jest.fn();
     const mockFetchRoute = jest.fn();
     const mockClearDirections = jest.fn();
     const mockResetLoadingState = jest.fn();
+    const mockSetStartCoords = jest.fn();
 
     beforeEach(() => {
         jest.clearAllMocks();
@@ -38,6 +40,7 @@ describe('DirectionsHeader', () => {
             isLoadingRoute: false,
             setStartBuilding: mockSetStartBuilding,
             setDestinationBuilding: mockSetDestinationBuilding,
+            setStartCoords: mockSetStartCoords,
             setTransportationMode: mockSetTransportationMode,
             swapLocations: mockSwapLocations,
             clearDirections: mockClearDirections,
@@ -45,6 +48,7 @@ describe('DirectionsHeader', () => {
         });
         (useUserLocation as jest.Mock).mockReturnValue({
             getNearestBuilding: mockGetNearestBuilding,
+            getRawLocation: mockGetRawLocation,
             isLoading: false,
             resetLoadingState: mockResetLoadingState,
         });
@@ -70,6 +74,7 @@ describe('DirectionsHeader', () => {
             isLoadingRoute: false,
             setStartBuilding: mockSetStartBuilding,
             setDestinationBuilding: mockSetDestinationBuilding,
+            setStartCoords: mockSetStartCoords,
             setTransportationMode: mockSetTransportationMode,
             swapLocations: mockSwapLocations,
             clearDirections: mockClearDirections,
@@ -128,36 +133,6 @@ describe('DirectionsHeader', () => {
         expect(getByTestId('current location')).toBeTruthy();
     });
 
-    it('sets start building when Use Current Location succeeds', async () => {
-        //Arrange
-        mockGetNearestBuilding.mockResolvedValue(SGW_BUILDINGS[0]);
-        const { getByTestId } = render(<DirectionsHeader />);
-
-        //Act
-        fireEvent.press(getByTestId('current location'));
-
-        //Assert
-        await waitFor(() => {
-            expect(mockSetStartBuilding).toHaveBeenCalledWith(SGW_BUILDINGS[0]);
-        });
-    });
-
-    it('shows alert when Use Current Location fails', async () => {
-        //Arrange
-        mockGetNearestBuilding.mockResolvedValue(null);
-        const { getByTestId } = render(<DirectionsHeader />);
-
-        //Act
-        fireEvent.press(getByTestId('current location'));
-
-        //Assert
-        await waitFor(() => {
-            expect(Alert.alert).toHaveBeenCalledWith(
-                'Location Error',
-                'Could not determine your nearest campus building. Please ensure location permissions are enabled.',
-            );
-        });
-    });
 
     it('shows loading indicator while fetching location', () => {
         //Arrange
@@ -184,6 +159,7 @@ describe('DirectionsHeader', () => {
             isLoadingRoute: false,
             setStartBuilding: mockSetStartBuilding,
             setDestinationBuilding: mockSetDestinationBuilding,
+            setStartCoords: mockSetStartCoords,
             setTransportationMode: mockSetTransportationMode,
             swapLocations: mockSwapLocations,
             clearDirections: mockClearDirections,
@@ -209,6 +185,7 @@ describe('DirectionsHeader', () => {
             isLoadingRoute: true,
             setStartBuilding: mockSetStartBuilding,
             setDestinationBuilding: mockSetDestinationBuilding,
+            setStartCoords: mockSetStartCoords,
             setTransportationMode: mockSetTransportationMode,
             swapLocations: mockSwapLocations,
             clearDirections: mockClearDirections,
@@ -235,6 +212,7 @@ describe('DirectionsHeader', () => {
                 setTransportationMode: mockSetTransportationMode,
                 setStartBuilding: mockSetStartBuilding,
                 setDestinationBuilding: mockSetDestinationBuilding,
+                setStartCoords: mockSetStartCoords,
                 swapLocations: mockSwapLocations,
                 clearDirections: mockClearDirections,
                 fetchRoute: mockFetchRoute,
@@ -307,6 +285,7 @@ describe('DirectionsHeader', () => {
                 setTransportationMode: mockSetTransportationMode,
                 setStartBuilding: mockSetStartBuilding,
                 setDestinationBuilding: mockSetDestinationBuilding,
+                setStartCoords: mockSetStartCoords,
                 swapLocations: mockSwapLocations,
                 clearDirections: mockClearDirections,
                 fetchRoute: mockFetchRoute,
@@ -322,9 +301,59 @@ describe('DirectionsHeader', () => {
             expect(mockSetStartBuilding).toHaveBeenCalledWith(
                 expect.objectContaining({ id: 'h' }),
             );
+            // Assert
             expect(mockSetDestinationBuilding).toHaveBeenCalledWith(
                 expect.objectContaining({ id: 'fc' }),
             );
         });
+
+        it('sets startCoords and clears startBuilding when Use Current Location succeeds', async () => {
+            // Arrange & Act
+            mockGetRawLocation.mockResolvedValue({ lat: 45.497, lng: -73.578 });
+            const { getByTestId } = render(<DirectionsHeader />);
+            fireEvent.press(getByTestId('current location'));
+            // Assert
+            await waitFor(() => {
+                expect(mockSetStartCoords).toHaveBeenCalledWith({ lat: 45.497, lng: -73.578 });
+                expect(mockSetStartBuilding).toHaveBeenCalledWith(null);
+            });
+        });
+
+        it('shows alert when Use Current Location returns null', async () => {
+            // Arrange & Act
+            mockGetRawLocation.mockResolvedValue(null);
+            const { getByTestId } = render(<DirectionsHeader />);
+            fireEvent.press(getByTestId('current location'));
+            // Assert
+            await waitFor(() => {
+                expect(Alert.alert).toHaveBeenCalledWith(
+                    'Location Error',
+                    'Could not determine your location. Please ensure location permissions are enabled.',
+                );
+            });
+        });
+
+        it('selects a building from search results for start', () => {
+            // Arrange & Act
+            const { getByTestId, getByText } = render(<DirectionsHeader />);
+            fireEvent(getByTestId('start-input'), 'focus');
+            fireEvent.changeText(getByTestId('start-input'), 'Hall');
+            fireEvent.press(getByText('Henry F. Hall Building'));
+            // Assert
+            expect(mockSetStartBuilding).toHaveBeenCalledWith(expect.objectContaining({ id: 'h' }));
+            expect(mockSetStartCoords).toHaveBeenCalledWith(null);
+        });
+
+        it('selects a building from search results for destination', () => {
+            // Arrange & Act
+            const { getByTestId, getByText } = render(<DirectionsHeader />);
+            fireEvent(getByTestId('dest-input'), 'focus');
+            fireEvent.changeText(getByTestId('dest-input'), 'Hall');
+            fireEvent.press(getByText('Henry F. Hall Building'));
+            // Assert
+            expect(mockSetDestinationBuilding).toHaveBeenCalledWith(expect.objectContaining({ id: 'h' }));
+        });
+
+        
     });
 });
