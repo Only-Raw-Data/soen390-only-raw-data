@@ -303,7 +303,7 @@ describe('DirectionsHeader', () => {
             );
             // Assert
             expect(mockSetDestinationBuilding).toHaveBeenCalledWith(
-                expect.objectContaining({ id: 'fc' }),
+                expect.objectContaining({ id: 'vl' }),
             );
         });
 

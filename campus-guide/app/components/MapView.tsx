@@ -366,16 +366,37 @@ export default function MapViewApp({
       />
     )}
 
-    {/* Transit — long dashes */}
-    {transportationMode === 'transit' && (
-      <Polyline
-        coordinates={route.coordinates}
-        strokeWidth={4}
-        strokeColor="#8B5CF6"
-        lineDashPattern={[16, 8]}
-        zIndex={10}
-      />
-    )}
+    {/* Transit — per-segment polylines (walk/bus/metro/tram/rail) */}
+    {transportationMode === 'transit' && route.segments && route.segments.length > 0
+      ? route.segments.map((seg, i) => {
+          const isWalk = seg.mode === 'WALK';
+          const color =
+            seg.mode === 'BUS'    ? '#16A34A' :
+            seg.mode === 'SUBWAY' ? '#F97316' :
+            seg.mode === 'TRAM'   ? '#DC2626' :
+            seg.mode === 'RAIL'   ? '#DC2626' :
+            '#3B82F6'; // WALK
+          return (
+            <Polyline
+              key={`transit-seg-${i}`}
+              coordinates={seg.coordinates}
+              strokeWidth={isWalk ? 3 : 5}
+              strokeColor={color}
+              lineDashPattern={isWalk ? [6, 5] : undefined}
+              zIndex={10}
+            />
+          );
+        })
+      : transportationMode === 'transit' && (
+          <Polyline
+            coordinates={route.coordinates}
+            strokeWidth={4}
+            strokeColor="#8B5CF6"
+            lineDashPattern={[16, 8]}
+            zIndex={10}
+          />
+        )
+    }
 
     {/* Shuttle — dotted */}
     {transportationMode === 'shuttle' && (

@@ -4,13 +4,14 @@ import {
   SHUTTLE_DURATION,
   SHUTTLE_ROUTE_SGW_TO_LOYOLA,
 } from "@/constants/shuttleRoute";
-import { TransportationMode } from "../types/transportation";
+import { TransportationMode, TransitSegment, SegmentMode } from "../types/transportation";
 import { decode } from "@googlemaps/polyline-codec";
 
 export interface RouteData {
   coordinates: { latitude: number; longitude: number }[];
   duration: string;
   distance: string;
+  segments?: TransitSegment[];
 }
 
 export interface FetchDirectionsOptions {
@@ -93,14 +94,27 @@ export const fetchDirections = async (
     units: "METRIC",
   };
 
+  const isTransit = travelMode === "TRANSIT"; // covers 'transit', 'rem', and 'shuttle' API calls
+
+  const fieldMask = isTransit
+    ? [
+        "routes.duration",
+        "routes.distanceMeters",
+        "routes.polyline.encodedPolyline",
+        "routes.legs.steps.travelMode",
+        "routes.legs.steps.polyline.encodedPolyline",
+        "routes.legs.steps.transitDetails.transitLine.vehicle.type",
+        "routes.legs.steps.transitDetails.transitLine.nameShort",
+      ].join(",")
+    : "routes.duration,routes.distanceMeters,routes.polyline.encodedPolyline";
+
   try {
     const response = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "X-Goog-Api-Key": apiKey,
-        "X-Goog-FieldMask":
-          "routes.duration,routes.distanceMeters,routes.polyline.encodedPolyline",
+        "X-Goog-FieldMask": fieldMask,
       },
       body: JSON.stringify(requestBody),
     });
@@ -139,10 +153,52 @@ export const fetchDirections = async (
       longitude: lng,
     }));
 
+    // Parse transit steps into typed segments
+    let segments: TransitSegment[] | undefined;
+    if (isTransit && route.legs) {
+      segments = route.legs.flatMap((leg: any) =>
+        (leg.steps ?? []).map((step: any): TransitSegment => {
+          const stepCoords = step.polyline?.encodedPolyline
+            ? decode(step.polyline.encodedPolyline).map(([lat, lng]) => ({
+                latitude: lat,
+                longitude: lng,
+              }))
+            : [];
+
+          const rawMode: string = step.travelMode ?? "WALK";
+          const vehicleType: string =
+            step.transitDetails?.transitLine?.vehicle?.type ?? "";
+
+          let segmentMode: SegmentMode = "WALK";
+          if (rawMode === "TRANSIT") {
+            const v = vehicleType.toUpperCase();
+            if (v === "BUS" || v === "INTERCITY_BUS" || v === "TROLLEYBUS") {
+              segmentMode = "BUS";
+            } else if (v === "SUBWAY" || v === "HEAVY_RAIL" || v === "METRO_RAIL") {
+              segmentMode = "SUBWAY";
+            } else if (v === "TRAM" || v === "LIGHT_RAIL") {
+              segmentMode = "TRAM";
+            } else if (v === "RAIL" || v === "COMMUTER_TRAIN" || v === "HIGH_SPEED_TRAIN") {
+              segmentMode = "RAIL";
+            } else {
+              segmentMode = "BUS";
+            }
+          }
+
+          return {
+            mode: segmentMode,
+            coordinates: stepCoords,
+            lineName: step.transitDetails?.transitLine?.nameShort,
+          };
+        })
+      );
+    }
+
     return {
       coordinates: formattedCoordinates,
       duration: durationText,
       distance: distanceText,
+      ...(segments ? { segments } : {}),
     };
   } catch (error) {
     console.error("Error fetching routes:", error);
