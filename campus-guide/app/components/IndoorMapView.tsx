@@ -214,7 +214,7 @@ export default function IndoorMapView() {
 
     const onFloor = currentPath
       .filter((node) => node.floor === selectedFloor)
-      .filter((c) => isFinite(c.lat) && isFinite(c.lng));
+      .filter((c) => Number.isFinite(c.lat) && Number.isFinite(c.lng));
 
     // Exclude Room centroid nodes so the line stays in hallways.
     // Start/destination rooms are already highlighted by colored polygons.
@@ -234,17 +234,21 @@ export default function IndoorMapView() {
     return currentPath.flatMap((node, i) => {
       if (node.floor !== selectedFloor) return [];
       if (node.type !== NodeType.Staircase && node.type !== NodeType.Elevator) return [];
-      if (!isFinite(node.lat) || !isFinite(node.lng)) return [];
+      if (!Number.isFinite(node.lat) || !Number.isFinite(node.lng)) return [];
       // Look at neighboring nodes to find which floor this transition leads to
       const prev = currentPath[i - 1];
       const next = currentPath[i + 1];
-      const neighbor =
-        next && next.floor !== selectedFloor ? next :
-        prev && prev.floor !== selectedFloor ? prev :
-        null;
+      let neighbor: GraphNode | null = null;
+      if (next && next.floor !== selectedFloor) {
+        neighbor = next;
+      } else if (prev && prev.floor !== selectedFloor) {
+        neighbor = prev;
+      }
       const toFloor = neighbor?.floor ?? null;
-      const direction: "up" | "down" | null =
-        toFloor !== null ? (toFloor > selectedFloor ? "up" : "down") : null;
+      let direction: "up" | "down" | null = null;
+      if (toFloor !== null) {
+        direction = toFloor > selectedFloor ? "up" : "down";
+      }
       return [{ node, toFloor, direction }];
     });
   }, [currentPath, selectedFloor]);
