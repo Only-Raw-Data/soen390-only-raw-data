@@ -11,7 +11,7 @@ import { Ionicons } from "@expo/vector-icons";
 interface RoomSearchBarProps {
   readonly value: string;
   readonly onChangeText: (text: string) => void;
-  readonly onSubmit: () => void;
+  readonly onSubmit: (text: string) => void;
   readonly onClear: () => void;
   readonly error?: string | null;
   readonly placeholder?: string;
@@ -42,7 +42,7 @@ export default function RoomSearchBar({
           placeholderTextColor="#9CA3AF"
           value={value}
           onChangeText={onChangeText}
-          onSubmitEditing={onSubmit}
+          onSubmitEditing={(e) => onSubmit(e.nativeEvent.text)}
           returnKeyType="search"
           autoCapitalize="characters"
           testID={`${testIDPrefix}-input`}

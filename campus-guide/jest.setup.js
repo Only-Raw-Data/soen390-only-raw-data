@@ -39,11 +39,19 @@ jest.mock("react-native-maps", () => {
       accessibilityLabel: `polygon-${coordinates?.length || 0}-coords`,
     });
 
+  // Mock Polyline for indoor path rendering
+  const MockPolyline = ({ testID, coordinates }) =>
+    React.createElement(View, {
+      testID: testID || "polyline",
+      accessibilityLabel: `polyline-${coordinates?.length || 0}-coords`,
+    });
+
   return {
     __esModule: true,
     default: MockMapView,
     Marker: MockMarker,
     Polygon: MockPolygon,
+    Polyline: MockPolyline,
     PROVIDER_GOOGLE: "google",
   };
 });

@@ -56,10 +56,12 @@ describe("RoomSearchBar", () => {
     );
 
     // Act
-    fireEvent(getByTestId("room-search-input"), "submitEditing");
+    fireEvent(getByTestId("room-search-input"), "submitEditing", {
+      nativeEvent: { text: "H-820" },
+    });
 
     // Assert
-    expect(mockSubmit).toHaveBeenCalledTimes(1);
+    expect(mockSubmit).toHaveBeenCalledWith("H-820");
   });
 
   it("shows clear button when value is not empty", () => {
