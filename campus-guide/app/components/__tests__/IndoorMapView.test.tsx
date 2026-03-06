@@ -53,6 +53,21 @@ function makePolygonFeature(ref: string): any {
     properties: { ref, indoor: "room", level: "8" },
   };
 }
+// Helper: set up context with a path on a given floor
+function setupPathContext(
+    pathNodes: any[],
+    overrides: { selectedFloor?: number; startRoomRef?: string; destinationRoomRef?: string } = {},
+) {
+  const hallBuilding = INDOOR_BUILDINGS.find((b) => b.code === "H")!;
+  mockUseIndoorMap.mockReturnValue({
+    ...defaultContextValue,
+    selectedBuilding: hallBuilding,
+    selectedFloor: overrides.selectedFloor ?? 8,
+    startRoomRef: overrides.startRoomRef ?? "H851.02",
+    destinationRoomRef: overrides.destinationRoomRef ?? "H857",
+    currentPath: pathNodes,
+  });
+}
 
 const defaultContextValue = {
   selectedBuilding: null,
@@ -389,22 +404,6 @@ describe("IndoorMapView", () => {
     expect(getByText("From:")).toBeTruthy();
     expect(getByText("To:")).toBeTruthy();
   });
-
-  // Helper: set up context with a path on a given floor
-  function setupPathContext(
-    pathNodes: any[],
-    overrides: { selectedFloor?: number; startRoomRef?: string; destinationRoomRef?: string } = {},
-  ) {
-    const hallBuilding = INDOOR_BUILDINGS.find((b) => b.code === "H")!;
-    mockUseIndoorMap.mockReturnValue({
-      ...defaultContextValue,
-      selectedBuilding: hallBuilding,
-      selectedFloor: overrides.selectedFloor ?? 8,
-      startRoomRef: overrides.startRoomRef ?? "H851.02",
-      destinationRoomRef: overrides.destinationRoomRef ?? "H857",
-      currentPath: pathNodes,
-    });
-  }
 
   it("renders path polyline when currentPath has nodes on current floor", () => {
     // Arrange
