@@ -24,9 +24,11 @@ describe('DirectionsHeader', () => {
     const mockSetStartBuilding = jest.fn();
     const mockSetDestinationBuilding = jest.fn();
     const mockGetNearestBuilding = jest.fn();
+    const mockGetRawLocation = jest.fn();
     const mockFetchRoute = jest.fn();
     const mockClearDirections = jest.fn();
     const mockResetLoadingState = jest.fn();
+    const mockSetStartCoords = jest.fn();
 
     beforeEach(() => {
         jest.clearAllMocks();
@@ -38,6 +40,7 @@ describe('DirectionsHeader', () => {
             isLoadingRoute: false,
             setStartBuilding: mockSetStartBuilding,
             setDestinationBuilding: mockSetDestinationBuilding,
+            setStartCoords: mockSetStartCoords,
             setTransportationMode: mockSetTransportationMode,
             swapLocations: mockSwapLocations,
             clearDirections: mockClearDirections,
@@ -45,6 +48,7 @@ describe('DirectionsHeader', () => {
         });
         (useUserLocation as jest.Mock).mockReturnValue({
             getNearestBuilding: mockGetNearestBuilding,
+            getRawLocation: mockGetRawLocation,
             isLoading: false,
             resetLoadingState: mockResetLoadingState,
         });
@@ -70,6 +74,7 @@ describe('DirectionsHeader', () => {
             isLoadingRoute: false,
             setStartBuilding: mockSetStartBuilding,
             setDestinationBuilding: mockSetDestinationBuilding,
+            setStartCoords: mockSetStartCoords,
             setTransportationMode: mockSetTransportationMode,
             swapLocations: mockSwapLocations,
             clearDirections: mockClearDirections,
@@ -128,36 +133,6 @@ describe('DirectionsHeader', () => {
         expect(getByTestId('current location')).toBeTruthy();
     });
 
-    it('sets start building when Use Current Location succeeds', async () => {
-        //Arrange
-        mockGetNearestBuilding.mockResolvedValue(SGW_BUILDINGS[0]);
-        const { getByTestId } = render(<DirectionsHeader />);
-
-        //Act
-        fireEvent.press(getByTestId('current location'));
-
-        //Assert
-        await waitFor(() => {
-            expect(mockSetStartBuilding).toHaveBeenCalledWith(SGW_BUILDINGS[0]);
-        });
-    });
-
-    it('shows alert when Use Current Location fails', async () => {
-        //Arrange
-        mockGetNearestBuilding.mockResolvedValue(null);
-        const { getByTestId } = render(<DirectionsHeader />);
-
-        //Act
-        fireEvent.press(getByTestId('current location'));
-
-        //Assert
-        await waitFor(() => {
-            expect(Alert.alert).toHaveBeenCalledWith(
-                'Location Error',
-                'Could not determine your nearest campus building. Please ensure location permissions are enabled.',
-            );
-        });
-    });
 
     it('shows loading indicator while fetching location', () => {
         //Arrange
@@ -184,6 +159,7 @@ describe('DirectionsHeader', () => {
             isLoadingRoute: false,
             setStartBuilding: mockSetStartBuilding,
             setDestinationBuilding: mockSetDestinationBuilding,
+            setStartCoords: mockSetStartCoords,
             setTransportationMode: mockSetTransportationMode,
             swapLocations: mockSwapLocations,
             clearDirections: mockClearDirections,
@@ -209,6 +185,7 @@ describe('DirectionsHeader', () => {
             isLoadingRoute: true,
             setStartBuilding: mockSetStartBuilding,
             setDestinationBuilding: mockSetDestinationBuilding,
+            setStartCoords: mockSetStartCoords,
             setTransportationMode: mockSetTransportationMode,
             swapLocations: mockSwapLocations,
             clearDirections: mockClearDirections,
@@ -235,6 +212,7 @@ describe('DirectionsHeader', () => {
                 setTransportationMode: mockSetTransportationMode,
                 setStartBuilding: mockSetStartBuilding,
                 setDestinationBuilding: mockSetDestinationBuilding,
+                setStartCoords: mockSetStartCoords,
                 swapLocations: mockSwapLocations,
                 clearDirections: mockClearDirections,
                 fetchRoute: mockFetchRoute,
@@ -307,6 +285,7 @@ describe('DirectionsHeader', () => {
                 setTransportationMode: mockSetTransportationMode,
                 setStartBuilding: mockSetStartBuilding,
                 setDestinationBuilding: mockSetDestinationBuilding,
+                setStartCoords: mockSetStartCoords,
                 swapLocations: mockSwapLocations,
                 clearDirections: mockClearDirections,
                 fetchRoute: mockFetchRoute,

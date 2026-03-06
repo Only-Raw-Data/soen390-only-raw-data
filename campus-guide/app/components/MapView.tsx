@@ -316,6 +316,7 @@ export default function MapViewApp({
                 key={building.id}
                 testID={`building-marker-${building.id}`}
                 coordinate={{ latitude: building.lat, longitude: building.lng }}
+                title={getMarkerTitle(building)}
                 onPress={() => handleBuildingPress(building)}
                 anchor={{ x: 0.5, y: 0.5 }}
                 tracksViewChanges={false}
@@ -394,17 +395,6 @@ export default function MapViewApp({
     )}
   </>
 )}
-
-        <LocateMeButton
-        onLocate={getCurrentLocation}
-        isLoading={locationLoading}
-        nearestBuilding={nearestBuilding}
-        isOnCampus={isOnCampus}
-        errorMsg={locationError}
-        currentCampus={currentCampus}
-        onCampusDetected={handleCampusDetected}
-        onBuildingHighlight={handleBuildingHighlight}
-      />
           
           {/* Add markers for start and destination if they are from different campuses */}
           {showRoute && startBuilding && destinationBuilding && startBuilding.campus !== destinationBuilding.campus && (
