@@ -1,5 +1,59 @@
 import { IndoorGraph, GraphNode } from "./indoorGraphService";
 
+function findNodeByRef(
+  graph: IndoorGraph,
+  ref: string,
+): GraphNode | undefined {
+  for (const node of graph.nodes.values()) {
+    if (node.ref === ref) return node;
+  }
+  return undefined;
+}
+
+function extractMin(queue: Array<{ id: string; cost: number }>): string {
+  let minIdx = 0;
+  for (let i = 1; i < queue.length; i++) {
+    if (queue[i].cost < queue[minIdx].cost) minIdx = i;
+  }
+  return queue.splice(minIdx, 1)[0].id;
+}
+
+function relaxNeighbors(
+  currentId: string,
+  graph: IndoorGraph,
+  dist: Map<string, number>,
+  prev: Map<string, string | null>,
+  visited: Set<string>,
+  queue: Array<{ id: string; cost: number }>,
+): void {
+  const currentDist = dist.get(currentId) ?? Infinity;
+  for (const { nodeId, weight } of graph.adjacency.get(currentId) ?? []) {
+    if (visited.has(nodeId)) continue;
+    const newCost = currentDist + weight;
+    if (newCost < (dist.get(nodeId) ?? Infinity)) {
+      dist.set(nodeId, newCost);
+      prev.set(nodeId, currentId);
+      queue.push({ id: nodeId, cost: newCost });
+    }
+  }
+}
+
+function reconstructPath(
+  destId: string,
+  graph: IndoorGraph,
+  prev: Map<string, string | null>,
+): GraphNode[] {
+  const path: GraphNode[] = [];
+  let current: string | null = destId;
+  while (current !== null) {
+    const node = graph.nodes.get(current);
+    if (!node) break;
+    path.unshift(node);
+    current = prev.get(current) ?? null;
+  }
+  return path;
+}
+
 /**
  * Finds the shortest path between two rooms in an indoor graph using Dijkstra's algorithm.
  *
@@ -13,20 +67,11 @@ export function findIndoorPath(
   startRef: string,
   destRef: string,
 ): GraphNode[] | null {
-  // Locate start and destination nodes by their room reference
-  let startNode: GraphNode | null = null;
-  let destNode: GraphNode | null = null;
-
-  for (const node of graph.nodes.values()) {
-    if (node.ref === startRef) startNode = node;
-    if (node.ref === destRef) destNode = node;
-    if (startNode && destNode) break;
-  }
-
+  const startNode = findNodeByRef(graph, startRef);
+  const destNode = findNodeByRef(graph, destRef);
   if (!startNode || !destNode) return null;
   if (startNode.id === destNode.id) return [startNode];
 
-  // Dijkstra initialisation
   const dist = new Map<string, number>();
   const prev = new Map<string, string | null>();
   const visited = new Set<string>();
@@ -37,47 +82,19 @@ export function findIndoorPath(
   }
   dist.set(startNode.id, 0);
 
-  // Min-priority queue: array of {id, dist} sorted on extraction
   const queue: Array<{ id: string; cost: number }> = [
     { id: startNode.id, cost: 0 },
   ];
 
   while (queue.length > 0) {
-    // Extract node with minimum cost
-    let minIdx = 0;
-    for (let i = 1; i < queue.length; i++) {
-      if (queue[i].cost < queue[minIdx].cost) minIdx = i;
-    }
-    const { id: currentId } = queue.splice(minIdx, 1)[0];
-
+    const currentId = extractMin(queue);
     if (visited.has(currentId)) continue;
     visited.add(currentId);
-
     if (currentId === destNode.id) break;
-
-    for (const { nodeId, weight } of graph.adjacency.get(currentId) ?? []) {
-      if (visited.has(nodeId)) continue;
-      const newCost = (dist.get(currentId) ?? Infinity) + weight;
-      if (newCost < (dist.get(nodeId) ?? Infinity)) {
-        dist.set(nodeId, newCost);
-        prev.set(nodeId, currentId);
-        queue.push({ id: nodeId, cost: newCost });
-      }
-    }
+    relaxNeighbors(currentId, graph, dist, prev, visited, queue);
   }
 
-  // No path found
   if ((dist.get(destNode.id) ?? Infinity) === Infinity) return null;
 
-  // Reconstruct path from dest back to start
-  const path: GraphNode[] = [];
-  let current: string | null = destNode.id;
-  while (current !== null) {
-    const node = graph.nodes.get(current);
-    if (!node) break;
-    path.unshift(node);
-    current = prev.get(current) ?? null;
-  }
-
-  return path;
+  return reconstructPath(destNode.id, graph, prev);
 }

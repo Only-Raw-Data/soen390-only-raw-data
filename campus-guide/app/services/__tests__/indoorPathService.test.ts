@@ -80,45 +80,17 @@ describe("findIndoorPath", () => {
   });
 
   describe("no path / missing nodes", () => {
-    it("returns null when destination is unreachable", () => {
+    it.each([
+      ["destination is unreachable",  () => makeDisconnectedGraph(), "A",           "B"],
+      ["start ref does not exist",    () => makeSimpleGraph(),       "NONEXISTENT", "C"],
+      ["destination ref doesn't exist", () => makeSimpleGraph(),     "A",           "NONEXISTENT"],
+      ["both refs are nonexistent",   () => makeSimpleGraph(),       "X",           "Y"],
+    ])("returns null when %s", (_label, buildGraph, start, dest) => {
       // Arrange
-      const graph = makeDisconnectedGraph();
+      const graph = buildGraph();
 
       // Act
-      const path = findIndoorPath(graph, "A", "B");
-
-      // Assert
-      expect(path).toBeNull();
-    });
-
-    it("returns null when start ref does not exist in graph", () => {
-      // Arrange
-      const graph = makeSimpleGraph();
-
-      // Act
-      const path = findIndoorPath(graph, "NONEXISTENT", "C");
-
-      // Assert
-      expect(path).toBeNull();
-    });
-
-    it("returns null when destination ref does not exist in graph", () => {
-      // Arrange
-      const graph = makeSimpleGraph();
-
-      // Act
-      const path = findIndoorPath(graph, "A", "NONEXISTENT");
-
-      // Assert
-      expect(path).toBeNull();
-    });
-
-    it("returns null when both refs are nonexistent", () => {
-      // Arrange
-      const graph = makeSimpleGraph();
-
-      // Act
-      const path = findIndoorPath(graph, "X", "Y");
+      const path = findIndoorPath(graph, start, dest);
 
       // Assert
       expect(path).toBeNull();
