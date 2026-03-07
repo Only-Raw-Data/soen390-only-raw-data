@@ -37,7 +37,6 @@ jobs:
       #   campus-guide/coverage/lcov.info             - coverage (Codecov + Sonar)
       #   campus-guide/coverage/coverage-summary.json - coverage summary (PR comment)
       #   campus-guide/coverage/coverage-final.json   - coverage final (PR comment)
-      #   campus-guide/coverage/junit.xml             - test execution (Sonar)
       - name: Run Tests with Coverage
         working-directory: campus-guide
         run: npm test -- --coverage --watchAll=false
@@ -47,7 +46,6 @@ jobs:
           ls -lh campus-guide/coverage/lcov.info
           ls -lh campus-guide/coverage/coverage-summary.json
           ls -lh campus-guide/coverage/coverage-final.json
-          ls -lh campus-guide/coverage/junit.xml
 
       - name: Jest Coverage Report
         if: github.event_name == 'pull_request'
@@ -63,9 +61,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
-          path: |
-            campus-guide/coverage/lcov.info
-            campus-guide/coverage/junit.xml
+          path: campus-guide/coverage/lcov.info
           retention-days: 1
 
       - name: Upload Coverage to Codecov
