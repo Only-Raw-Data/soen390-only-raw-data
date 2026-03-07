@@ -64,7 +64,7 @@ jest.mock("react-native-maps", () => {
   const { View, Text, TouchableOpacity } = require("react-native");
 
   // Create shared mocks to capture calls across renders/layers
-  (global as any).mockMapMethods = {
+  (globalThis as any).mockMapMethods = {
     fitToCoordinates: jest.fn(),
     animateToRegion: jest.fn(),
     animateCamera: jest.fn(),
@@ -72,7 +72,7 @@ jest.mock("react-native-maps", () => {
 
   const MockMapView = React.forwardRef(
     ({ children, ...props }: any, ref: any) => {
-      React.useImperativeHandle(ref, () => (global as any).mockMapMethods);
+      React.useImperativeHandle(ref, () => (globalThis as any).mockMapMethods);
       return (
         <View testID="mapView" {...props}>
           {children}
@@ -606,7 +606,7 @@ describe("MapViewApp", () => {
       // Arrange
       const mockRoute1 = { coordinates: [{ latitude: 1, longitude: 2 }] };
       const mockRoute2 = { coordinates: [{ latitude: 3, longitude: 4 }, { latitude: 5, longitude: 6 }] };
-      const mapMethods = (global as any).mockMapMethods;
+      const mapMethods = (globalThis as any).mockMapMethods;
       mapMethods.fitToCoordinates.mockClear();
 
       // Start with first route

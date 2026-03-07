@@ -639,8 +639,8 @@ describe("IndoorMapView", () => {
       // Arrange
       const hallBuilding = INDOOR_BUILDINGS.find((b) => b.code === "H")!;
       const emptyElevator = {
-        type: "Feature",
-        geometry: { type: "Polygon", coordinates: [[]] },
+        type: "Feature" as const,
+        geometry: { type: "Polygon" as const, coordinates: [[]] },
         properties: { highway: "elevator", level: "8" },
       };
       mockGetGeoJson.mockReturnValue({ type: "FeatureCollection", features: [emptyElevator] });
@@ -662,8 +662,8 @@ describe("IndoorMapView", () => {
       // Arrange
       const hallBuilding = INDOOR_BUILDINGS.find((b) => b.code === "H")!;
       const emptyStaircase = {
-        type: "Feature",
-        geometry: { type: "Polygon", coordinates: [[]] },
+        type: "Feature" as const,
+        geometry: { type: "Polygon" as const, coordinates: [[]] },
         properties: { stairs: "yes", level: "8" },
       };
       mockGetGeoJson.mockReturnValue({ type: "FeatureCollection", features: [emptyStaircase] });
