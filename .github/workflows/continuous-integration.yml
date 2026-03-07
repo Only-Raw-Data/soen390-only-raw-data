@@ -8,8 +8,13 @@ on:
     branches: ['*']
 
 jobs:
-  build:
+  mobile-test:
+    name: Mobile Test & Coverage
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      checks: write
 
     steps:
       - name: Checkout Source
@@ -28,15 +33,41 @@ jobs:
         working-directory: campus-guide
         run: npm ci
 
+      # Produces:
+      #   campus-guide/coverage/lcov.info           — coverage (→ Codecov + Sonar)
+      #   campus-guide/coverage/coverage-summary.json — coverage summary (→ PR comment)
+      #   campus-guide/coverage/coverage-final.json   — coverage final  (→ PR comment)
+      #   campus-guide/coverage/junit.xml             — test execution  (→ Sonar)
       - name: Run Tests with Coverage
         working-directory: campus-guide
-        run: npm test -- --coverage --coverageReporters=lcov --coverageReporters=text --watchAll=false
+        run: npm test -- --coverage --watchAll=false
 
+      - name: Verify coverage reports exist
+        run: |
+          ls -lh campus-guide/coverage/lcov.info
+          ls -lh campus-guide/coverage/coverage-summary.json
+          ls -lh campus-guide/coverage/coverage-final.json
+          ls -lh campus-guide/coverage/junit.xml
+
+      # Post a PR comment table (Lines / Statements / Functions / Branches)
+      - name: Jest Coverage Report
+        if: github.event_name == 'pull_request'
+        uses: davelosert/vitest-coverage-report-action@v2
+        with:
+          name: Mobile
+          json-summary-path: campus-guide/coverage/coverage-summary.json
+          json-final-path: campus-guide/coverage/coverage-final.json
+          file-coverage-mode: changes
+          threshold-icons: '{"0": "🔴", "75": "🟠", "80": "🟢"}'
+
+      # Upload all coverage files so the sonarqube job can download them
       - name: Upload Coverage Artifact
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
-          path: campus-guide/coverage/lcov.info
+          path: |
+            campus-guide/coverage/lcov.info
+            campus-guide/coverage/junit.xml
           retention-days: 1
 
       - name: Upload Coverage to Codecov
@@ -45,10 +76,10 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: campus-guide/coverage/lcov.info
 
-  sonar:
+  sonarqube:
     name: SonarQube Analysis
     runs-on: ubuntu-latest
-    needs: build
+    needs: mobile-test
 
     steps:
       - name: Checkout Source
@@ -56,6 +87,14 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Cache SonarQube packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+
+      # Download lcov.info + junit.xml produced by the mobile-test job
       - name: Download Coverage Artifact
         uses: actions/download-artifact@v4
         with:
@@ -76,7 +115,7 @@ jobs:
             -Dsonar.projectKey=${{ secrets.PROJECT_KEY }}
             -Dsonar.organization=only-raw-data
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
-            -Dsonar.typescript.lcov.reportPaths=coverage/lcov.info
+            -Dsonar.testExecutionReportPaths=coverage/junit.xml
 
       # Scan on push to any non-main branch.
       - name: SonarQube Scan (feature branch)
@@ -91,7 +130,7 @@ jobs:
             -Dsonar.projectKey=${{ secrets.PROJECT_KEY }}
             -Dsonar.organization=only-raw-data
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
-            -Dsonar.typescript.lcov.reportPaths=coverage/lcov.info
+            -Dsonar.testExecutionReportPaths=coverage/junit.xml
             -Dsonar.branch.name=${{ github.ref_name }}
 
       # PR decoration — only works after at least one main-branch scan has
@@ -108,7 +147,7 @@ jobs:
             -Dsonar.projectKey=${{ secrets.PROJECT_KEY }}
             -Dsonar.organization=only-raw-data
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
-            -Dsonar.typescript.lcov.reportPaths=coverage/lcov.info
+            -Dsonar.testExecutionReportPaths=coverage/junit.xml
             -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
             -Dsonar.pullrequest.branch=${{ github.head_ref }}
             -Dsonar.pullrequest.base=${{ github.base_ref }}

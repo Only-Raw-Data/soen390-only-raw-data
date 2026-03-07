@@ -48,6 +48,7 @@
     "@types/react-native-maps": "^0.24.1",
     "babel-jest": "^29.7.0",
     "jest": "~29.7.0",
+    "jest-junit": "^16.0.0",
     "react-test-renderer": "19.1.0",
     "typescript": "~5.9.2"
   },
@@ -55,6 +56,27 @@
     "preset": "react-native",
     "setupFilesAfterEnv": [
       "<rootDir>/jest.setup.js"
+    ],
+    "reporters": [
+      "default",
+      ["jest-junit", {
+        "outputDirectory": "coverage",
+        "outputName": "junit.xml",
+        "classNameTemplate": "{classname}",
+        "titleTemplate": "{title}",
+        "ancestorSeparator": " › ",
+        "usePathForSuiteName": "true"
+      }]
+    ],
+    "coverageDirectory": "coverage",
+    "coverageReporters": ["lcov", "text", "clover", "json-summary", "json"],
+    "collectCoverageFrom": [
+      "app/**/*.{ts,tsx}",
+      "components/**/*.{ts,tsx}",
+      "constants/**/*.{ts,tsx}",
+      "!**/__tests__/**",
+      "!**/node_modules/**",
+      "!**/*.config.{ts,js}"
     ],
     "transformIgnorePatterns": [
       "node_modules/(?!(react-native|@react-native|@react-navigation|react-navigation|@expo|expo)/)"
