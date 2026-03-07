@@ -6,6 +6,7 @@ import IndoorMapProvider, {
   getGeoJsonForBuilding,
   getFeaturesForFloor,
 } from "@/app/context/IndoorMapContext";
+import * as indoorPathService from "@/app/services/indoorPathService";
 
 describe("IndoorMapContext", () => {
   const wrapper = ({ children }: { readonly children: React.ReactNode }) => (
@@ -481,6 +482,31 @@ describe("IndoorMapContext", () => {
       // The building was overridden so either pathError is set or path is cleared
       expect(result.current.currentPath).toBeNull();
     });
+
+    it("should handle error when path computation throws", () => {
+      // Arrange
+      const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+      const pathSpy = jest.spyOn(indoorPathService, "findIndoorPath").mockImplementation(() => {
+        throw new Error("test error");
+      });
+      const { result } = renderHook(() => useIndoorMap(), { wrapper });
+
+      // Act
+      act(() => {
+        result.current.searchStartRoom("H851.02");
+      });
+      act(() => {
+        result.current.searchDestinationRoom("H857");
+      });
+
+      // Assert
+      expect(result.current.currentPath).toBeNull();
+      expect(result.current.pathError).toBe("Error computing path");
+      expect(consoleSpy).toHaveBeenCalled();
+
+      pathSpy.mockRestore();
+      consoleSpy.mockRestore();
+    });
   });
 
   describe("accessible mode", () => {
@@ -524,6 +550,32 @@ describe("IndoorMapContext", () => {
       // Assert — path recomputed (same floor so should still find one)
       expect(result.current.accessible).toBe(true);
       expect(result.current.currentPath).not.toBeNull();
+    });
+
+    it("should show accessible error when accessible mode is on and no path found", () => {
+      // Arrange
+      const spy = jest.spyOn(indoorPathService, "findIndoorPath").mockReturnValue(null);
+      const { result } = renderHook(() => useIndoorMap(), { wrapper });
+
+      // Act
+      act(() => {
+        result.current.toggleAccessible();
+      });
+      act(() => {
+        result.current.searchStartRoom("H851.02");
+      });
+      act(() => {
+        result.current.searchDestinationRoom("H857");
+      });
+
+      // Assert
+      expect(result.current.accessible).toBe(true);
+      expect(result.current.currentPath).toBeNull();
+      expect(result.current.pathError).toBe(
+        "No accessible route found (no elevator/ramp between these rooms)"
+      );
+
+      spy.mockRestore();
     });
   });
 

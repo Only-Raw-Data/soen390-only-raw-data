@@ -10,8 +10,8 @@ const WP1 = [-73.579, 45.497];
 const WP2 = [-73.578, 45.497];
 const WP3 = [-73.577, 45.497];
 
-// Waypoint node IDs now include the floor: "coordKey:floor"
-function wpId(coord: number[], floor = 1): string {
+// Waypoint node IDs include the floor number: "coordKey:floor"
+function wpId(coord: number[], floor: number = 1): string {
   return `${coordKey(coord[0], coord[1])}:${floor}`;
 }
 

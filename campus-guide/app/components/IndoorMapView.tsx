@@ -41,6 +41,9 @@ const ROOM_STYLE_START = { fill: "rgba(22, 163, 74, 0.4)", stroke: "#16A34A", wi
 const ROOM_STYLE_DESTINATION = { fill: "rgba(37, 99, 235, 0.4)", stroke: "#2563EB", width: 3 };
 const ROOM_STYLE_HIGHLIGHTED = { fill: "rgba(37, 99, 235, 0.4)", stroke: "#2563EB", width: 3 };
 const ROOM_STYLE_DEFAULT = { fill: "rgba(145, 35, 56, 0.15)", stroke: "#912338", width: 1 };
+const ELEVATOR_LABEL = "EL";
+const STAIRCASE_LABEL = "ST";
+
 
 export default function IndoorMapView() {
   const {
@@ -282,6 +285,20 @@ export default function IndoorMapView() {
       longitudeDelta: 0.005,
     };
 
+  console.log("Polyline debug", {
+    startRoomRef,
+    destinationRoomRef,
+    pathCoordinatesLength: pathCoordinates.length,
+    pathReady,
+    selectedFloor,
+    accessible,
+    shouldRender:
+        startRoomRef &&
+        destinationRoomRef &&
+        pathCoordinates.length > 1 &&
+        pathReady,
+  });
+
   return (
     <View style={styles.container}>
       {/* Start Room Search Bar */}
@@ -443,7 +460,7 @@ export default function IndoorMapView() {
               <React.Fragment key={`elevator-${index}`}>
                 <Polygon
                   coordinates={coords}
-                  fillColor="rgba(124, 58, 237, 0.35)"
+                  fillColor="#7C3AED"
                   strokeColor="#7C3AED"
                   strokeWidth={2}
                 />
@@ -454,7 +471,7 @@ export default function IndoorMapView() {
                 >
                   <View style={styles.facilityMarker}>
                     <View style={styles.facilityMarkerElevator}>
-                      <Text style={styles.facilityMarkerText}>EL</Text>
+                      <Text style={styles.facilityMarkerText}>{ELEVATOR_LABEL}</Text>
                     </View>
                   </View>
                 </Marker>
@@ -482,7 +499,7 @@ export default function IndoorMapView() {
                 >
                   <View style={styles.facilityMarker}>
                     <View style={styles.facilityMarkerStaircase}>
-                      <Text style={styles.facilityMarkerText}>ST</Text>
+                      <Text style={styles.facilityMarkerText}>{STAIRCASE_LABEL}</Text>
                     </View>
                   </View>
                 </Marker>
@@ -492,14 +509,13 @@ export default function IndoorMapView() {
 
           {/* Shortest path polyline — filtered to current floor */}
           {startRoomRef && destinationRoomRef && pathCoordinates.length > 1 && pathReady && (
-            <Polyline
-              key={`path-floor-${selectedFloor ?? "none"}-${accessible ? "acc" : "std"}`}
-              coordinates={pathCoordinates}
-              strokeColor={accessible ? "#16A34A" : "#007AFF"}
-              strokeWidth={4}
-              geodesic={false}
-              testID="path-polyline"
-            />
+              <Polyline
+                  key={`path-${selectedFloor}-${pathCoordinates.length}-${startRoomRef}-${destinationRoomRef}-${accessible}`}
+                  coordinates={pathCoordinates}
+                  strokeColor={accessible ? "#16A34A" : "#007AFF"}
+                  strokeWidth={4}
+                  geodesic={false}
+              />
           )}
 
           {/* Staircase / elevator transition markers */}
@@ -527,7 +543,7 @@ export default function IndoorMapView() {
                   isElevator ? styles.elevatorMarker : styles.staircaseMarker,
                 ]}>
                   <Text style={styles.transitionIcon}>
-                    {isElevator ? "EL" : "ST"}
+                    {isElevator ? ELEVATOR_LABEL : STAIRCASE_LABEL}
                   </Text>
                   {floorStr !== "" && (
                     <Text style={styles.transitionFloor}>{arrow}{floorStr}</Text>

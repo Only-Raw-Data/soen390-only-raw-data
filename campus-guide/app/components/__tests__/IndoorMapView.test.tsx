@@ -53,6 +53,47 @@ function makePolygonFeature(ref: string): any {
     properties: { ref, indoor: "room", level: "8" },
   };
 }
+
+// Helper: create an elevator polygon feature
+function makeElevatorFeature(): any {
+  return {
+    type: "Feature",
+    geometry: {
+      type: "Polygon",
+      coordinates: [
+        [
+          [-73.5785, 45.4975],
+          [-73.5784, 45.4975],
+          [-73.5784, 45.4976],
+          [-73.5785, 45.4976],
+          [-73.5785, 45.4975],
+        ],
+      ],
+    },
+    properties: { highway: "elevator", level: "8;9" },
+  };
+}
+
+// Helper: create a staircase polygon feature
+function makeStaircaseFeature(): any {
+  return {
+    type: "Feature",
+    geometry: {
+      type: "Polygon",
+      coordinates: [
+        [
+          [-73.5770, 45.4960],
+          [-73.5769, 45.4960],
+          [-73.5769, 45.4961],
+          [-73.5770, 45.4961],
+          [-73.5770, 45.4960],
+        ],
+      ],
+    },
+    properties: { stairs: "yes", level: "8;9" },
+  };
+}
+
 // Helper: set up context with a path on a given floor
 function setupPathContext(
     pathNodes: any[],
@@ -552,6 +593,92 @@ describe("IndoorMapView", () => {
       // Assert — "ST" marker exists but no arrow/floor label
       expect(getByText("ST")).toBeTruthy();
       expect(queryByText(/[▲▼]/)).toBeNull();
+    });
+  });
+
+  describe("facility markers", () => {
+    it("renders elevator polygon with EL marker", () => {
+      // Arrange
+      const hallBuilding = INDOOR_BUILDINGS.find((b) => b.code === "H")!;
+      const elevatorFeature = makeElevatorFeature();
+      mockGetGeoJson.mockReturnValue({ type: "FeatureCollection", features: [elevatorFeature] });
+      mockGetFeatures.mockReturnValue([elevatorFeature]);
+      mockUseIndoorMap.mockReturnValue({
+        ...defaultContextValue,
+        selectedBuilding: hallBuilding,
+        selectedFloor: 8,
+      });
+
+      // Act
+      const { getByText } = render(<IndoorMapView />);
+
+      // Assert
+      expect(getByText("EL")).toBeTruthy();
+    });
+
+    it("renders staircase polygon with ST marker", () => {
+      // Arrange
+      const hallBuilding = INDOOR_BUILDINGS.find((b) => b.code === "H")!;
+      const staircaseFeature = makeStaircaseFeature();
+      mockGetGeoJson.mockReturnValue({ type: "FeatureCollection", features: [staircaseFeature] });
+      mockGetFeatures.mockReturnValue([staircaseFeature]);
+      mockUseIndoorMap.mockReturnValue({
+        ...defaultContextValue,
+        selectedBuilding: hallBuilding,
+        selectedFloor: 8,
+      });
+
+      // Act
+      const { getByText } = render(<IndoorMapView />);
+
+      // Assert
+      expect(getByText("ST")).toBeTruthy();
+    });
+
+    it("skips elevator feature with empty coordinates", () => {
+      // Arrange
+      const hallBuilding = INDOOR_BUILDINGS.find((b) => b.code === "H")!;
+      const emptyElevator = {
+        type: "Feature",
+        geometry: { type: "Polygon", coordinates: [[]] },
+        properties: { highway: "elevator", level: "8" },
+      };
+      mockGetGeoJson.mockReturnValue({ type: "FeatureCollection", features: [emptyElevator] });
+      mockGetFeatures.mockReturnValue([emptyElevator]);
+      mockUseIndoorMap.mockReturnValue({
+        ...defaultContextValue,
+        selectedBuilding: hallBuilding,
+        selectedFloor: 8,
+      });
+
+      // Act
+      const { queryByText } = render(<IndoorMapView />);
+
+      // Assert — no EL marker because coords are empty
+      expect(queryByText("EL")).toBeNull();
+    });
+
+    it("skips staircase feature with empty coordinates", () => {
+      // Arrange
+      const hallBuilding = INDOOR_BUILDINGS.find((b) => b.code === "H")!;
+      const emptyStaircase = {
+        type: "Feature",
+        geometry: { type: "Polygon", coordinates: [[]] },
+        properties: { stairs: "yes", level: "8" },
+      };
+      mockGetGeoJson.mockReturnValue({ type: "FeatureCollection", features: [emptyStaircase] });
+      mockGetFeatures.mockReturnValue([emptyStaircase]);
+      mockUseIndoorMap.mockReturnValue({
+        ...defaultContextValue,
+        selectedBuilding: hallBuilding,
+        selectedFloor: 8,
+      });
+
+      // Act
+      const { queryByText } = render(<IndoorMapView />);
+
+      // Assert — no ST marker because coords are empty
+      expect(queryByText("ST")).toBeNull();
     });
   });
 });
