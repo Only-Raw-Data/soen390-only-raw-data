@@ -77,10 +77,15 @@ export default function IndoorMapView() {
 
   const mapRef = useRef<MapView>(null);
 
-  // Hide Polyline during floor transitions to prevent react-native-maps Android crash
-  // (same key Polyline remounted too rapidly causes native layer crash)
-  const [pathReady, setPathReady] = useState(true);
-  const pathReadyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Brief debounce when floors change to prevent react-native-maps Android crash
+  // from rapid Polyline unmount/remount on the native layer.
+  const [floorTransitioning, setFloorTransitioning] = useState(false);
+  const floorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // On iOS, Google Maps SDK doesn't render Marker custom-view bitmaps until the
+  // map is re-laid out. Toggle mapPadding after features change to force it.
+  const [iosMapPadding, setIosMapPadding] = useState({ top: 0, right: 0, bottom: 0, left: 0 });
+  const iosPaddingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Only show room labels when zoomed in close enough
   const LABEL_ZOOM_THRESHOLD = 0.003;
@@ -88,28 +93,41 @@ export default function IndoorMapView() {
 
   const handleRegionChange = useCallback(
     (region: { latitudeDelta: number; longitudeDelta: number }) => {
-      setShowLabels(region.latitudeDelta < LABEL_ZOOM_THRESHOLD);
+      // On iOS with Google Maps, onRegionChangeComplete can fire with stale/wrong
+      // deltas after programmatic animations. Always show labels when a building
+      // is selected (the map is zoomed in to 0.002 delta).
+      if (selectedBuilding) {
+        setShowLabels(true);
+      } else {
+        setShowLabels(region.latitudeDelta < LABEL_ZOOM_THRESHOLD);
+      }
     },
-    [],
+    [selectedBuilding],
   );
 
-  // Clean up floor-transition timer on unmount
+  // Clean up timers on unmount
   useEffect(() => {
     return () => {
-      if (pathReadyTimer.current) clearTimeout(pathReadyTimer.current);
+      if (floorTimer.current) clearTimeout(floorTimer.current);
+      if (iosPaddingTimer.current) clearTimeout(iosPaddingTimer.current);
     };
   }, []);
 
-  // When a new path arrives, ensure pathReady is true so the Polyline renders
+  // Force iOS Google Maps to render Marker bitmaps by toggling map padding
+  // after polygon features change (building/floor selection).
   useEffect(() => {
-    if (currentPath) {
-      setPathReady(true);
+    if (Platform.OS === "ios" && polygonFeatures.length > 0) {
+      setIosMapPadding({ top: 0, right: 0, bottom: 1, left: 0 });
+      if (iosPaddingTimer.current) clearTimeout(iosPaddingTimer.current);
+      iosPaddingTimer.current = setTimeout(() => {
+        setIosMapPadding({ top: 0, right: 0, bottom: 0, left: 0 });
+      }, 300);
     }
-  }, [currentPath]);
+  }, [polygonFeatures]);
 
-  // Animate map to building when selected, then show labels after animation settles.
-  // We set showLabels explicitly here because onRegionChangeComplete is unreliable
-  // on Android after programmatic animateToRegion calls.
+  // Animate map to building when selected or floor changes.
+  // On iOS with Google Maps, Markers with custom views don't render their bitmaps
+  // until the map is invalidated. A short animateToRegion forces the redraw.
   useEffect(() => {
     if (selectedBuilding && mapRef.current) {
       mapRef.current.animateToRegion(
@@ -121,11 +139,10 @@ export default function IndoorMapView() {
         },
         500,
       );
-      // Show labels once the animation is done (500ms) + small buffer
       const labelTimer = setTimeout(() => setShowLabels(true), 650);
       return () => clearTimeout(labelTimer);
     }
-  }, [selectedBuilding]);
+  }, [selectedBuilding, selectedFloor]);
 
   // Get floor features for current building + floor
   const floorFeatures = useMemo(() => {
@@ -182,11 +199,11 @@ export default function IndoorMapView() {
 
   const handleFloorSelect = (floor: number) => {
     clearHighlight();
-    // Unmount Polyline first, let the native layer settle, then remount on new floor
-    setPathReady(false);
-    if (pathReadyTimer.current) clearTimeout(pathReadyTimer.current);
+    // Debounce Polyline during floor switch to prevent Android native crash
+    setFloorTransitioning(true);
+    if (floorTimer.current) clearTimeout(floorTimer.current);
     setSelectedFloor(floor);
-    pathReadyTimer.current = setTimeout(() => setPathReady(true), 150);
+    floorTimer.current = setTimeout(() => setFloorTransitioning(false), 150);
   };
 
   const convertCoordinates = (feature: IndoorFeature) => {
@@ -285,18 +302,11 @@ export default function IndoorMapView() {
       longitudeDelta: 0.005,
     };
 
-  console.log("Polyline debug", {
-    startRoomRef,
-    destinationRoomRef,
+  console.log("[IndoorMapView] RENDER", {
+    floorTransitioning,
     pathCoordinatesLength: pathCoordinates.length,
-    pathReady,
     selectedFloor,
-    accessible,
-    shouldRender:
-        startRoomRef &&
-        destinationRoomRef &&
-        pathCoordinates.length > 1 &&
-        pathReady,
+    willRenderPolyline: !!(!floorTransitioning && pathCoordinates.length > 1),
   });
 
   return (
@@ -435,6 +445,8 @@ export default function IndoorMapView() {
           initialRegion={initialRegion}
           testID="indoor-map"
           onRegionChangeComplete={handleRegionChange}
+          onMapReady={() => console.log("[IndoorMapView] MAP READY")}
+          mapPadding={iosMapPadding}
         >
           {polygonFeatures.map((feature, index) => {
             const coords = convertCoordinates(feature);
@@ -507,14 +519,18 @@ export default function IndoorMapView() {
             );
           })}
 
-          {/* Shortest path polyline — filtered to current floor */}
-          {startRoomRef && destinationRoomRef && pathCoordinates.length > 1 && pathReady && (
+          {/* Shortest path polyline — filtered to current floor.
+              Uses a stable key so React updates coordinates in place (prop change)
+              rather than unmounting/remounting the native overlay, which crashes
+              Google Maps SDK on iOS. */}
+          {!floorTransitioning && pathCoordinates.length > 1 && (
               <Polyline
-                  key={`path-${selectedFloor}-${pathCoordinates.length}-${startRoomRef}-${destinationRoomRef}-${accessible}`}
+                  key="indoor-path"
+                  testID="path-polyline"
                   coordinates={pathCoordinates}
                   strokeColor={accessible ? "#16A34A" : "#007AFF"}
                   strokeWidth={4}
-                  geodesic={false}
+                  zIndex={1000}
               />
           )}
 
@@ -553,34 +569,43 @@ export default function IndoorMapView() {
             );
           })}
 
-          {/* Room number labels — only when zoomed in */}
-          {showLabels && polygonFeatures.map((feature, index) => {
-            if (!feature.properties?.ref) return null;
-            const coords = convertCoordinates(feature);
-            if (coords.length === 0) return null;
-            const centroid = getPolygonCentroid(coords);
-            const highlighted = isHighlighted(feature);
-            return (
-              <Marker
-                key={`label-${feature.properties.ref}-${index}`}
-                coordinate={centroid}
-                anchor={{ x: 0.5, y: 0.5 }}
-                tracksViewChanges={Platform.OS === "android"}
-              >
-                <View style={styles.roomLabelContainer}>
-                  <Text
-                    style={[
-                      styles.roomLabelText,
-                      highlighted && styles.roomLabelTextHighlighted,
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {shortLabel(feature.properties.ref)}
-                  </Text>
-                </View>
-              </Marker>
-            );
-          })}
+          {/* Room number labels */}
+          {(() => {
+            const labelFeatures = polygonFeatures.filter((f) => !!f.properties?.ref);
+            console.log("[IndoorMapView] LABELS", {
+              polygonFeaturesCount: polygonFeatures.length,
+              labelFeaturesCount: labelFeatures.length,
+              selectedBuilding: selectedBuilding?.code ?? null,
+              selectedFloor,
+              sampleRefs: labelFeatures.slice(0, 5).map((f) => f.properties?.ref),
+            });
+            return labelFeatures.map((feature, index) => {
+              const coords = convertCoordinates(feature);
+              if (coords.length === 0) return null;
+              const centroid = getPolygonCentroid(coords);
+              const highlighted = isHighlighted(feature);
+              return (
+                <Marker
+                  key={`label-${feature.properties?.ref}-${index}`}
+                  coordinate={centroid}
+                  anchor={{ x: 0.5, y: 0.5 }}
+                  tracksViewChanges
+                >
+                  <View style={styles.roomLabelContainer}>
+                    <Text
+                      style={[
+                        styles.roomLabelText,
+                        highlighted && styles.roomLabelTextHighlighted,
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {shortLabel(feature.properties!.ref!)}
+                    </Text>
+                  </View>
+                </Marker>
+              );
+            });
+          })()}
         </MapView>
       </View>
 
