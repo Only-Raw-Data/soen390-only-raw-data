@@ -3,7 +3,7 @@ import React, {
   useContext,
   useState,
   useEffect,
-  useRef,
+
   useMemo,
   useCallback,
   ReactNode,
@@ -13,7 +13,7 @@ import {
   IndoorFeature,
   IndoorGeoJSON,
 } from "../types/indoorMap";
-import { buildIndoorGraph, GraphNode, IndoorGraph } from "../services/indoorGraphService";
+import { GraphNode, getOrBuildGraph } from "../services/indoorGraphService";
 import { findIndoorPath } from "../services/indoorPathService";
 
 import hallData from "@/constants/indoorData/hall.json";
@@ -224,7 +224,7 @@ function matchesFeature(
   return { floor, ref: feature.properties.ref };
 }
 
-function findRoomInBuildings(
+export function findRoomInBuildings(
   normalized: string,
 ): { building: IndoorBuildingConfig; floor: number; ref: string } | null {
   for (const building of INDOOR_BUILDINGS) {
@@ -257,6 +257,7 @@ interface IndoorMapContextType {
   pathError: string | null;
   accessible: boolean;
   showPOIs: boolean;
+  isCrossBuilding: boolean;
   setSelectedBuilding: (building: IndoorBuildingConfig | null) => void;
   setSelectedFloor: (floor: number | null) => void;
   setSearchQuery: (query: string) => void;
@@ -300,6 +301,7 @@ export default function IndoorMapProvider({
   const [pathError, setPathError] = useState<string | null>(null);
   const [accessible, setAccessible] = useState(false);
   const [showPOIs, setShowPOIs] = useState(true);
+  const [isCrossBuilding, setIsCrossBuilding] = useState(false);
 
   const toggleAccessible = useCallback(() => {
     setAccessible((prev) => !prev);
@@ -308,9 +310,6 @@ export default function IndoorMapProvider({
   const togglePOIs = useCallback(() => {
     setShowPOIs((prev) => !prev);
   }, []);
-
-  // Cache built graphs per building dataFile to avoid rebuilding on every render
-  const graphCache = useRef<Map<string, IndoorGraph>>(new Map());
 
   const clearHighlight = useCallback(() => {
     setHighlightedRoomRef(null);
@@ -395,53 +394,33 @@ export default function IndoorMapProvider({
 
   // Auto-compute shortest path whenever both rooms are set
   useEffect(() => {
-    console.log("[IndoorMapContext] path effect triggered", {
-      startRoomRef,
-      destinationRoomRef,
-      selectedBuildingCode: selectedBuilding?.code ?? null,
-      accessible,
-    });
+    setIsCrossBuilding(false);
 
     if (!startRoomRef || !destinationRoomRef || !selectedBuilding) {
-      console.log("[IndoorMapContext] missing refs, clearing path", {
-        startRoomRef,
-        destinationRoomRef,
-        hasBuilding: !!selectedBuilding,
-      });
       clearPath();
+      return;
+    }
+
+    // Detect cross-building: check if destination room belongs to a different building
+    const destNormalized = destinationRoomRef.replaceAll(/[\s-]/g, "").toUpperCase();
+    const destResult = findRoomInBuildings(destNormalized);
+    if (destResult && destResult.building.dataFile !== selectedBuilding.dataFile) {
+      setIsCrossBuilding(true);
+      setCurrentPath(null);
+      setPathError(null);
       return;
     }
 
     const geoJson = getGeoJsonForBuilding(selectedBuilding);
     if (!geoJson) {
-      console.log("[IndoorMapContext] no geoJson for building:", selectedBuilding.code);
       setPathError("No map data for this building");
       return;
     }
 
     try {
-      // Build (or reuse cached) graph for this building
-      const cacheKey = selectedBuilding.dataFile;
-      let graph = graphCache.current.get(cacheKey);
-      if (graph) {
-        console.log("[IndoorMapContext] using cached graph for:", cacheKey);
-      } else {
-        console.log("[IndoorMapContext] building graph for:", cacheKey);
-        graph = buildIndoorGraph(geoJson);
-        graphCache.current.set(cacheKey, graph);
-        console.log("[IndoorMapContext] graph built", {
-          nodeCount: graph.nodes.size,
-          edgeCount: graph.edges.length,
-        });
-      }
+      const graph = getOrBuildGraph(selectedBuilding.dataFile, geoJson);
 
-      console.log("[IndoorMapContext] finding path from", startRoomRef, "to", destinationRoomRef, "accessible:", accessible);
       const path = findIndoorPath(graph, startRoomRef, destinationRoomRef, accessible);
-      console.log("[IndoorMapContext] findIndoorPath result", {
-        found: !!path,
-        pathLength: path?.length ?? 0,
-        pathNodes: path?.map((n) => ({ id: n.id, floor: n.floor, type: n.type, lat: n.lat, lng: n.lng })),
-      });
 
       if (path) {
         setCurrentPath(path);
@@ -476,6 +455,7 @@ export default function IndoorMapProvider({
       currentPath,
       pathError,
       accessible,
+      isCrossBuilding,
       setSelectedBuilding,
       setSelectedFloor,
       setSearchQuery,
@@ -507,6 +487,7 @@ export default function IndoorMapProvider({
       currentPath,
       pathError,
       accessible,
+      isCrossBuilding,
       showPOIs,
       searchRoom,
       clearHighlight,

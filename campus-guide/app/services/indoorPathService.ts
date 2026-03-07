@@ -1,4 +1,4 @@
-import { IndoorGraph, GraphNode, EdgeType } from "./indoorGraphService";
+import { IndoorGraph, GraphNode, EdgeType, NodeType } from "./indoorGraphService";
 
 function findNodeByRef(
   graph: IndoorGraph,
@@ -101,4 +101,101 @@ export function findIndoorPath(
   if ((dist.get(destNode.id) ?? Infinity) === Infinity) return null;
 
   return reconstructPath(destNode.id, graph, prev);
+}
+
+/**
+ * Finds the shortest path from a room (by ref) to the nearest entrance node.
+ * Uses Dijkstra, terminating when any Entrance node is reached.
+ */
+export function findPathToNearestEntrance(
+  graph: IndoorGraph,
+  startRef: string,
+  accessible = false,
+): GraphNode[] | null {
+  const startNode = findNodeByRef(graph, startRef);
+  if (!startNode) return null;
+
+  const dist = new Map<string, number>();
+  const prev = new Map<string, string | null>();
+  const visited = new Set<string>();
+
+  for (const id of graph.nodes.keys()) {
+    dist.set(id, Infinity);
+    prev.set(id, null);
+  }
+  dist.set(startNode.id, 0);
+
+  const queue: Array<{ id: string; cost: number }> = [
+    { id: startNode.id, cost: 0 },
+  ];
+
+  while (queue.length > 0) {
+    const currentId = extractMin(queue);
+    if (visited.has(currentId)) continue;
+    visited.add(currentId);
+
+    const currentNode = graph.nodes.get(currentId);
+    if (currentNode && currentNode.type === NodeType.Entrance && currentId !== startNode.id) {
+      return reconstructPath(currentId, graph, prev);
+    }
+
+    relaxNeighbors(currentId, graph, dist, prev, visited, queue, accessible);
+  }
+
+  return null;
+}
+
+/**
+ * Finds the shortest path from any entrance node to a destination room (by ref).
+ * Runs Dijkstra from the destination backwards, then picks the nearest entrance.
+ */
+export function findPathFromEntrance(
+  graph: IndoorGraph,
+  destRef: string,
+  accessible = false,
+): GraphNode[] | null {
+  const destNode = findNodeByRef(graph, destRef);
+  if (!destNode) return null;
+
+  // Run Dijkstra from destination (graph is bidirectional, so this finds
+  // shortest distances from dest to all nodes, including entrances).
+  const dist = new Map<string, number>();
+  const prev = new Map<string, string | null>();
+  const visited = new Set<string>();
+
+  for (const id of graph.nodes.keys()) {
+    dist.set(id, Infinity);
+    prev.set(id, null);
+  }
+  dist.set(destNode.id, 0);
+
+  const queue: Array<{ id: string; cost: number }> = [
+    { id: destNode.id, cost: 0 },
+  ];
+
+  while (queue.length > 0) {
+    const currentId = extractMin(queue);
+    if (visited.has(currentId)) continue;
+    visited.add(currentId);
+    relaxNeighbors(currentId, graph, dist, prev, visited, queue, accessible);
+  }
+
+  // Find the entrance with the shortest distance from dest
+  let bestEntrance: string | null = null;
+  let bestCost = Infinity;
+  for (const node of graph.nodes.values()) {
+    if (node.type !== NodeType.Entrance) continue;
+    const cost = dist.get(node.id) ?? Infinity;
+    if (cost < bestCost) {
+      bestCost = cost;
+      bestEntrance = node.id;
+    }
+  }
+
+  if (!bestEntrance || bestCost === Infinity) return null;
+
+  // Reconstruct path from entrance to dest (reverse the prev chain from dest-rooted Dijkstra)
+  const reversePath = reconstructPath(bestEntrance, graph, prev);
+  reversePath.reverse();
+  return reversePath;
 }

@@ -6,6 +6,7 @@ import {
   ScrollView,
   StyleSheet,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import MapView, { Marker, Polygon, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 import { NodeType, GraphNode } from "@/app/services/indoorGraphService";
@@ -17,7 +18,10 @@ import {
   getGeoJsonForBuilding,
   getFeaturesForFloor,
 } from "@/app/context/IndoorMapContext";
-import { IndoorFeature, AmenityConfig, SelectedPOIInfo } from "../types/indoorMap";
+import { IndoorFeature } from "../types/indoorMap";
+import { NavigationStep } from "../types/navigation";
+import { planCrossBuildingRoute } from "../services/crossBuildingRouteService";
+import StoryOutdoorMap from "./StoryOutdoorMap";
 
 const BUILDING_LAT_DELTA = 0.002;
 const BUILDING_LNG_DELTA = 0.002;
@@ -53,7 +57,13 @@ const ROOM_STYLE_DEFAULT = { fill: "rgba(145, 35, 56, 0.15)", stroke: "#912338",
 const ELEVATOR_LABEL = "EL";
 const STAIRCASE_LABEL = "ST";
 
-export const AMENITY_CONFIG: Record<string, AmenityConfig> = {
+export const AMENITY_CONFIG: Record<string, {
+  label: string;
+  displayName: string;
+  fillColor: string;
+  strokeColor: string;
+  bgColor: string;
+}> = {
   toilets: { label: "\u{1F6BB}", displayName: "Washroom", fillColor: "#3B82F659", strokeColor: "#3B82F6", bgColor: "#3B82F6" },
   fountain: { label: "\u{1F4A7}", displayName: "Water Fountain", fillColor: "#06B6D459", strokeColor: "#06B6D4", bgColor: "#06B6D4" },
   vending_machine: { label: "VM", displayName: "Vending Machine", fillColor: "#A855F759", strokeColor: "#A855F7", bgColor: "#A855F7" },
@@ -142,10 +152,21 @@ export default function IndoorMapView() {
     toggleAccessible,
     showPOIs,
     togglePOIs,
+    isCrossBuilding,
   } = useIndoorMap();
 
+  // Story mode state
+  const [storySteps, setStorySteps] = useState<NavigationStep[] | null>(null);
+  const [storyIndex, setStoryIndex] = useState(0);
+  const [storyLoading, setStoryLoading] = useState(false);
+  const [storyError, setStoryError] = useState<string | null>(null);
+
   const mapRef = useRef<MapView>(null);
-  const [activePOIDetail, setActivePOIDetail] = useState<SelectedPOIInfo | null>(null);
+  const [selectedPOI, setSelectedPOI] = useState<{
+    amenity: string;
+    ref?: string;
+    name?: string;
+  } | null>(null);
 
   // Brief debounce when floors change to prevent react-native-maps Android crash
   // from rapid Polyline unmount/remount on the native layer.
@@ -257,16 +278,44 @@ export default function IndoorMapView() {
     clearDestinationRoom();
   };
 
+  const handleStartStoryMode = async () => {
+    setStoryLoading(true);
+    setStoryError(null);
+    try {
+      const steps = await planCrossBuildingRoute(
+        startSearchQuery,
+        destinationSearchQuery,
+        accessible,
+      );
+      if (steps && steps.length > 0) {
+        setStorySteps(steps);
+        setStoryIndex(0);
+      } else {
+        setStoryError("Could not compute cross-building route");
+      }
+    } catch {
+      setStoryError("Error computing cross-building route");
+    } finally {
+      setStoryLoading(false);
+    }
+  };
+
+  const handleExitStoryMode = () => {
+    setStorySteps(null);
+    setStoryIndex(0);
+    setStoryError(null);
+  };
+
   const handleBuildingSelect = (building: typeof INDOOR_BUILDINGS[0]) => {
     clearHighlight();
-    setActivePOIDetail(null);
+    setSelectedPOI(null);
     setSelectedBuilding(building);
     setSelectedFloor(building.floors[0]);
   };
 
   const handleFloorSelect = (floor: number) => {
     clearHighlight();
-    setActivePOIDetail(null);
+    setSelectedPOI(null);
     // Debounce Polyline during floor switch to prevent Android native crash
     setFloorTransitioning(true);
     if (floorTimer.current) clearTimeout(floorTimer.current);
@@ -515,14 +564,123 @@ export default function IndoorMapView() {
       )}
 
       {/* Path error banner */}
-      {pathError && (
+      {pathError && !isCrossBuilding && (
         <View style={styles.pathErrorBanner} testID="path-error-banner">
           <Text style={styles.pathErrorText}>{pathError}</Text>
         </View>
       )}
 
-      {/* Map */}
-      <View style={styles.mapContainer}>
+      {/* Cross-building banner */}
+      {isCrossBuilding && !storySteps && (
+        <View style={styles.crossBuildingBanner} testID="cross-building-banner">
+          <Text style={styles.crossBuildingText}>
+            These rooms are in different buildings.
+          </Text>
+          {storyError && (
+            <Text style={styles.crossBuildingError}>{storyError}</Text>
+          )}
+          <TouchableOpacity
+            style={styles.crossBuildingButton}
+            onPress={handleStartStoryMode}
+            disabled={storyLoading}
+            testID="cross-building-directions-button"
+          >
+            {storyLoading ? (
+              <ActivityIndicator size="small" color="#FFFFFF" testID="story-loading" />
+            ) : (
+              <Text style={styles.crossBuildingButtonText}>
+                Get Step-by-Step Directions
+              </Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Story Mode UI */}
+      {storySteps && (
+        <View style={styles.storyContainer} testID="story-mode-container">
+          {/* Step indicator bar */}
+          <View style={styles.storyHeader}>
+            <Text style={styles.storyHeaderText} testID="story-step-indicator">
+              Step {storyIndex + 1} of {storySteps.length}
+              {" · "}
+              {storySteps[storyIndex].kind === "indoor"
+                ? `Indoor — ${(storySteps[storyIndex] as import("../types/navigation").IndoorStep).buildingName}`
+                : "Outdoor — Walking"}
+            </Text>
+            <View style={styles.storyDots}>
+              {storySteps.map((_, i) => (
+                <View
+                  key={`dot-${i}`}
+                  style={[
+                    styles.storyDot,
+                    i === storyIndex && styles.storyDotActive,
+                  ]}
+                />
+              ))}
+            </View>
+          </View>
+
+          {/* Step label */}
+          <View style={styles.storyLabelBar}>
+            <Text style={styles.storyLabel} testID="story-step-label">
+              {storySteps[storyIndex].startLabel} → {storySteps[storyIndex].endLabel}
+            </Text>
+          </View>
+
+          {/* Step content */}
+          <View style={styles.storyMapContainer}>
+            {storySteps[storyIndex].kind === "outdoor" ? (
+              <StoryOutdoorMap
+                route={(storySteps[storyIndex] as import("../types/navigation").OutdoorStep).route}
+                startLabel={storySteps[storyIndex].startLabel}
+                endLabel={storySteps[storyIndex].endLabel}
+              />
+            ) : (
+              <StoryIndoorMap
+                step={storySteps[storyIndex] as import("../types/navigation").IndoorStep}
+              />
+            )}
+          </View>
+
+          {/* Navigation bar */}
+          <View style={styles.storyNavBar}>
+            <TouchableOpacity
+              style={[styles.storyNavButton, storyIndex === 0 && styles.storyNavButtonDisabled]}
+              onPress={() => setStoryIndex((i) => Math.max(0, i - 1))}
+              disabled={storyIndex === 0}
+              testID="story-prev-button"
+            >
+              <Text style={[styles.storyNavButtonText, storyIndex === 0 && styles.storyNavButtonTextDisabled]}>
+                ← Previous
+              </Text>
+            </TouchableOpacity>
+            <Text style={styles.storyNavStep}>
+              {storyIndex + 1} / {storySteps.length}
+            </Text>
+            <TouchableOpacity
+              style={[styles.storyNavButton, storyIndex === storySteps.length - 1 && styles.storyNavButtonDisabled]}
+              onPress={() => setStoryIndex((i) => Math.min(storySteps.length - 1, i + 1))}
+              disabled={storyIndex === storySteps.length - 1}
+              testID="story-next-button"
+            >
+              <Text style={[styles.storyNavButtonText, storyIndex === storySteps.length - 1 && styles.storyNavButtonTextDisabled]}>
+                Next →
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity
+            style={styles.storyExitButton}
+            onPress={handleExitStoryMode}
+            testID="story-exit-button"
+          >
+            <Text style={styles.storyExitText}>Exit Story Mode</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Map (hidden when story mode active) */}
+      {!storySteps && <View style={styles.mapContainer}>
         <MapView
           ref={mapRef}
           style={styles.map}
@@ -591,7 +749,7 @@ export default function IndoorMapView() {
                   markerStyle={[styles.amenityMarkerCircle, { backgroundColor: config.bgColor }]}
                   convertCoordinates={convertCoordinates}
                   labelStyle={styles.amenityMarkerText}
-                  onPress={() => setActivePOIDetail({
+                  onPress={() => setSelectedPOI({
                     amenity,
                     ref: feature.properties?.ref,
                     name: feature.properties?.name,
@@ -614,7 +772,7 @@ export default function IndoorMapView() {
                 coordinate={coord}
                 anchor={{ x: 0.5, y: 0.5 }}
                 tracksViewChanges={Platform.OS === "android"}
-                onPress={() => setActivePOIDetail({
+                onPress={() => setSelectedPOI({
                   amenity,
                   ref: feature.properties?.ref,
                   name: feature.properties?.name,
@@ -718,33 +876,34 @@ export default function IndoorMapView() {
             });
           })()}
         </MapView>
-      </View>
+      </View>}
 
+      {!storySteps && <>
       {/* POI Info Bar */}
-      {activePOIDetail && (
+      {selectedPOI && (
         <View style={styles.infoBar} testID="poi-info-bar">
           <View style={styles.infoRow}>
             <Text style={styles.amenityMarkerText}>
-              {AMENITY_CONFIG[activePOIDetail.amenity]?.label}
+              {AMENITY_CONFIG[selectedPOI.amenity]?.label}
             </Text>
             <Text style={styles.infoTitle}>
-              {" "}{AMENITY_CONFIG[activePOIDetail.amenity]?.displayName ?? activePOIDetail.amenity}
+              {" "}{AMENITY_CONFIG[selectedPOI.amenity]?.displayName ?? selectedPOI.amenity}
             </Text>
           </View>
-          {activePOIDetail.ref && (
+          {selectedPOI.ref && (
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Room: </Text>
-              <Text style={styles.infoValue} testID="poi-ref">{activePOIDetail.ref}</Text>
+              <Text style={styles.infoValue} testID="poi-ref">{selectedPOI.ref}</Text>
             </View>
           )}
-          {activePOIDetail.name && (
+          {selectedPOI.name && (
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Name: </Text>
-              <Text style={styles.infoValue}>{activePOIDetail.name}</Text>
+              <Text style={styles.infoValue}>{selectedPOI.name}</Text>
             </View>
           )}
           <TouchableOpacity
-            onPress={() => setActivePOIDetail(null)}
+            onPress={() => setSelectedPOI(null)}
             style={styles.poiDismiss}
             testID="poi-dismiss"
           >
@@ -754,7 +913,7 @@ export default function IndoorMapView() {
       )}
 
       {/* Room Info Bar */}
-      {!activePOIDetail && (startRoomRef || destinationRoomRef || highlightedFeature) && (
+      {!selectedPOI && (startRoomRef || destinationRoomRef || highlightedFeature) && (
         <View style={styles.infoBar}>
           {startRoomRef && (
             <View style={styles.infoRow}>
@@ -824,7 +983,82 @@ export default function IndoorMapView() {
           )}
         </View>
       )}
+      </>}
     </View>
+  );
+}
+
+/** Renders an indoor map for a story mode step, showing path on the first floor segment. */
+function StoryIndoorMap({ step }: { step: import("../types/navigation").IndoorStep }) {
+  const building = INDOOR_BUILDINGS.find((b) => b.code === step.buildingCode);
+  if (!building) return null;
+
+  const geoJson = getGeoJsonForBuilding(building);
+  if (!geoJson) return null;
+
+  // Determine which floor to show (first floor in the path)
+  const floor = step.path.length > 0 ? step.path[0].floor : building.floors[0];
+  const floorFeatures = getFeaturesForFloor(geoJson, floor);
+  const polygonFeatures = floorFeatures.filter(
+    (f) => f.geometry.type === "Polygon" && f.properties?.indoor,
+  );
+
+  const convertCoordinates = (feature: IndoorFeature) => {
+    if (feature.geometry.type !== "Polygon") return [];
+    const coords = feature.geometry.coordinates as number[][][];
+    return coords[0].map((coord) => ({
+      latitude: coord[1],
+      longitude: coord[0],
+    }));
+  };
+
+  const pathCoords = step.path
+    .filter((n) => n.floor === floor && Number.isFinite(n.lat) && Number.isFinite(n.lng))
+    .filter((n) => n.type !== NodeType.Room)
+    .map((n) => ({ latitude: n.lat, longitude: n.lng }));
+
+  // Fall back to including room nodes if too few waypoints
+  const finalPathCoords = pathCoords.length >= 2
+    ? pathCoords
+    : step.path
+        .filter((n) => n.floor === floor && Number.isFinite(n.lat) && Number.isFinite(n.lng))
+        .map((n) => ({ latitude: n.lat, longitude: n.lng }));
+
+  return (
+    <MapView
+      style={{ flex: 1 }}
+      provider={PROVIDER_GOOGLE}
+      customMapStyle={CAMPUS_MAP_STYLE}
+      initialRegion={{
+        latitude: building.centerLat,
+        longitude: building.centerLng,
+        latitudeDelta: 0.002,
+        longitudeDelta: 0.002,
+      }}
+      testID="story-indoor-map"
+    >
+      {polygonFeatures.map((feature, index) => {
+        const coords = convertCoordinates(feature);
+        if (coords.length === 0) return null;
+        return (
+          <Polygon
+            key={`story-poly-${index}`}
+            coordinates={coords}
+            fillColor="rgba(145, 35, 56, 0.15)"
+            strokeColor="#912338"
+            strokeWidth={1}
+          />
+        );
+      })}
+      {finalPathCoords.length > 1 && (
+        <Polyline
+          coordinates={finalPathCoords}
+          strokeColor="#007AFF"
+          strokeWidth={4}
+          testID="story-indoor-polyline"
+        />
+      )}
+    </MapView>
   );
 }
 
@@ -1168,5 +1402,125 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
     color: "#3B82F6",
+  },
+  crossBuildingBanner: {
+    backgroundColor: "#FFFBEB",
+    borderBottomWidth: 1,
+    borderBottomColor: "#FDE68A",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  crossBuildingText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#92400E",
+    marginBottom: 8,
+  },
+  crossBuildingError: {
+    fontSize: 13,
+    color: "#DC2626",
+    marginBottom: 8,
+  },
+  crossBuildingButton: {
+    backgroundColor: "#912338",
+    borderRadius: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    minWidth: 200,
+    alignItems: "center",
+  },
+  crossBuildingButtonText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  storyContainer: {
+    flex: 1,
+  },
+  storyHeader: {
+    backgroundColor: "#912338",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  storyHeaderText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  storyDots: {
+    flexDirection: "row",
+    marginTop: 6,
+    gap: 6,
+  },
+  storyDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "rgba(255,255,255,0.4)",
+  },
+  storyDotActive: {
+    backgroundColor: "#FFFFFF",
+  },
+  storyLabelBar: {
+    backgroundColor: "#F9FAFB",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+  },
+  storyLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#374151",
+    textAlign: "center",
+  },
+  storyMapContainer: {
+    flex: 1,
+  },
+  storyNavBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#E5E7EB",
+  },
+  storyNavButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+    backgroundColor: "#912338",
+  },
+  storyNavButtonDisabled: {
+    backgroundColor: "#D1D5DB",
+  },
+  storyNavButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#FFFFFF",
+  },
+  storyNavButtonTextDisabled: {
+    color: "#9CA3AF",
+  },
+  storyNavStep: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#374151",
+  },
+  storyExitButton: {
+    backgroundColor: "#F3F4F6",
+    paddingVertical: 10,
+    alignItems: "center",
+    borderTopWidth: 1,
+    borderTopColor: "#E5E7EB",
+  },
+  storyExitText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#DC2626",
   },
 });

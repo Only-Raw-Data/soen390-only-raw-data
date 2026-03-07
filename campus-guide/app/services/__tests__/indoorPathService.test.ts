@@ -1,5 +1,5 @@
 import { buildIndoorGraph, IndoorGraph, GraphNode, NodeType, EdgeType } from "../indoorGraphService";
-import { findIndoorPath } from "../indoorPathService";
+import { findIndoorPath, findPathToNearestEntrance, findPathFromEntrance } from "../indoorPathService";
 import hallData from "@/constants/indoorData/hall.json";
 import { IndoorGeoJSON } from "@/app/types/indoorMap";
 
@@ -254,5 +254,101 @@ describe("findIndoorPath", () => {
       // Assert
       expect(path).toBeNull();
     });
+  });
+});
+
+// ── findPathToNearestEntrance tests ─────────────────────────────────────────
+
+function makeGraphWithEntrance(): IndoorGraph {
+  // A (room) → wp:B → entrance:C (all on floor 1)
+  const nodes = new Map<string, GraphNode>([
+    ["room:A:1",     { id: "room:A:1",     lat: 0, lng: 0, floor: 1, type: NodeType.Room, ref: "A" }],
+    ["wp:B",         { id: "wp:B",         lat: 0, lng: 1, floor: 1, type: NodeType.Waypoint }],
+    ["entrance:C:1", { id: "entrance:C:1", lat: 0, lng: 2, floor: 1, type: NodeType.Entrance }],
+  ]);
+
+  const adjacency = new Map([
+    ["room:A:1",     [{ nodeId: "wp:B",         weight: 1, type: EdgeType.Corridor }]],
+    ["wp:B",         [{ nodeId: "room:A:1",     weight: 1, type: EdgeType.Corridor },
+                      { nodeId: "entrance:C:1", weight: 1, type: EdgeType.Corridor }]],
+    ["entrance:C:1", [{ nodeId: "wp:B",         weight: 1, type: EdgeType.Corridor }]],
+  ]);
+
+  return { nodes, edges: [], adjacency };
+}
+
+describe("findPathToNearestEntrance", () => {
+  it("finds path from room to nearest entrance", () => {
+    // Arrange
+    const graph = makeGraphWithEntrance();
+
+    // Act
+    const path = findPathToNearestEntrance(graph, "A");
+
+    // Assert
+    expect(path).not.toBeNull();
+    expect(path![0].ref).toBe("A");
+    expect(path![path!.length - 1].type).toBe(NodeType.Entrance);
+  });
+
+  it("returns null when no entrance exists", () => {
+    // Arrange
+    const graph = makeSimpleGraph(); // no entrance nodes
+
+    // Act
+    const path = findPathToNearestEntrance(graph, "A");
+
+    // Assert
+    expect(path).toBeNull();
+  });
+
+  it("returns null for nonexistent start ref", () => {
+    // Arrange
+    const graph = makeGraphWithEntrance();
+
+    // Act
+    const path = findPathToNearestEntrance(graph, "NONEXISTENT");
+
+    // Assert
+    expect(path).toBeNull();
+  });
+});
+
+// ── findPathFromEntrance tests ──────────────────────────────────────────────
+
+describe("findPathFromEntrance", () => {
+  it("finds path from entrance to destination room", () => {
+    // Arrange
+    const graph = makeGraphWithEntrance();
+
+    // Act
+    const path = findPathFromEntrance(graph, "A");
+
+    // Assert
+    expect(path).not.toBeNull();
+    expect(path![0].type).toBe(NodeType.Entrance);
+    expect(path![path!.length - 1].ref).toBe("A");
+  });
+
+  it("returns null when no entrance exists in graph", () => {
+    // Arrange
+    const graph = makeSimpleGraph();
+
+    // Act
+    const path = findPathFromEntrance(graph, "A");
+
+    // Assert
+    expect(path).toBeNull();
+  });
+
+  it("returns null for nonexistent destination ref", () => {
+    // Arrange
+    const graph = makeGraphWithEntrance();
+
+    // Act
+    const path = findPathFromEntrance(graph, "NONEXISTENT");
+
+    // Assert
+    expect(path).toBeNull();
   });
 });

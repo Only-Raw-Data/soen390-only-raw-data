@@ -127,6 +127,7 @@ const defaultContextValue = {
   pathError: null,
   accessible: false,
   showPOIs: true,
+  isCrossBuilding: false,
   setSelectedBuilding: jest.fn(),
   setSelectedFloor: jest.fn(),
   setSearchQuery: jest.fn(),
@@ -944,6 +945,57 @@ describe("IndoorMapView", () => {
       // Assert
       expect(getByTestId("poi-info-bar")).toBeTruthy();
       expect(getByText("Water Fountain")).toBeTruthy();
+    });
+  });
+
+  describe("cross-building story mode", () => {
+    it("shows cross-building banner when isCrossBuilding is true", () => {
+      // Arrange
+      mockUseIndoorMap.mockReturnValue({
+        ...defaultContextValue,
+        isCrossBuilding: true,
+        startRoomRef: "H820",
+        destinationRoomRef: "MBS2.210",
+        startSearchQuery: "H-820",
+        destinationSearchQuery: "MBS2.210",
+      });
+
+      // Act
+      const { getByTestId, getByText } = render(<IndoorMapView />);
+
+      // Assert
+      expect(getByTestId("cross-building-banner")).toBeTruthy();
+      expect(getByText("These rooms are in different buildings.")).toBeTruthy();
+      expect(getByTestId("cross-building-directions-button")).toBeTruthy();
+    });
+
+    it("does not show cross-building banner when isCrossBuilding is false", () => {
+      // Arrange
+      mockUseIndoorMap.mockReturnValue({
+        ...defaultContextValue,
+        isCrossBuilding: false,
+      });
+
+      // Act
+      const { queryByTestId } = render(<IndoorMapView />);
+
+      // Assert
+      expect(queryByTestId("cross-building-banner")).toBeNull();
+    });
+
+    it("does not show path error when isCrossBuilding is true", () => {
+      // Arrange
+      mockUseIndoorMap.mockReturnValue({
+        ...defaultContextValue,
+        isCrossBuilding: true,
+        pathError: "No path found between these rooms",
+      });
+
+      // Act
+      const { queryByTestId } = render(<IndoorMapView />);
+
+      // Assert
+      expect(queryByTestId("path-error-banner")).toBeNull();
     });
   });
 });
