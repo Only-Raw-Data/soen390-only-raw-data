@@ -19,30 +19,26 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: 'npm'
+          cache-dependency-path: campus-guide/package-lock.json
 
-      - name: Install dependencies
-        run: npm install
+      - name: Install Dependencies
         working-directory: campus-guide
+        run: npm ci
 
-      - name: Run Tests
+      - name: Run Tests with Coverage
         working-directory: campus-guide
-        run: npm test -- --coverage
+        run: npm test -- --coverage --coverageReporters=lcov --coverageReporters=text --watchAll=false
 
-      - name: SonarCloud Scan
-        uses: SonarSource/sonarqube-scan-action@v7
-        env:
-          SONAR_TOKEN: ${{ secrets.SONARCLOUD_TOKEN }}
+      - name: Upload Coverage Artifact
+        uses: actions/upload-artifact@v4
         with:
-          projectBaseDir: campus-guide
-          args: >
-            -Dsonar.projectKey=${{ secrets.PROJECT_KEY }}
-            -Dsonar.organization=only-raw-data
-            -Dsonar.host.url=https://sonarcloud.io
-            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
-         
+          name: coverage-report
+          path: campus-guide/coverage/lcov.info
+          retention-days: 1
 
-
-      - name: Upload coverage reports to Codecov
+      - name: Upload Coverage to Codecov
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          files: campus-guide/coverage/lcov.info
