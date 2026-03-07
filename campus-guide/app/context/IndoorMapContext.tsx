@@ -255,6 +255,7 @@ interface IndoorMapContextType {
   destinationSearchError: string | null;
   currentPath: GraphNode[] | null;
   pathError: string | null;
+  accessible: boolean;
   setSelectedBuilding: (building: IndoorBuildingConfig | null) => void;
   setSelectedFloor: (floor: number | null) => void;
   setSearchQuery: (query: string) => void;
@@ -267,6 +268,7 @@ interface IndoorMapContextType {
   clearStartRoom: () => void;
   clearDestinationRoom: () => void;
   clearPath: () => void;
+  toggleAccessible: () => void;
 }
 
 const IndoorMapContext = createContext<IndoorMapContextType | undefined>(
@@ -294,6 +296,11 @@ export default function IndoorMapProvider({
   const [destinationSearchError, setDestinationSearchError] = useState<string | null>(null);
   const [currentPath, setCurrentPath] = useState<GraphNode[] | null>(null);
   const [pathError, setPathError] = useState<string | null>(null);
+  const [accessible, setAccessible] = useState(false);
+
+  const toggleAccessible = useCallback(() => {
+    setAccessible((prev) => !prev);
+  }, []);
 
   // Cache built graphs per building dataFile to avoid rebuilding on every render
   const graphCache = useRef<Map<string, IndoorGraph>>(new Map());
@@ -323,8 +330,15 @@ export default function IndoorMapProvider({
   const searchStartRoom = useCallback((query: string) => {
     setStartSearchError(null);
     const normalized = query.replaceAll(/[\s-]/g, "").toUpperCase();
+    console.log("[IndoorMapContext] searchStartRoom", { query, normalized });
     if (!normalized) return;
     const result = findRoomInBuildings(normalized);
+    console.log("[IndoorMapContext] searchStartRoom result", {
+      found: !!result,
+      buildingCode: result?.building.code,
+      floor: result?.floor,
+      ref: result?.ref,
+    });
     if (result) {
       setSelectedBuilding(result.building);
       setSelectedFloor(result.floor);
@@ -337,8 +351,15 @@ export default function IndoorMapProvider({
   const searchDestinationRoom = useCallback((query: string) => {
     setDestinationSearchError(null);
     const normalized = query.replaceAll(/[\s-]/g, "").toUpperCase();
+    console.log("[IndoorMapContext] searchDestinationRoom", { query, normalized });
     if (!normalized) return;
     const result = findRoomInBuildings(normalized);
+    console.log("[IndoorMapContext] searchDestinationRoom result", {
+      found: !!result,
+      buildingCode: result?.building.code,
+      floor: result?.floor,
+      ref: result?.ref,
+    });
     if (result) {
       setDestinationRoomRef(result.ref);
     } else {
@@ -367,13 +388,26 @@ export default function IndoorMapProvider({
 
   // Auto-compute shortest path whenever both rooms are set
   useEffect(() => {
+    console.log("[IndoorMapContext] path effect triggered", {
+      startRoomRef,
+      destinationRoomRef,
+      selectedBuildingCode: selectedBuilding?.code ?? null,
+      accessible,
+    });
+
     if (!startRoomRef || !destinationRoomRef || !selectedBuilding) {
+      console.log("[IndoorMapContext] missing refs, clearing path", {
+        startRoomRef,
+        destinationRoomRef,
+        hasBuilding: !!selectedBuilding,
+      });
       clearPath();
       return;
     }
 
     const geoJson = getGeoJsonForBuilding(selectedBuilding);
     if (!geoJson) {
+      console.log("[IndoorMapContext] no geoJson for building:", selectedBuilding.code);
       setPathError("No map data for this building");
       return;
     }
@@ -382,25 +416,42 @@ export default function IndoorMapProvider({
       // Build (or reuse cached) graph for this building
       const cacheKey = selectedBuilding.dataFile;
       let graph = graphCache.current.get(cacheKey);
-      if (!graph) {
+      if (graph) {
+        console.log("[IndoorMapContext] using cached graph for:", cacheKey);
+      } else {
+        console.log("[IndoorMapContext] building graph for:", cacheKey);
         graph = buildIndoorGraph(geoJson);
         graphCache.current.set(cacheKey, graph);
+        console.log("[IndoorMapContext] graph built", {
+          nodeCount: graph.nodes.size,
+          edgeCount: graph.edges.length,
+        });
       }
 
-      const path = findIndoorPath(graph, startRoomRef, destinationRoomRef);
+      console.log("[IndoorMapContext] finding path from", startRoomRef, "to", destinationRoomRef, "accessible:", accessible);
+      const path = findIndoorPath(graph, startRoomRef, destinationRoomRef, accessible);
+      console.log("[IndoorMapContext] findIndoorPath result", {
+        found: !!path,
+        pathLength: path?.length ?? 0,
+        pathNodes: path?.map((n) => ({ id: n.id, floor: n.floor, type: n.type, lat: n.lat, lng: n.lng })),
+      });
+
       if (path) {
         setCurrentPath(path);
         setPathError(null);
       } else {
+        const msg = accessible
+          ? "No accessible route found (no elevator/ramp between these rooms)"
+          : "No path found between these rooms";
         setCurrentPath(null);
-        setPathError("No path found between these rooms");
+        setPathError(msg);
       }
     } catch (err) {
       console.error("[IndoorMapContext] ERROR in path computation:", err);
       setCurrentPath(null);
       setPathError("Error computing path");
     }
-  }, [startRoomRef, destinationRoomRef, selectedBuilding, clearPath]);
+  }, [startRoomRef, destinationRoomRef, selectedBuilding, accessible, clearPath]);
 
   const value = useMemo(
     () => ({
@@ -417,6 +468,7 @@ export default function IndoorMapProvider({
       destinationSearchError,
       currentPath,
       pathError,
+      accessible,
       setSelectedBuilding,
       setSelectedFloor,
       setSearchQuery,
@@ -429,6 +481,7 @@ export default function IndoorMapProvider({
       clearStartRoom,
       clearDestinationRoom,
       clearPath,
+      toggleAccessible,
     }),
     [
       selectedBuilding,
@@ -444,6 +497,7 @@ export default function IndoorMapProvider({
       destinationSearchError,
       currentPath,
       pathError,
+      accessible,
       searchRoom,
       clearHighlight,
       searchStartRoom,
@@ -451,6 +505,7 @@ export default function IndoorMapProvider({
       clearStartRoom,
       clearDestinationRoom,
       clearPath,
+      toggleAccessible,
     ],
   );
 

@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useMemo, useState, useCallback } from "react";
+import React, { useRef, useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -18,6 +18,15 @@ import {
   getFeaturesForFloor,
 } from "@/app/context/IndoorMapContext";
 import { IndoorFeature } from "../types/indoorMap";
+
+const BUILDING_LAT_DELTA = 0.002;
+const BUILDING_LNG_DELTA = 0.002;
+const DEFAULT_LAT_DELTA = 0.005;
+const DEFAULT_LNG_DELTA = 0.005;
+
+function hasNoCoordinates(coords: { latitude: number; longitude: number }[]) {
+  return coords.length === 0;
+}
 
 function getPolygonCentroid(coords: { latitude: number; longitude: number }[]) {
   let latSum = 0;
@@ -41,14 +50,55 @@ const ROOM_STYLE_START = { fill: "rgba(22, 163, 74, 0.4)", stroke: "#16A34A", wi
 const ROOM_STYLE_DESTINATION = { fill: "rgba(37, 99, 235, 0.4)", stroke: "#2563EB", width: 3 };
 const ROOM_STYLE_HIGHLIGHTED = { fill: "rgba(37, 99, 235, 0.4)", stroke: "#2563EB", width: 3 };
 const ROOM_STYLE_DEFAULT = { fill: "rgba(145, 35, 56, 0.15)", stroke: "#912338", width: 1 };
+const ELEVATOR_LABEL = "EL";
+const STAIRCASE_LABEL = "ST";
+
+function FacilityPolygon({
+  feature,
+  fillColor,
+  strokeColor,
+  label,
+  markerStyle,
+  convertCoordinates,
+}: {
+  feature: IndoorFeature;
+  fillColor: string;
+  strokeColor: string;
+  label: string;
+  markerStyle: object;
+  convertCoordinates: (f: IndoorFeature) => { latitude: number; longitude: number }[];
+}) {
+  const coords = convertCoordinates(feature);
+  if (hasNoCoordinates(coords)) return null;
+  const centroid = getPolygonCentroid(coords);
+  return (
+    <>
+      <Polygon
+        coordinates={coords}
+        fillColor={fillColor}
+        strokeColor={strokeColor}
+        strokeWidth={2}
+      />
+      <Marker
+        coordinate={centroid}
+        anchor={{ x: 0.5, y: 0.5 }}
+        tracksViewChanges={Platform.OS === "android"}
+      >
+        <View style={styles.facilityMarker}>
+          <View style={markerStyle}>
+            <Text style={styles.facilityMarkerText}>{label}</Text>
+          </View>
+        </View>
+      </Marker>
+    </>
+  );
+}
 
 export default function IndoorMapView() {
   const {
     selectedBuilding,
     selectedFloor,
-    searchQuery,
     highlightedRoomRef,
-    searchError,
     startRoomRef,
     destinationRoomRef,
     startSearchQuery,
@@ -59,8 +109,6 @@ export default function IndoorMapView() {
     pathError,
     setSelectedBuilding,
     setSelectedFloor,
-    setSearchQuery,
-    searchRoom,
     clearHighlight,
     setStartSearchQuery,
     setDestinationSearchQuery,
@@ -68,59 +116,58 @@ export default function IndoorMapView() {
     searchDestinationRoom,
     clearStartRoom,
     clearDestinationRoom,
+    accessible,
+    toggleAccessible,
   } = useIndoorMap();
 
   const mapRef = useRef<MapView>(null);
 
-  // Hide Polyline during floor transitions to prevent react-native-maps Android crash
-  // (same key Polyline remounted too rapidly causes native layer crash)
-  const [pathReady, setPathReady] = useState(true);
-  const pathReadyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Brief debounce when floors change to prevent react-native-maps Android crash
+  // from rapid Polyline unmount/remount on the native layer.
+  const [floorTransitioning, setFloorTransitioning] = useState(false);
+  const floorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Only show room labels when zoomed in close enough
-  const LABEL_ZOOM_THRESHOLD = 0.003;
-  const [showLabels, setShowLabels] = useState(!!selectedBuilding);
+  // On iOS, Google Maps SDK doesn't render Marker custom-view bitmaps until the
+  // map is re-laid out. Toggle mapPadding after features change to force it.
+  const [iosMapPadding, setIosMapPadding] = useState({ top: 0, right: 0, bottom: 0, left: 0 });
+  const iosPaddingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleRegionChange = useCallback(
-    (region: { latitudeDelta: number; longitudeDelta: number }) => {
-      setShowLabels(region.latitudeDelta < LABEL_ZOOM_THRESHOLD);
-    },
-    [],
-  );
-
-  // Clean up floor-transition timer on unmount
+  // Clean up timers on unmount
   useEffect(() => {
     return () => {
-      if (pathReadyTimer.current) clearTimeout(pathReadyTimer.current);
+      if (floorTimer.current) clearTimeout(floorTimer.current);
+      if (iosPaddingTimer.current) clearTimeout(iosPaddingTimer.current);
     };
   }, []);
 
-  // When a new path arrives, ensure pathReady is true so the Polyline renders
+  // Force iOS Google Maps to render Marker bitmaps by toggling map padding
+  // after polygon features change (building/floor selection).
   useEffect(() => {
-    if (currentPath) {
-      setPathReady(true);
+    if (Platform.OS === "ios" && polygonFeatures.length > 0) {
+      setIosMapPadding({ top: 0, right: 0, bottom: 1, left: 0 });
+      if (iosPaddingTimer.current) clearTimeout(iosPaddingTimer.current);
+      iosPaddingTimer.current = setTimeout(() => {
+        setIosMapPadding({ top: 0, right: 0, bottom: 0, left: 0 });
+      }, 300);
     }
-  }, [currentPath]);
+  }, [polygonFeatures]);
 
-  // Animate map to building when selected, then show labels after animation settles.
-  // We set showLabels explicitly here because onRegionChangeComplete is unreliable
-  // on Android after programmatic animateToRegion calls.
+  // Animate map to building when selected or floor changes.
+  // On iOS with Google Maps, Markers with custom views don't render their bitmaps
+  // until the map is invalidated. A short animateToRegion forces the redraw.
   useEffect(() => {
     if (selectedBuilding && mapRef.current) {
       mapRef.current.animateToRegion(
         {
           latitude: selectedBuilding.centerLat,
           longitude: selectedBuilding.centerLng,
-          latitudeDelta: 0.002,
-          longitudeDelta: 0.002,
+          latitudeDelta: BUILDING_LAT_DELTA,
+          longitudeDelta: BUILDING_LNG_DELTA,
         },
         500,
       );
-      // Show labels once the animation is done (500ms) + small buffer
-      const labelTimer = setTimeout(() => setShowLabels(true), 650);
-      return () => clearTimeout(labelTimer);
     }
-  }, [selectedBuilding]);
+  }, [selectedBuilding, selectedFloor]);
 
   // Get floor features for current building + floor
   const floorFeatures = useMemo(() => {
@@ -137,14 +184,18 @@ export default function IndoorMapView() {
     );
   }, [floorFeatures]);
 
-  const handleSearchSubmit = () => {
-    searchRoom(searchQuery);
-  };
+  // Elevator and staircase polygon features on the current floor
+  const elevatorFeatures = useMemo(() => {
+    return floorFeatures.filter(
+      (f) => f.geometry.type === "Polygon" && f.properties?.highway === "elevator",
+    );
+  }, [floorFeatures]);
 
-  const handleClearSearch = () => {
-    setSearchQuery("");
-    clearHighlight();
-  };
+  const staircaseFeatures = useMemo(() => {
+    return floorFeatures.filter(
+      (f) => f.geometry.type === "Polygon" && !!f.properties?.stairs,
+    );
+  }, [floorFeatures]);
 
   const handleClearStartSearch = () => {
     setStartSearchQuery("");
@@ -164,11 +215,11 @@ export default function IndoorMapView() {
 
   const handleFloorSelect = (floor: number) => {
     clearHighlight();
-    // Unmount Polyline first, let the native layer settle, then remount on new floor
-    setPathReady(false);
-    if (pathReadyTimer.current) clearTimeout(pathReadyTimer.current);
+    // Debounce Polyline during floor switch to prevent Android native crash
+    setFloorTransitioning(true);
+    if (floorTimer.current) clearTimeout(floorTimer.current);
     setSelectedFloor(floor);
-    pathReadyTimer.current = setTimeout(() => setPathReady(true), 150);
+    floorTimer.current = setTimeout(() => setFloorTransitioning(false), 150);
   };
 
   const convertCoordinates = (feature: IndoorFeature) => {
@@ -257,15 +308,22 @@ export default function IndoorMapView() {
     ? {
       latitude: selectedBuilding.centerLat,
       longitude: selectedBuilding.centerLng,
-      latitudeDelta: 0.002,
-      longitudeDelta: 0.002,
+      latitudeDelta: BUILDING_LAT_DELTA,
+      longitudeDelta: BUILDING_LNG_DELTA,
     }
     : {
       latitude: 45.497092,
       longitude: -73.5788,
-      latitudeDelta: 0.005,
-      longitudeDelta: 0.005,
+      latitudeDelta: DEFAULT_LAT_DELTA,
+      longitudeDelta: DEFAULT_LNG_DELTA,
     };
+
+  console.log("[IndoorMapView] RENDER", {
+    floorTransitioning,
+    pathCoordinatesLength: pathCoordinates.length,
+    selectedFloor,
+    willRenderPolyline: !!(!floorTransitioning && pathCoordinates.length > 1),
+  });
 
   return (
     <View style={styles.container}>
@@ -299,6 +357,24 @@ export default function IndoorMapView() {
           />
         </View>
       </View>
+
+      {/* Accessibility Toggle */}
+      <TouchableOpacity
+        style={[styles.accessibleToggle, accessible && styles.accessibleToggleActive]}
+        onPress={toggleAccessible}
+        testID="accessible-toggle"
+        accessibilityRole="switch"
+        accessibilityState={{ checked: accessible }}
+        accessibilityLabel="Accessible route"
+      >
+        <Text style={styles.accessibleIcon}>♿</Text>
+        <Text style={[styles.accessibleLabel, accessible && styles.accessibleLabelActive]}>
+          Accessible Route
+        </Text>
+        <View style={[styles.accessibleIndicator, accessible && styles.accessibleIndicatorActive]}>
+          <Text style={styles.accessibleIndicatorText}>{accessible ? "ON" : "OFF"}</Text>
+        </View>
+      </TouchableOpacity>
 
       {/* Building Selector */}
       <View style={styles.buildingSelectorContainer}>
@@ -384,11 +460,12 @@ export default function IndoorMapView() {
           customMapStyle={CAMPUS_MAP_STYLE}
           initialRegion={initialRegion}
           testID="indoor-map"
-          onRegionChangeComplete={handleRegionChange}
+          onMapReady={() => console.log("[IndoorMapView] MAP READY")}
+          mapPadding={iosMapPadding}
         >
           {polygonFeatures.map((feature, index) => {
             const coords = convertCoordinates(feature);
-            if (coords.length === 0) return null;
+            if (hasNoCoordinates(coords)) return null;
             const roomStyle = getRoomStyle(feature);
             return (
               <Polygon
@@ -401,16 +478,47 @@ export default function IndoorMapView() {
               />
             );
           })}
-          {/* Shortest path polyline — filtered to current floor */}
-          {startRoomRef && destinationRoomRef && pathCoordinates.length > 1 && pathReady && (
-            <Polyline
-              key={`path-floor-${selectedFloor ?? "none"}`}
-              coordinates={pathCoordinates}
-              strokeColor="#007AFF"
-              strokeWidth={4}
-              geodesic={false}
-              testID="path-polyline"
-            />
+          {/* Elevator polygons — always visible */}
+          {elevatorFeatures.map((feature, index) => (
+            <React.Fragment key={`elevator-${index}`}>
+              <FacilityPolygon
+                feature={feature}
+                fillColor="#7C3AED"
+                strokeColor="#7C3AED"
+                label={ELEVATOR_LABEL}
+                markerStyle={styles.facilityMarkerElevator}
+                convertCoordinates={convertCoordinates}
+              />
+            </React.Fragment>
+          ))}
+
+          {/* Staircase polygons — always visible */}
+          {staircaseFeatures.map((feature, index) => (
+            <React.Fragment key={`staircase-${index}`}>
+              <FacilityPolygon
+                feature={feature}
+                fillColor="rgba(245, 158, 11, 0.35)"
+                strokeColor="#F59E0B"
+                label={STAIRCASE_LABEL}
+                markerStyle={styles.facilityMarkerStaircase}
+                convertCoordinates={convertCoordinates}
+              />
+            </React.Fragment>
+          ))}
+
+          {/* Shortest path polyline — filtered to current floor.
+              Uses a stable key so React updates coordinates in place (prop change)
+              rather than unmounting/remounting the native overlay, which crashes
+              Google Maps SDK on iOS. */}
+          {!floorTransitioning && pathCoordinates.length > 1 && (
+              <Polyline
+                  key="indoor-path"
+                  testID="path-polyline"
+                  coordinates={pathCoordinates}
+                  strokeColor={accessible ? "#16A34A" : "#007AFF"}
+                  strokeWidth={4}
+                  zIndex={1000}
+              />
           )}
 
           {/* Staircase / elevator transition markers */}
@@ -438,7 +546,7 @@ export default function IndoorMapView() {
                   isElevator ? styles.elevatorMarker : styles.staircaseMarker,
                 ]}>
                   <Text style={styles.transitionIcon}>
-                    {isElevator ? "EL" : "ST"}
+                    {isElevator ? ELEVATOR_LABEL : STAIRCASE_LABEL}
                   </Text>
                   {floorStr !== "" && (
                     <Text style={styles.transitionFloor}>{arrow}{floorStr}</Text>
@@ -448,34 +556,43 @@ export default function IndoorMapView() {
             );
           })}
 
-          {/* Room number labels — only when zoomed in */}
-          {showLabels && polygonFeatures.map((feature, index) => {
-            if (!feature.properties?.ref) return null;
-            const coords = convertCoordinates(feature);
-            if (coords.length === 0) return null;
-            const centroid = getPolygonCentroid(coords);
-            const highlighted = isHighlighted(feature);
-            return (
-              <Marker
-                key={`label-${feature.properties.ref}-${index}`}
-                coordinate={centroid}
-                anchor={{ x: 0.5, y: 0.5 }}
-                tracksViewChanges={Platform.OS === "android"}
-              >
-                <View style={styles.roomLabelContainer}>
-                  <Text
-                    style={[
-                      styles.roomLabelText,
-                      highlighted && styles.roomLabelTextHighlighted,
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {shortLabel(feature.properties.ref)}
-                  </Text>
-                </View>
-              </Marker>
-            );
-          })}
+          {/* Room number labels */}
+          {(() => {
+            const labelFeatures = polygonFeatures.filter((f) => !!f.properties?.ref);
+            console.log("[IndoorMapView] LABELS", {
+              polygonFeaturesCount: polygonFeatures.length,
+              labelFeaturesCount: labelFeatures.length,
+              selectedBuilding: selectedBuilding?.code ?? null,
+              selectedFloor,
+              sampleRefs: labelFeatures.slice(0, 5).map((f) => f.properties?.ref),
+            });
+            return labelFeatures.map((feature, index) => {
+              const coords = convertCoordinates(feature);
+              if (hasNoCoordinates(coords)) return null;
+              const centroid = getPolygonCentroid(coords);
+              const highlighted = isHighlighted(feature);
+              return (
+                <Marker
+                  key={`label-${feature.properties?.ref}-${index}`}
+                  coordinate={centroid}
+                  anchor={{ x: 0.5, y: 0.5 }}
+                  tracksViewChanges
+                >
+                  <View style={styles.roomLabelContainer}>
+                    <Text
+                      style={[
+                        styles.roomLabelText,
+                        highlighted && styles.roomLabelTextHighlighted,
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {shortLabel(feature.properties!.ref!)}
+                    </Text>
+                  </View>
+                </Marker>
+              );
+            });
+          })()}
         </MapView>
       </View>
 
@@ -511,9 +628,9 @@ export default function IndoorMapView() {
             return (
               <>
                 <View style={styles.infoRow}>
-                  <View style={[styles.infoDot, { backgroundColor: "#007AFF" }]} />
+                  <View style={[styles.infoDot, { backgroundColor: accessible ? "#16A34A" : "#007AFF" }]} />
                   <Text style={styles.infoLabel} testID="path-status">
-                    {`Route: ${currentPath.length} steps`}
+                    {accessible ? "♿ " : ""}{`Route: ${currentPath.length} steps`}
                     {isMultiFloor && ` · floors ${floorLabels}`}
                   </Text>
                 </View>
@@ -750,5 +867,84 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#FFFFFF",
     marginTop: 1,
+  },
+  accessibleToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F3F4F6",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+  },
+  accessibleToggleActive: {
+    backgroundColor: "#ECFDF5",
+  },
+  accessibleIcon: {
+    fontSize: 18,
+    marginRight: 8,
+  },
+  accessibleLabel: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#374151",
+  },
+  accessibleLabelActive: {
+    color: "#16A34A",
+  },
+  accessibleIndicator: {
+    backgroundColor: "#9CA3AF",
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  accessibleIndicatorActive: {
+    backgroundColor: "#16A34A",
+  },
+  accessibleIndicatorText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  facilityMarker: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  facilityMarkerElevator: {
+    backgroundColor: "#7C3AED",
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: "#FFFFFF",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  facilityMarkerStaircase: {
+    backgroundColor: "#F59E0B",
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: "#FFFFFF",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  facilityMarkerText: {
+    fontSize: 8,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    letterSpacing: 0.5,
   },
 });

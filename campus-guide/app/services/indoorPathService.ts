@@ -1,4 +1,4 @@
-import { IndoorGraph, GraphNode } from "./indoorGraphService";
+import { IndoorGraph, GraphNode, EdgeType } from "./indoorGraphService";
 
 function findNodeByRef(
   graph: IndoorGraph,
@@ -25,10 +25,12 @@ function relaxNeighbors(
   prev: Map<string, string | null>,
   visited: Set<string>,
   queue: Array<{ id: string; cost: number }>,
+  accessible: boolean,
 ): void {
   const currentDist = dist.get(currentId) ?? Infinity;
-  for (const { nodeId, weight } of graph.adjacency.get(currentId) ?? []) {
+  for (const { nodeId, weight, type } of graph.adjacency.get(currentId) ?? []) {
     if (visited.has(nodeId)) continue;
+    if (accessible && type === EdgeType.Staircase) continue;
     const newCost = currentDist + weight;
     if (newCost < (dist.get(nodeId) ?? Infinity)) {
       dist.set(nodeId, newCost);
@@ -60,12 +62,14 @@ function reconstructPath(
  * @param graph - The indoor navigation graph built from GeoJSON data
  * @param startRef - The room reference of the start room (e.g. "H851.02")
  * @param destRef  - The room reference of the destination room (e.g. "H820")
+ * @param accessible - When true, excludes staircase edges (uses elevators/ramps only)
  * @returns Ordered array of GraphNodes from start to destination, or null if no path exists
  */
 export function findIndoorPath(
   graph: IndoorGraph,
   startRef: string,
   destRef: string,
+  accessible = false,
 ): GraphNode[] | null {
   const startNode = findNodeByRef(graph, startRef);
   const destNode = findNodeByRef(graph, destRef);
@@ -91,7 +95,7 @@ export function findIndoorPath(
     if (visited.has(currentId)) continue;
     visited.add(currentId);
     if (currentId === destNode.id) break;
-    relaxNeighbors(currentId, graph, dist, prev, visited, queue);
+    relaxNeighbors(currentId, graph, dist, prev, visited, queue, accessible);
   }
 
   if ((dist.get(destNode.id) ?? Infinity) === Infinity) return null;
