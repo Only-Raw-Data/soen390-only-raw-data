@@ -10,15 +10,68 @@ classDiagram
     classDef type fill:#f5f5f5,stroke:#616161,stroke-width:1px;
 
     %% ==========================================
-    %% LAYER 1: DATA MODELS
+    %% LAYER 1: DATA MODELS & TYPES (Model)
     %% ==========================================
     namespace DataModels {
+        class NodeType:::type {
+            <<Enumeration>>
+            room, waypoint, elevator, staircase
+        }
+        class EdgeType:::type {
+            <<Enumeration>>
+            corridor, elevator, staircase
+        }
         class Building:::current {
             +String id
             +String name
             +String code
             +Campus campus
-            +Coordinate coords
+            +number lat
+            +number lng
+            +String address
+        }
+        class BuildingPolygon:::current {
+            +String buildingId
+            +Coordinate[] coordinates
+        }
+        class IndoorBuildingConfig:::current {
+            +String code
+            +String name
+            +Campus campus
+            +number[] floors
+            +String dataFile
+            +number centerLat
+            +number centerLng
+        }
+        class GraphNode:::current {
+            +String id
+            +number lat
+            +number lng
+            +number floor
+            +NodeType type
+            +String ref
+        }
+        class GraphEdge:::current {
+            +String from
+            +String to
+            +number weight
+            +EdgeType type
+        }
+        class IndoorGraph:::current {
+            +Map nodes
+            +GraphEdge[] edges
+            +Map adjacency
+        }
+        class IndoorFeature:::current {
+            +String type
+            +IndoorFeatureProperties properties
+            +geometry
+        }
+        class IndoorFeatureProperties:::current {
+            +String level
+            +String ref
+            +String indoor
+            +String name
         }
         class RouteData:::current {
             +Coordinate[] coordinates
@@ -26,66 +79,67 @@ classDiagram
             +String distance
             +String encodedPolyline
         }
-        class BuildingPolygon:::current {
-            +String buildingId
-            +Coordinate[] coordinates
-        }
         class TransportationMode:::type {
             <<Enumeration>>
-            WALK, CAR, TRANSIT, SHUTTLE
-        }
-        class Campus:::type {
-            <<Enumeration>>
-            SGW, Loyola
+            walk, drive, bicycle, transit, shuttle
         }
         %% PLANNED MODELS
         class Room:::planned {
             +String id
-            +Number floor
+            +number floor
             +RoomType type
-        }
-        class IndoorRoute:::planned {
-            +Room start
-            +Room end
-            +AccessibilityInfo a11y
-        }
-        class OutdoorPOI:::planned {
-            +String id
-            +POIType type
-            +Number rating
         }
         class CalendarEvent:::planned {
             +String id
             +Date startTime
             +String location
         }
-        class AccessibilityInfo:::planned {
-            +Boolean isAccessible
-            +Coordinate[] elevatorLocs
+        class OutdoorPOI:::planned {
+            +String id
+            +POIType type
         }
     }
 
+    note for Building "Pattern: Model"
+    note for IndoorGraph "Pattern: Model (Data Structure)"
+
     %% ==========================================
-    %% LAYER 2: CONTEXTS (STATE)
+    %% LAYER 2: CONTEXTS & STATE (Controller / Observer)
     %% ==========================================
     namespace State {
         class DirectionsContext:::current {
-            +Building start
-            +Building dest
+            +Building startBuilding
+            +Building destinationBuilding
+            +startCoords
+            +TransportationMode transportationMode
             +RouteData route
-            +setStart(Building)
+            +boolean isLoadingRoute
             +fetchRoute()
+            +clearDirections()
+            +swapLocations()
         }
-        class IndoorNavigationContext:::planned {
-            +Number currentFloor
-            +Room startRoom
-            +IndoorRoute route
-            +fetchIndoorRoute()
+        class IndoorMapContext:::current {
+            +IndoorBuildingConfig selectedBuilding
+            +number selectedFloor
+            +String startRoomRef
+            +String destinationRoomRef
+            +GraphNode[] currentPath
+            +String pathError
+            +searchRoom(query)
+            +setSelectedFloor(floor)
+        }
+        class UserLocationState:::current {
+            +LocationObject location
+            +String errorMsg
+            +PermissionStatus permissionStatus
+            +boolean isLoading
+            +Building nearestBuilding
+            +boolean isOnCampus
+            +Campus currentCampus
         }
         class CalendarContext:::planned {
             +CalendarEvent[] events
-            +CalendarEvent nextClass
-            +connectGoogle()
+            +fetchEvents()
         }
         class POIContext:::planned {
             +OutdoorPOI[] pois
@@ -93,52 +147,62 @@ classDiagram
         }
     }
 
+    note for DirectionsContext "Pattern: Observer / Controller"
+    note for IndoorMapContext "Pattern: Observer / Controller"
+
     %% ==========================================
-    %% LAYER 3: SERVICES
+    %% LAYER 3: SERVICES (Facade / Strategy - Functional)
     %% ==========================================
     namespace Services {
-        class DirectionsService:::current {
+        class directionsService:::current {
+            <<Functional Service>>
             +fetchDirections()
-            -decodePolyline()
+            -modeMapping
         }
-        class IndoorNavigationService:::planned {
-            +fetchIndoorRoute()
-            +getRoomsInBuilding()
+        class indoorGraphService:::current {
+            <<Functional Service>>
+            +buildIndoorGraph()
+            +haversineDistance()
+        }
+        class indoorPathService:::current {
+            <<Functional Service>>
+            +findIndoorPath()
+            -dijkstra()
         }
         class CalendarService:::planned {
             +authenticate()
             +fetchEvents()
-            +parseLocation()
         }
         class POIService:::planned {
             +fetchNearbyPOIs()
-            +getPOIDetails()
         }
     }
 
+    note for directionsService "Pattern: Facade / Strategy (Export functions)"
+    note for indoorGraphService "Pattern: Facade (Export functions)"
+
     %% ==========================================
-    %% LAYER 4: HOOKS
+    %% LAYER 4: HOOKS (Adapter)
     %% ==========================================
     namespace CustomHooks {
         class useUserLocation:::current {
-            +Location location
-            +Building nearestBuilding
-            +Boolean isOnCampus
+            +UserLocationState state
+            +getCurrentLocation()
+            +startLocationTracking()
         }
         class useBuildingPolygons:::current {
             +BuildingPolygon[] polygons
-            +fetchFromOverpass()
+            +boolean loading
         }
         class useDirections:::current {
-            +Context state
+            <<Exported from Context>>
+            +DirectionsContext state
         }
-        %% PLANNED HOOKS
-        class useIndoorNavigation:::planned {
-            +Room[] rooms
-            +IndoorRoute route
+        class useIndoorMap:::current {
+            <<Exported from Context>>
+            +IndoorMapContext state
         }
         class useCalendarIntegration:::planned {
-            +Boolean isConnected
             +CalendarEvent nextClass
         }
         class usePOILocations:::planned {
@@ -146,81 +210,60 @@ classDiagram
         }
     }
 
+    note for useUserLocation "Pattern: Adapter"
+    note for useBuildingPolygons "Pattern: Adapter"
+
     %% ==========================================
-    %% LAYER 5: PRESENTATION (COMPONENTS)
+    %% LAYER 5: PRESENTATION (View)
     %% ==========================================
     namespace Components {
-        class AppLayout:::current {
-            +Tabs
-        }
-        class BottomNav:::current {
-            +handleNavPress()
-        }
-        class Header:::current {
-            +Title
-        }
-        class TabOneScreen:::current {
-            Map Focus
-        }
-        class TabTwoScreen:::current {
-            Directions Focus
-        }
         class MapViewApp:::current {
-            +renderMarkers()
-            +renderPolygons()
+            +selectedCampus
             +handleBuildingPress()
         }
+        class IndoorMapView:::current {
+            +pathReady
+            +handleFloorSelect()
+        }
         class DirectionsHeader:::current {
-            +handleSwap()
-            +handleGetDirections()
+            +transportationMode
         }
         class BuildingSearchComponent:::current {
-            +handleSearch()
-            +filterBuildings()
+            +value
         }
         class BuildingInformation:::current {
-            +PopupUI
+            +building
         }
         class ShuttleSchedule:::current {
-            +ModalUI
+            +visible
         }
-        %% PLANNED SCREENS
-        class IndoorNavigationScreen:::planned {
-            +FloorSelector
-            +RoomSearch
+        class LocateMeButton:::current {
+            +onLocate()
         }
+        class RoomSearchBar:::current {
+            +onSubmit()
+        }
+        class Header:::current
+        class BottomNav:::current
         class ClassScheduleScreen:::planned {
             +EventList
-            +NextClassHighlight
         }
         class POIDiscoveryScreen:::planned {
-            +POIFilter
             +POIList
         }
     }
+
+    note for MapViewApp "Pattern: View (Composition)"
+    note for IndoorMapView "Pattern: View (Composition)"
 
     %% ==========================================
     %% LAYER 6: EXTERNAL / UTILS
     %% ==========================================
     namespace External {
-        class GoogleRoutesAPI:::external {
-            v2
-        }
-        class OverpassAPI:::external {
-            OSM Data
-        }
-        class GoogleCalendarAPI:::external {
-            OAuth + Data
-        }
-        class LocationUtils:::external {
-            +findNearestBuilding()
-            +calculateDistance()
-        }
-        class Constants:::external {
-            +SGW_BUILDINGS
-            +LOYOLA_BUILDINGS
-            +CAMPUS_MAP_STYLE
-        }
+        class GoogleRoutesAPI:::external
+        class OverpassAPI:::external
+        class ExpoLocation:::external
+        class GoogleCalendarAPI:::external
     }
 
     %% ==========================================
@@ -228,57 +271,46 @@ classDiagram
     %% ==========================================
 
     %% Context -> Service
-    DirectionsContext --> DirectionsService
-    IndoorNavigationContext ..> IndoorNavigationService
+    DirectionsContext ..> directionsService : "calls"
+    IndoorMapContext ..> indoorGraphService : "calls"
+    IndoorMapContext ..> indoorPathService : "calls"
     CalendarContext ..> CalendarService
     POIContext ..> POIService
 
     %% Service -> External
-    DirectionsService --> GoogleRoutesAPI
-    useBuildingPolygons --> OverpassAPI
-    POIService ..> OverpassAPI
+    directionsService --> GoogleRoutesAPI
+    useBuildingPolygons ..> OverpassAPI : "fetches"
+    useUserLocation --> ExpoLocation
     CalendarService ..> GoogleCalendarAPI
 
-    %% Component Structure (Composition)
-    AppLayout *-- TabOneScreen
-    AppLayout *-- TabTwoScreen
-    AppLayout *-- BottomNav
-    TabOneScreen *-- Header
-    TabOneScreen *-- MapViewApp
-    TabTwoScreen *-- Header
-    TabTwoScreen *-- DirectionsHeader
-    TabTwoScreen *-- MapViewApp
-    
-    %% UI Components Composition
+    %% Component Layout
+    MapViewApp *-- IndoorMapView
     MapViewApp *-- BuildingInformation
     MapViewApp *-- BuildingSearchComponent
+    MapViewApp *-- LocateMeButton
+    IndoorMapView *-- RoomSearchBar
     DirectionsHeader *-- ShuttleSchedule
     DirectionsHeader *-- BuildingSearchComponent
-
-    %% Component -> Hooks (Data Flow)
+    
+    %% Hooks Data Flow
     MapViewApp --> useUserLocation
     MapViewApp --> useBuildingPolygons
     MapViewApp --> useDirections
+    IndoorMapView --> useIndoorMap
     DirectionsHeader --> useDirections
-    DirectionsHeader --> useUserLocation
-
-    %% Planned Screen Connections
-    IndoorNavigationScreen ..> useIndoorNavigation
     ClassScheduleScreen ..> useCalendarIntegration
     POIDiscoveryScreen ..> usePOILocations
-    
+
     %% Cross-Context Interactions (The "Wave" ≋ relationships)
     ClassScheduleScreen ..> DirectionsContext : "Quick Directions"
-    IndoorNavigationScreen ..> useUserLocation : "Floor Context"
+    IndoorMapView ..> useUserLocation : "Floor Context"
 
     %% Data Dependencies
-    BuildingPolygon "1" -- "1" Building : for
-    RouteData "1" -- "*" Coordinate : contains
-    IndoorRoute "1" -- "*" Room : connects
-    CalendarEvent --> Building : located at
-    CalendarEvent --> Room : located in
-    
-    %% Utility Usage
-    useUserLocation --> LocationUtils
-    LocationUtils --> Constants
-    BuildingSearchComponent --> Constants
+    IndoorGraph o-- GraphNode
+    IndoorGraph o-- GraphEdge
+    IndoorMapContext --> IndoorGraph : "manages"
+    IndoorGeoJSON *-- IndoorFeature
+    IndoorFeature *-- IndoorFeatureProperties
+    BuildingPolygon "1" -- "1" Building : "for"
+    CalendarEvent --> Building : "located at"
+    CalendarEvent --> Room : "located in"
