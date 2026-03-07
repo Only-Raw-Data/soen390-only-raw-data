@@ -19,6 +19,15 @@ import {
 } from "@/app/context/IndoorMapContext";
 import { IndoorFeature } from "../types/indoorMap";
 
+const BUILDING_LAT_DELTA = 0.002;
+const BUILDING_LNG_DELTA = 0.002;
+const DEFAULT_LAT_DELTA = 0.005;
+const DEFAULT_LNG_DELTA = 0.005;
+
+function hasNoCoordinates(coords: { latitude: number; longitude: number }[]) {
+  return coords.length === 0;
+}
+
 function getPolygonCentroid(coords: { latitude: number; longitude: number }[]) {
   let latSum = 0;
   let lngSum = 0;
@@ -60,7 +69,7 @@ function FacilityPolygon({
   convertCoordinates: (f: IndoorFeature) => { latitude: number; longitude: number }[];
 }) {
   const coords = convertCoordinates(feature);
-  if (coords.length === 0) return null;
+  if (hasNoCoordinates(coords)) return null;
   const centroid = getPolygonCentroid(coords);
   return (
     <>
@@ -89,9 +98,7 @@ export default function IndoorMapView() {
   const {
     selectedBuilding,
     selectedFloor,
-    searchQuery,
     highlightedRoomRef,
-    searchError,
     startRoomRef,
     destinationRoomRef,
     startSearchQuery,
@@ -102,8 +109,6 @@ export default function IndoorMapView() {
     pathError,
     setSelectedBuilding,
     setSelectedFloor,
-    setSearchQuery,
-    searchRoom,
     clearHighlight,
     setStartSearchQuery,
     setDestinationSearchQuery,
@@ -156,8 +161,8 @@ export default function IndoorMapView() {
         {
           latitude: selectedBuilding.centerLat,
           longitude: selectedBuilding.centerLng,
-          latitudeDelta: 0.002,
-          longitudeDelta: 0.002,
+          latitudeDelta: BUILDING_LAT_DELTA,
+          longitudeDelta: BUILDING_LNG_DELTA,
         },
         500,
       );
@@ -191,15 +196,6 @@ export default function IndoorMapView() {
       (f) => f.geometry.type === "Polygon" && !!f.properties?.stairs,
     );
   }, [floorFeatures]);
-
-  const handleSearchSubmit = () => {
-    searchRoom(searchQuery);
-  };
-
-  const handleClearSearch = () => {
-    setSearchQuery("");
-    clearHighlight();
-  };
 
   const handleClearStartSearch = () => {
     setStartSearchQuery("");
@@ -312,14 +308,14 @@ export default function IndoorMapView() {
     ? {
       latitude: selectedBuilding.centerLat,
       longitude: selectedBuilding.centerLng,
-      latitudeDelta: 0.002,
-      longitudeDelta: 0.002,
+      latitudeDelta: BUILDING_LAT_DELTA,
+      longitudeDelta: BUILDING_LNG_DELTA,
     }
     : {
       latitude: 45.497092,
       longitude: -73.5788,
-      latitudeDelta: 0.005,
-      longitudeDelta: 0.005,
+      latitudeDelta: DEFAULT_LAT_DELTA,
+      longitudeDelta: DEFAULT_LNG_DELTA,
     };
 
   console.log("[IndoorMapView] RENDER", {
@@ -469,7 +465,7 @@ export default function IndoorMapView() {
         >
           {polygonFeatures.map((feature, index) => {
             const coords = convertCoordinates(feature);
-            if (coords.length === 0) return null;
+            if (hasNoCoordinates(coords)) return null;
             const roomStyle = getRoomStyle(feature);
             return (
               <Polygon
@@ -572,7 +568,7 @@ export default function IndoorMapView() {
             });
             return labelFeatures.map((feature, index) => {
               const coords = convertCoordinates(feature);
-              if (coords.length === 0) return null;
+              if (hasNoCoordinates(coords)) return null;
               const centroid = getPolygonCentroid(coords);
               const highlighted = isHighlighted(feature);
               return (
