@@ -94,20 +94,8 @@ jobs:
           name: coverage-report
           path: campus-guide/coverage
 
-      # The scanner reads campus-guide/sonar-project.properties because projectBaseDir
-      # points at campus-guide. That file is the single source of truth for sonar.projectKey,
-      # sonar.organization, and the coverage/test report paths.
-      - name: SonarQube Scan (default branch bootstrap)
-        if: github.event_name == 'push' && github.ref_name == github.event.repository.default_branch
-        uses: SonarSource/sonarqube-scan-action@a31c9398be7ace6bbfaf30c0bd5d415f843d45e9
-        env:
-          SONAR_TOKEN: ${{ secrets.SONARCLOUD_TOKEN }}
-          SONAR_HOST_URL: https://sonarcloud.io
-        with:
-          projectBaseDir: campus-guide
 
-      - name: SonarQube Scan (feature branch)
-        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref_name != github.event.repository.default_branch
+      - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@a31c9398be7ace6bbfaf30c0bd5d415f843d45e9
         env:
           SONAR_TOKEN: ${{ secrets.SONARCLOUD_TOKEN }}
@@ -117,23 +105,6 @@ jobs:
           args: >
             -Dsonar.branch.name=${{ github.ref_name }}
 
-      - name: SonarQube Scan (pull request)
-        if: github.event_name == 'pull_request' && vars.SONARCLOUD_READY == 'true'
-        uses: SonarSource/sonarqube-scan-action@a31c9398be7ace6bbfaf30c0bd5d415f843d45e9
-        env:
-          SONAR_TOKEN: ${{ secrets.SONARCLOUD_TOKEN }}
-          SONAR_HOST_URL: https://sonarcloud.io
-        with:
-          projectBaseDir: campus-guide
-          args: >
-            -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
-            -Dsonar.pullrequest.branch=${{ github.head_ref }}
-            -Dsonar.pullrequest.base=${{ github.base_ref }}
 
-      - name: SonarQube PR scan skipped until bootstrap
-        if: github.event_name == 'pull_request' && vars.SONARCLOUD_READY != 'true'
-        run: |
-          echo 'Skipping SonarCloud PR analysis because SONARCLOUD_READY is not true.'
-          echo '1) Make sure the SonarCloud project exists and is bound to this repository.'
-          echo '2) Push the repository default branch (${{ github.event.repository.default_branch }}) and let the default-branch scan succeed once.'
-          echo '3) Set repository variable SONARCLOUD_READY=true to enable PR analysis.'
+
+
