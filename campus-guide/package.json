@@ -11,7 +11,7 @@
     "ios": "expo run:ios",
     "ios:native": "expo run:ios",
     "web": "expo start --web",
-    "test": "jest",
+    "test": "jest --coverage",
     "build": "expo prebuild"
   },
   "dependencies": {
@@ -55,6 +55,16 @@
     "preset": "react-native",
     "setupFilesAfterEnv": [
       "<rootDir>/jest.setup.js"
+    ],
+    "coverageDirectory": "coverage",
+    "coverageReporters": ["lcov", "text", "clover", "json-summary", "json"],
+    "collectCoverageFrom": [
+      "app/**/*.{ts,tsx}",
+      "components/**/*.{ts,tsx}",
+      "constants/**/*.{ts,tsx}",
+      "!**/__tests__/**",
+      "!**/node_modules/**",
+      "!**/*.config.{ts,js}"
     ],
     "transformIgnorePatterns": [
       "node_modules/(?!(react-native|@react-native|@react-navigation|react-navigation|@expo|expo)/)"
