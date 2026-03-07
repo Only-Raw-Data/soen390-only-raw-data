@@ -24,6 +24,15 @@ import BuildingInformation from "./BuildingInformation";
 import LocateMeButton from "./LocateMeButton";
 import useUserLocation from "../hooks/useUserLocation";
 import { isWithinShuttleHours } from "../utils/shuttleHours";
+import { SegmentMode } from "../types/transportation";
+
+const SEGMENT_COLORS: Record<SegmentMode, string> = {
+  WALK:   '#3B82F6',
+  BUS:    '#16A34A',
+  SUBWAY: '#F97316',
+  TRAM:   '#DC2626',
+  RAIL:   '#DC2626',
+};
 
 interface MapViewAppProps {
   readonly googleMapsApiKey?: string;
@@ -366,16 +375,33 @@ export default function MapViewApp({
       />
     )}
 
-    {/* Transit — long dashes */}
-    {transportationMode === 'transit' && (
-      <Polyline
-        coordinates={route.coordinates}
-        strokeWidth={4}
-        strokeColor="#8B5CF6"
-        lineDashPattern={[16, 8]}
-        zIndex={10}
-      />
-    )}
+    {/* Transit — per-segment polylines (walk/bus/metro/tram/rail) */}
+    {transportationMode === 'transit' && route.segments && route.segments.length > 0
+      ? route.segments.map((seg, i) => {
+          const isWalk = seg.mode === 'WALK';
+          const color = SEGMENT_COLORS[seg.mode];
+          const segKey = `transit-seg-${seg.mode}-${i}-${seg.coordinates[0]?.latitude ?? i}`;
+          return (
+            <Polyline
+              key={segKey}
+              coordinates={seg.coordinates}
+              strokeWidth={isWalk ? 3 : 5}
+              strokeColor={color}
+              lineDashPattern={isWalk ? [6, 5] : undefined}
+              zIndex={10}
+            />
+          );
+        })
+      : transportationMode === 'transit' && (
+          <Polyline
+            coordinates={route.coordinates}
+            strokeWidth={4}
+            strokeColor="#8B5CF6"
+            lineDashPattern={[16, 8]}
+            zIndex={10}
+          />
+        )
+    }
 
     {/* Shuttle — dotted */}
     {transportationMode === 'shuttle' && (

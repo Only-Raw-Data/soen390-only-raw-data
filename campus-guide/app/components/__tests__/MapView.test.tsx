@@ -684,6 +684,102 @@ describe("MapViewApp", () => {
     });
   });
 
+  describe("Transit segment rendering", () => {
+    it("renders one polyline per segment when transit route has segments", () => {
+      // Arrange
+      (useDirections as jest.Mock).mockReturnValue(
+        createDirectionsMock({
+          transportationMode: "transit",
+          route: {
+            coordinates: [
+              { latitude: 45.4971, longitude: -73.5791 },
+              { latitude: 45.4953, longitude: -73.5782 },
+            ],
+            duration: "15 mins",
+            distance: "2.0 km",
+            segments: [
+              {
+                mode: "WALK",
+                coordinates: [
+                  { latitude: 45.4971, longitude: -73.5791 },
+                  { latitude: 45.496, longitude: -73.5785 },
+                ],
+              },
+              {
+                mode: "BUS",
+                coordinates: [
+                  { latitude: 45.496, longitude: -73.5785 },
+                  { latitude: 45.4953, longitude: -73.5782 },
+                ],
+                lineName: "80",
+              },
+            ],
+          },
+        }),
+      );
+
+      // Act
+      const screen = render(<MapViewApp />);
+
+      // Assert — one polyline per segment
+      const polylines = screen.getAllByTestId("route-polyline");
+      expect(polylines).toHaveLength(2);
+    });
+
+    it("renders single fallback polyline when transit route has no segments", () => {
+      // Arrange
+      (useDirections as jest.Mock).mockReturnValue(
+        createDirectionsMock({
+          transportationMode: "transit",
+          route: {
+            coordinates: [
+              { latitude: 45.4971, longitude: -73.5791 },
+              { latitude: 45.4953, longitude: -73.5782 },
+            ],
+            duration: "15 mins",
+            distance: "2.0 km",
+          },
+        }),
+      );
+
+      // Act
+      const screen = render(<MapViewApp />);
+
+      // Assert — single fallback polyline
+      const polylines = screen.getAllByTestId("route-polyline");
+      expect(polylines).toHaveLength(1);
+    });
+
+    it("renders three segment polylines for walk-subway-walk route", () => {
+      // Arrange
+      (useDirections as jest.Mock).mockReturnValue(
+        createDirectionsMock({
+          transportationMode: "transit",
+          route: {
+            coordinates: [
+              { latitude: 45.4971, longitude: -73.5791 },
+              { latitude: 45.4953, longitude: -73.5782 },
+            ],
+            duration: "20 mins",
+            distance: "3.0 km",
+            segments: [
+              { mode: "WALK", coordinates: [{ latitude: 45.4971, longitude: -73.5791 }] },
+              { mode: "SUBWAY", coordinates: [{ latitude: 45.4965, longitude: -73.5787 }] },
+              { mode: "WALK", coordinates: [{ latitude: 45.4953, longitude: -73.5782 }] },
+            ],
+          },
+        }),
+      );
+
+      // Act
+      const screen = render(<MapViewApp />);
+
+      // Assert
+      const polylines = screen.getAllByTestId("route-polyline");
+      expect(polylines).toHaveLength(3);
+    });
+  });
+
   describe("Shuttle route visibility", () => {
     const setupShuttleMock = (withinHours: boolean) => {
       (isWithinShuttleHours as jest.Mock).mockReturnValue(withinHours);

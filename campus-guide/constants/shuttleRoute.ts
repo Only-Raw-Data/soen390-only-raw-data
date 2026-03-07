@@ -1,11 +1,11 @@
-/** Fixed duration for Hall–Loyola shuttle segment (from Google Routes API DRIVE). */
+/** Fixed duration for Hall Building → Vanier Library shuttle segment (from Google Routes API DRIVE). */
 export const SHUTTLE_DURATION = "21 mins";
 
-/** Fixed distance for Hall–Loyola shuttle segment (from Google Routes API). */
+/** Fixed distance for Hall Building → Vanier Library shuttle segment (from Google Routes API). */
 export const SHUTTLE_DISTANCE = "8.3 km";
 
 /**
- * Canonical shuttle path from SGW (Hall) to Loyola (Loyola Chapel).
+ * Canonical shuttle path from SGW (Hall Building) to Loyola (Vanier Library).
  * From Google Routes API DRIVE (one-time fetch). Follows actual roads.
  */
 export const SHUTTLE_ROUTE_SGW_TO_LOYOLA: { latitude: number; longitude: number }[] = [

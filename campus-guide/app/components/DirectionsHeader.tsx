@@ -100,11 +100,12 @@ export default function DirectionsHeader() {
     { id: 'walk', icon: 'walk', label: 'Walk' },
     { id: 'car', icon: 'car', label: 'Car' },
     { id: 'transit', icon: 'bus', label: 'Transit' },
-    { id: 'shuttle', icon: 'bus', label: 'Shuttle' },
+    { id: 'shuttle', icon: 'bus-outline', label: 'Shuttle' },
   ];
 
+  // Shuttle departs from Hall Building (SGW) and arrives at Vanier Library (Loyola), and vice versa
   const shuttleDefaultStart = SGW_BUILDINGS.find(b => b.id === 'h');
-  const shuttleDefaultDest = LOYOLA_BUILDINGS.find(b => b.id === 'fc');
+  const shuttleDefaultDest = LOYOLA_BUILDINGS.find(b => b.id === 'vl');
 
   const handleModePress = (mode: TransportationMode) => {
     setTransportationMode(mode);
