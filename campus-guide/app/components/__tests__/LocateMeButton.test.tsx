@@ -1,33 +1,34 @@
-import React from 'react';
-import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
-import { LocateMeButton } from '../LocateMeButton';
+import React from "react";
+import { render, fireEvent, waitFor, act } from "@testing-library/react-native";
+import LocateMeButton from "../LocateMeButton";
 
-jest.mock('@expo/vector-icons', () => ({
+jest.mock("@expo/vector-icons", () => ({
   Ionicons: ({ name, testID }: any) => {
-    const { Text } = require('react-native');
+    const { Text } = require("react-native");
     return <Text testID={testID || `icon-${name}`}>{name}</Text>;
   },
 }));
 
-
 const mockBuilding = {
-  id: 'h',
-  name: 'Henry F. Hall Building',
-  code: 'H',
+  id: "h",
+  name: "Henry F. Hall Building",
+  code: "H",
   lat: 45.497092,
   lng: -73.5788,
-  campus: 'SGW' as const,
-  address: '1455 DeMaisonneuve W',
-  department: 'Economics, Geography, Planning and Environment, Political Science, School of Community and Public Affairs, School of Irish Studies, Sociology and Anthropology, Campus Safety and Prevention Services, Concordia Student Union (CSU), First Stop, Espace Franco, IT Service Desk, NouLa Black Student Centre, Office of Student Life and Engagement, Otsenhákta Student Centre, Sexual Assault Resource Centre (SARC), Student Success Centre, Welcome Crew Office, Zen Den',
-  overview: 'Inside, the building brings together many academic departments — particularly in the social sciences — along with classrooms and engineering teaching and research labs. Beyond academics, it\'s a lively centre of student life, home to the Student Success Centre, Concordia Theatre and student spaces like the Hive Café, Reggie\'s Pub, the People\'s Potato and student association offices.',
-  accessibility: 'Accessible entrance, accessible building elevator.',
+  campus: "SGW" as const,
+  address: "1455 DeMaisonneuve W",
+  department:
+    "Economics, Geography, Planning and Environment, Political Science, School of Community and Public Affairs, School of Irish Studies, Sociology and Anthropology, Campus Safety and Prevention Services, Concordia Student Union (CSU), First Stop, Espace Franco, IT Service Desk, NouLa Black Student Centre, Office of Student Life and Engagement, Otsenhákta Student Centre, Sexual Assault Resource Centre (SARC), Student Success Centre, Welcome Crew Office, Zen Den",
+  overview:
+    "Inside, the building brings together many academic departments — particularly in the social sciences — along with classrooms and engineering teaching and research labs. Beyond academics, it's a lively centre of student life, home to the Student Success Centre, Concordia Theatre and student spaces like the Hive Café, Reggie's Pub, the People's Potato and student association offices.",
+  accessibility: "Accessible entrance, accessible building elevator.",
   x: 0,
   y: 0,
 };
 
 const TOAST_ANIMATION_DURATION_MS = 300;
 
-describe('LocateMeButton', () => {
+describe("LocateMeButton", () => {
   const defaultProps = {
     onLocate: jest.fn().mockResolvedValue(undefined),
     isLoading: false,
@@ -48,45 +49,45 @@ describe('LocateMeButton', () => {
     jest.useRealTimers();
   });
 
-  it('renders locate button', () => {
+  it("renders locate button", () => {
     const { getByText } = render(<LocateMeButton {...defaultProps} />);
-    
-    expect(getByText('locate')).toBeTruthy();
+
+    expect(getByText("locate")).toBeTruthy();
   });
 
-  it('calls onLocate when pressed', async () => {
+  it("calls onLocate when pressed", async () => {
     const onLocate = jest.fn().mockResolvedValue(undefined);
     const { getByText } = render(
-      <LocateMeButton {...defaultProps} onLocate={onLocate} />
+      <LocateMeButton {...defaultProps} onLocate={onLocate} />,
     );
 
     await act(async () => {
-      fireEvent.press(getByText('locate'));
+      fireEvent.press(getByText("locate"));
     });
 
     expect(onLocate).toHaveBeenCalled();
   });
 
-  it('shows loading state', () => {
+  it("shows loading state", () => {
     const { queryByText } = render(
-      <LocateMeButton {...defaultProps} isLoading={true} />
+      <LocateMeButton {...defaultProps} isLoading={true} />,
     );
 
-    expect(queryByText('locate')).toBeNull();
+    expect(queryByText("locate")).toBeNull();
   });
 
-  it('disables button when loading', async () => {
+  it("disables button when loading", async () => {
     const onLocate = jest.fn();
-    const { getByText } = render(
-      <LocateMeButton {...defaultProps} isLoading={true} onLocate={onLocate} />
+    render(
+      <LocateMeButton {...defaultProps} isLoading={true} onLocate={onLocate} />,
     );
 
     expect(onLocate).not.toHaveBeenCalled();
   });
 
-  it('shows success toast when building found', async () => {
+  it("shows success toast when building found", async () => {
     const { rerender, getByText } = render(
-      <LocateMeButton {...defaultProps} isLoading={true} />
+      <LocateMeButton {...defaultProps} isLoading={true} />,
     );
 
     rerender(
@@ -96,7 +97,7 @@ describe('LocateMeButton', () => {
         isOnCampus={true}
         nearestBuilding={mockBuilding}
         currentCampus="SGW"
-      />
+      />,
     );
 
     await waitFor(() => {
@@ -104,10 +105,10 @@ describe('LocateMeButton', () => {
     });
   });
 
-  it('shows error toast when not on campus', async () => {
+  it("shows error toast when not on campus", async () => {
     const errorMsg = "You don't appear to be on campus.";
     const { rerender, getByText } = render(
-      <LocateMeButton {...defaultProps} isLoading={true} />
+      <LocateMeButton {...defaultProps} isLoading={true} />,
     );
 
     rerender(
@@ -115,7 +116,7 @@ describe('LocateMeButton', () => {
         {...defaultProps}
         isLoading={false}
         errorMsg={errorMsg}
-      />
+      />,
     );
 
     await waitFor(() => {
@@ -123,14 +124,14 @@ describe('LocateMeButton', () => {
     });
   });
 
-  it('calls onCampusDetected when campus found', async () => {
+  it("calls onCampusDetected when campus found", async () => {
     const onCampusDetected = jest.fn();
     const { rerender } = render(
-      <LocateMeButton 
-        {...defaultProps} 
+      <LocateMeButton
+        {...defaultProps}
         isLoading={true}
         onCampusDetected={onCampusDetected}
-      />
+      />,
     );
 
     rerender(
@@ -141,22 +142,22 @@ describe('LocateMeButton', () => {
         nearestBuilding={mockBuilding}
         currentCampus="SGW"
         onCampusDetected={onCampusDetected}
-      />
+      />,
     );
 
     await waitFor(() => {
-      expect(onCampusDetected).toHaveBeenCalledWith('SGW');
+      expect(onCampusDetected).toHaveBeenCalledWith("SGW");
     });
   });
 
-  it('calls onBuildingHighlight when building found', async () => {
+  it("calls onBuildingHighlight when building found", async () => {
     const onBuildingHighlight = jest.fn();
     const { rerender } = render(
-      <LocateMeButton 
-        {...defaultProps} 
+      <LocateMeButton
+        {...defaultProps}
         isLoading={true}
         onBuildingHighlight={onBuildingHighlight}
-      />
+      />,
     );
 
     rerender(
@@ -167,15 +168,15 @@ describe('LocateMeButton', () => {
         nearestBuilding={mockBuilding}
         currentCampus="SGW"
         onBuildingHighlight={onBuildingHighlight}
-      />
+      />,
     );
 
     await waitFor(() => {
-      expect(onBuildingHighlight).toHaveBeenCalledWith('h');
+      expect(onBuildingHighlight).toHaveBeenCalledWith("h");
     });
   });
 
-  it('clears highlight when locate button pressed', async () => {
+  it("clears highlight when locate button pressed", async () => {
     const onBuildingHighlight = jest.fn();
     const onLocate = jest.fn().mockResolvedValue(undefined);
     const { getByText } = render(
@@ -183,24 +184,24 @@ describe('LocateMeButton', () => {
         {...defaultProps}
         onLocate={onLocate}
         onBuildingHighlight={onBuildingHighlight}
-      />
+      />,
     );
 
     await act(async () => {
-      fireEvent.press(getByText('locate'));
+      fireEvent.press(getByText("locate"));
     });
 
     expect(onBuildingHighlight).toHaveBeenCalledWith(null);
   });
 
-  it('clears highlight on error', async () => {
+  it("clears highlight on error", async () => {
     const onBuildingHighlight = jest.fn();
     const { rerender } = render(
-      <LocateMeButton 
-        {...defaultProps} 
+      <LocateMeButton
+        {...defaultProps}
         isLoading={true}
         onBuildingHighlight={onBuildingHighlight}
-      />
+      />,
     );
 
     rerender(
@@ -209,7 +210,7 @@ describe('LocateMeButton', () => {
         isLoading={false}
         errorMsg="Location permission denied."
         onBuildingHighlight={onBuildingHighlight}
-      />
+      />,
     );
 
     await waitFor(() => {
@@ -217,9 +218,9 @@ describe('LocateMeButton', () => {
     });
   });
 
-  it('toast can be dismissed', async () => {
+  it("toast can be dismissed", async () => {
     const { rerender, getByText, queryByText } = render(
-      <LocateMeButton {...defaultProps} isLoading={true} />
+      <LocateMeButton {...defaultProps} isLoading={true} />,
     );
 
     rerender(
@@ -229,14 +230,14 @@ describe('LocateMeButton', () => {
         isOnCampus={true}
         nearestBuilding={mockBuilding}
         currentCampus="SGW"
-      />
+      />,
     );
 
     await waitFor(() => {
       expect(getByText(/You are near/)).toBeTruthy();
     });
 
-    const closeButton = getByText('close');
+    const closeButton = getByText("close");
     await act(async () => {
       fireEvent.press(closeButton);
     });
@@ -250,4 +251,3 @@ describe('LocateMeButton', () => {
     });
   });
 });
-

@@ -3,12 +3,16 @@
   "main": "expo-router/entry",
   "license": "0BSD",
   "version": "1.0.0",
+  "private": true,
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "android:native": "expo run:android",
+    "ios": "expo run:ios",
+    "ios:native": "expo run:ios",
     "web": "expo start --web",
-    "test": "jest"
+    "test": "jest",
+    "build": "expo prebuild"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
@@ -47,7 +51,6 @@
     "react-test-renderer": "19.1.0",
     "typescript": "~5.9.2"
   },
-  "private": true,
   "jest": {
     "preset": "react-native",
     "setupFilesAfterEnv": [
@@ -65,7 +68,16 @@
       "node"
     ],
     "moduleNameMapper": {
-      "^@/(.*)$": "<rootDir>/$1"
+      "^@/(.*)$": "<rootDir>/$1",
+      "^@constants/(.*)$": "<rootDir>/constants/$1",
+      "^@components/(.*)$": "<rootDir>/components/$1",
+      "^@context/(.*)$": "<rootDir>/app/context/$1",
+      "^@hooks/(.*)$": "<rootDir>/app/hooks/$1",
+      "^@navigation/(.*)$": "<rootDir>/app/navigation/$1",
+      "^@screens/(.*)$": "<rootDir>/app/screens/$1",
+      "^@services/(.*)$": "<rootDir>/app/services/$1",
+      "^@types/(.*)$": "<rootDir>/app/types/$1",
+      "^@utils/(.*)$": "<rootDir>/app/utils/$1"
     }
   }
 }

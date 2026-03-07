@@ -1,0 +1,38 @@
+appId: com.soen390.campusguide
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "SGW Campus"
+    timeout: 1800000
+
+- assertVisible: "SGW Campus"
+
+- tapOn:
+    point: "90%,93%"
+- waitForAnimationToEnd
+
+- tapOn:
+    point: "50%,60%"
+- waitForAnimationToEnd
+- assertVisible: "EV"
+
+- tapOn: "More Info"
+
+- swipe:
+    direction: UP
+    duration: 500
+
+- assertVisible: "Departments"
+- assertVisible: "Accessibility"
+- assertVisible: "Overview"
+
+- tapOn: "Overview"
+- waitForAnimationToEnd
+
+- swipe:
+    direction: UP
+    duration: 600
+
+- assertVisible: "Set as Start"
+
+- stopApp

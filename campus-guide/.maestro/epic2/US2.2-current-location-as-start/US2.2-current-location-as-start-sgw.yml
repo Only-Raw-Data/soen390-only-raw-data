@@ -1,0 +1,37 @@
+appId: com.soen390.campusguide
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "SGW Campus"
+    timeout: 1800000
+
+- assertVisible: "SGW Campus"
+
+- tapOn:
+    point: "90%,93%"
+- waitForAnimationToEnd
+
+- tapOn: "Directions"
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "current location"
+- waitForAnimationToEnd
+
+- assertVisible: "Destination"
+- tapOn: "Destination"
+- inputText: "John"
+- hideKeyboard
+- waitForAnimationToEnd
+
+- tapOn: "John Molson Building"
+- waitForAnimationToEnd
+
+- tapOn:
+    point: "50%,45%"
+- waitForAnimationToEnd
+
+- assertVisible:
+    text: ".*mins.*km.*" 
+
+- stopApp

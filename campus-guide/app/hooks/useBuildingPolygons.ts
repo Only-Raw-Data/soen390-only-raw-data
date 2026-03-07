@@ -12,10 +12,6 @@ const OVERPASS_URL = process.env.EXPO_PUBLIC_OVERPASS_URL as string;
 const CACHE_DIR_NAME = "building_polygons";
 const CACHE_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
 
-// if (!OVERPASS_URL) {
-//   throw new Error("OVERPASS_URL is not defined in environment variables");
-// }
-
 // Re-export BuildingPolygon for backwards compatibility
 export { BuildingPolygon } from "../types/buildingPolygon";
 
@@ -95,6 +91,54 @@ async function cachePolygons(
 
 import { haversineDistance } from "../utils/locationUtils";
 
+function calculatePolygonCenter(geometry: OverpassNode[]): { lat: number; lon: number } {
+  let centerLat = 0;
+  let centerLon = 0;
+  for (const node of geometry) {
+    centerLat += node.lat;
+    centerLon += node.lon;
+  }
+  return {
+    lat: centerLat / geometry.length,
+    lon: centerLon / geometry.length,
+  };
+}
+
+function isValidPolygonElement(element: OverpassElement, usedElements: Set<number>): boolean {
+  return !usedElements.has(element.id) && 
+         !!element.geometry && 
+         element.geometry.length >= 3;
+}
+
+function findBestMatchForBuilding(
+  building: Building,
+  osmElements: OverpassElement[],
+  usedElements: Set<number>,
+  maxDistance: number = 50
+): OverpassElement | null {
+  let bestMatch: OverpassElement | null = null;
+  let bestDistance = Infinity;
+
+  for (const element of osmElements) {
+    if (!isValidPolygonElement(element, usedElements)) continue;
+
+    const center = calculatePolygonCenter(element.geometry!);
+    const distance = haversineDistance(
+      building.lat,
+      building.lng,
+      center.lat,
+      center.lon,
+    );
+
+    if (distance < bestDistance && distance < maxDistance) {
+      bestDistance = distance;
+      bestMatch = element;
+    }
+  }
+
+  return bestMatch;
+}
+
 function matchBuildingsToPolygons(
   buildings: Building[],
   osmElements: OverpassElement[],
@@ -102,40 +146,10 @@ function matchBuildingsToPolygons(
   const polygons: BuildingPolygon[] = [];
   const usedElements = new Set<number>();
 
-  // For each building, find the closest OSM building polygon
   for (const building of buildings) {
-    let bestMatch: OverpassElement | null = null;
-    let bestDistance = Infinity;
+    const bestMatch = findBestMatchForBuilding(building, osmElements, usedElements);
 
-    for (const element of osmElements) {
-      if (usedElements.has(element.id)) continue;
-      if (!element.geometry || element.geometry.length < 3) continue;
-
-      // Calculate center of polygon
-      let centerLat = 0;
-      let centerLon = 0;
-      for (const node of element.geometry) {
-        centerLat += node.lat;
-        centerLon += node.lon;
-      }
-      centerLat /= element.geometry.length;
-      centerLon /= element.geometry.length;
-
-      const distance = haversineDistance(
-        building.lat,
-        building.lng,
-        centerLat,
-        centerLon,
-      );
-
-      // Only match if within 50 meters
-      if (distance < bestDistance && distance < 50) {
-        bestDistance = distance;
-        bestMatch = element;
-      }
-    }
-
-    if (bestMatch && bestMatch.geometry) {
+    if (bestMatch?.geometry) {
       usedElements.add(bestMatch.id);
       polygons.push({
         buildingId: building.id,
@@ -191,7 +205,7 @@ async function fetchPolygonsFromOSM(
   }
 }
 
-export function useBuildingPolygons(campus: Campus) {
+export default function useBuildingPolygons(campus: Campus) {
   const [polygons, setPolygons] = useState<BuildingPolygon[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);

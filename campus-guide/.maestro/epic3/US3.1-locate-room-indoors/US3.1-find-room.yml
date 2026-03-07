@@ -1,0 +1,26 @@
+appId: com.soen390.campusguide
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "SGW Campus"
+    timeout: 1800000
+
+- assertVisible: "SGW Campus"
+
+- tapOn:
+    point: "90%,93%"
+- waitForAnimationToEnd
+
+- tapOn: "Indoor"
+- waitForAnimationToEnd
+
+- assertVisible: "Start room (e.g., H-820)"
+- tapOn: "Start room (e.g., H-820)"
+- inputText: "H-813"
+- pressKey: enter
+- waitForAnimationToEnd
+
+- assertVisible: "H813"
+- assertVisible: "8"
+
+- stopApp

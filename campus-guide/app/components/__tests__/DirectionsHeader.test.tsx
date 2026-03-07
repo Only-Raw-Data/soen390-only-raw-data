@@ -1,10 +1,10 @@
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { Alert } from 'react-native';
-import { DirectionsHeader } from '../DirectionsHeader';
+import DirectionsHeader from '../DirectionsHeader';
 import { useDirections } from '../../context/DirectionsContext';
-import { useUserLocation } from '../../hooks/useUserLocation';
-import { SGW_BUILDINGS } from '../../../constants/buildings';
+import useUserLocation from '../../hooks/useUserLocation';
+import { LOYOLA_BUILDINGS, SGW_BUILDINGS } from '../../../constants/buildings';
 
 
 jest.mock('../../context/DirectionsContext', () => ({
@@ -12,7 +12,8 @@ jest.mock('../../context/DirectionsContext', () => ({
 }));
 
 jest.mock('../../hooks/useUserLocation', () => ({
-    useUserLocation: jest.fn(),
+    __esModule: true,
+    default: jest.fn(),
 }));
 
 jest.spyOn(Alert, 'alert');
@@ -23,9 +24,11 @@ describe('DirectionsHeader', () => {
     const mockSetStartBuilding = jest.fn();
     const mockSetDestinationBuilding = jest.fn();
     const mockGetNearestBuilding = jest.fn();
+    const mockGetRawLocation = jest.fn();
     const mockFetchRoute = jest.fn();
     const mockClearDirections = jest.fn();
     const mockResetLoadingState = jest.fn();
+    const mockSetStartCoords = jest.fn();
 
     beforeEach(() => {
         jest.clearAllMocks();
@@ -37,6 +40,7 @@ describe('DirectionsHeader', () => {
             isLoadingRoute: false,
             setStartBuilding: mockSetStartBuilding,
             setDestinationBuilding: mockSetDestinationBuilding,
+            setStartCoords: mockSetStartCoords,
             setTransportationMode: mockSetTransportationMode,
             swapLocations: mockSwapLocations,
             clearDirections: mockClearDirections,
@@ -44,6 +48,7 @@ describe('DirectionsHeader', () => {
         });
         (useUserLocation as jest.Mock).mockReturnValue({
             getNearestBuilding: mockGetNearestBuilding,
+            getRawLocation: mockGetRawLocation,
             isLoading: false,
             resetLoadingState: mockResetLoadingState,
         });
@@ -69,6 +74,7 @@ describe('DirectionsHeader', () => {
             isLoadingRoute: false,
             setStartBuilding: mockSetStartBuilding,
             setDestinationBuilding: mockSetDestinationBuilding,
+            setStartCoords: mockSetStartCoords,
             setTransportationMode: mockSetTransportationMode,
             swapLocations: mockSwapLocations,
             clearDirections: mockClearDirections,
@@ -124,39 +130,9 @@ describe('DirectionsHeader', () => {
         const { getByTestId } = render(<DirectionsHeader />);
 
         //Assert
-        expect(getByTestId('use-current-location-button')).toBeTruthy();
+        expect(getByTestId('current location')).toBeTruthy();
     });
 
-    it('sets start building when Use Current Location succeeds', async () => {
-        //Arrange
-        mockGetNearestBuilding.mockResolvedValue(SGW_BUILDINGS[0]);
-        const { getByTestId } = render(<DirectionsHeader />);
-
-        //Act
-        fireEvent.press(getByTestId('use-current-location-button'));
-
-        //Assert
-        await waitFor(() => {
-            expect(mockSetStartBuilding).toHaveBeenCalledWith(SGW_BUILDINGS[0]);
-        });
-    });
-
-    it('shows alert when Use Current Location fails', async () => {
-        //Arrange
-        mockGetNearestBuilding.mockResolvedValue(null);
-        const { getByTestId } = render(<DirectionsHeader />);
-
-        //Act
-        fireEvent.press(getByTestId('use-current-location-button'));
-
-        //Assert
-        await waitFor(() => {
-            expect(Alert.alert).toHaveBeenCalledWith(
-                'Location Error',
-                'Could not determine your nearest campus building. Please ensure location permissions are enabled.',
-            );
-        });
-    });
 
     it('shows loading indicator while fetching location', () => {
         //Arrange
@@ -183,6 +159,7 @@ describe('DirectionsHeader', () => {
             isLoadingRoute: false,
             setStartBuilding: mockSetStartBuilding,
             setDestinationBuilding: mockSetDestinationBuilding,
+            setStartCoords: mockSetStartCoords,
             setTransportationMode: mockSetTransportationMode,
             swapLocations: mockSwapLocations,
             clearDirections: mockClearDirections,
@@ -208,6 +185,7 @@ describe('DirectionsHeader', () => {
             isLoadingRoute: true,
             setStartBuilding: mockSetStartBuilding,
             setDestinationBuilding: mockSetDestinationBuilding,
+            setStartCoords: mockSetStartCoords,
             setTransportationMode: mockSetTransportationMode,
             swapLocations: mockSwapLocations,
             clearDirections: mockClearDirections,
@@ -217,10 +195,165 @@ describe('DirectionsHeader', () => {
         const { getByTestId } = render(<DirectionsHeader />);
         
         // Assert
-        // The ActivityIndicator inside the button doesn't have a specific testID in my replacement, 
-        // but it is rendered instead of the icon/text. 
-        // I should have added a testID to the ActivityIndicator.
-        // Let's assume searching for ActivityIndicator or just checking if the button is disabled.
         expect(getByTestId('get-directions-button')).toBeTruthy();
+    });
+
+    describe('Shuttle Logic', () => {
+        const sgwBuilding = SGW_BUILDINGS.find(b => b.campus === 'SGW');
+        const loyolaBuilding = LOYOLA_BUILDINGS[0] || { id: 'cc', name: 'Central Building', code: 'CC', campus: 'Loyola' as const, address: '7141 Sherbrooke St. W.', lat: 45.4582, lng: -73.6403, department: '', overview: '', accessibility: '', x: 0, y: 0 };
+
+        beforeEach(() => {
+            (useDirections as jest.Mock).mockReturnValue({
+                startBuilding: sgwBuilding,
+                destinationBuilding: loyolaBuilding,
+                transportationMode: 'shuttle',
+                route: null,
+                isLoadingRoute: false,
+                setTransportationMode: mockSetTransportationMode,
+                setStartBuilding: mockSetStartBuilding,
+                setDestinationBuilding: mockSetDestinationBuilding,
+                setStartCoords: mockSetStartCoords,
+                swapLocations: mockSwapLocations,
+                clearDirections: mockClearDirections,
+                fetchRoute: mockFetchRoute,
+            });
+        });
+
+        afterEach(() => {
+            jest.useRealTimers();
+        });
+
+        it('shows direction label "Shuttle To Loyola" when start is SGW and destination is Loyola', () => {
+            // Arrange & Act
+            const { getByTestId } = render(<DirectionsHeader />);
+
+            // Assert
+            expect(getByTestId('shuttle-direction-label')).toBeTruthy();
+            expect(getByTestId('shuttle-direction-label').props.children).toContain('To Loyola');
+        });
+
+        it('shows next shuttle text with direction on Friday', () => {
+            // Arrange
+            jest.useFakeTimers().setSystemTime(new Date('2025-02-14T13:00:00Z'));
+
+            // Act
+            const { getByText } = render(<DirectionsHeader />);
+
+            // Assert
+            expect(getByText(/Next shuttle To Loyola:/i)).toBeTruthy();
+        });
+
+        it('shows weekend message when it is Saturday', () => {
+            // Arrange
+            jest.useFakeTimers().setSystemTime(new Date('2025-02-15T12:00:00Z'));
+
+            // Act
+            const { getByText } = render(<DirectionsHeader />);
+
+            // Assert
+            expect(getByText('No shuttle on weekends')).toBeTruthy();
+        });
+
+        it('shows "No more shuttles today" when late at night', () => {
+            // Arrange
+            jest.useFakeTimers().setSystemTime(new Date('2025-02-10T23:59:00Z'));
+
+            // Act
+            const { getByText } = render(<DirectionsHeader />);
+
+            // Assert
+            expect(getByText('No more shuttles today')).toBeTruthy();
+        });
+
+        it('does not auto-open schedule modal when shuttle is selected', () => {
+            // Arrange & Act
+            const { queryByTestId } = render(<DirectionsHeader />);
+
+            // Assert
+            const modalContent = queryByTestId('close-shuttle-modal');
+            expect(modalContent).toBeNull();
+        });
+
+        it('sets default start and destination when Shuttle mode is pressed', () => {
+            // Arrange — start in walk mode with no buildings selected
+            (useDirections as jest.Mock).mockReturnValue({
+                startBuilding: null,
+                destinationBuilding: null,
+                transportationMode: 'walk',
+                route: null,
+                isLoadingRoute: false,
+                setTransportationMode: mockSetTransportationMode,
+                setStartBuilding: mockSetStartBuilding,
+                setDestinationBuilding: mockSetDestinationBuilding,
+                setStartCoords: mockSetStartCoords,
+                swapLocations: mockSwapLocations,
+                clearDirections: mockClearDirections,
+                fetchRoute: mockFetchRoute,
+            });
+
+            const { getByText } = render(<DirectionsHeader />);
+
+            // Act — press the Shuttle transport mode button
+            fireEvent.press(getByText('Shuttle'));
+
+            // Assert
+            expect(mockSetTransportationMode).toHaveBeenCalledWith('shuttle');
+            expect(mockSetStartBuilding).toHaveBeenCalledWith(
+                expect.objectContaining({ id: 'h' }),
+            );
+            // Assert
+            expect(mockSetDestinationBuilding).toHaveBeenCalledWith(
+                expect.objectContaining({ id: 'fc' }),
+            );
+        });
+
+        it('sets startCoords and clears startBuilding when Use Current Location succeeds', async () => {
+            // Arrange & Act
+            mockGetRawLocation.mockResolvedValue({ lat: 45.497, lng: -73.578 });
+            const { getByTestId } = render(<DirectionsHeader />);
+            fireEvent.press(getByTestId('current location'));
+            // Assert
+            await waitFor(() => {
+                expect(mockSetStartCoords).toHaveBeenCalledWith({ lat: 45.497, lng: -73.578 });
+                expect(mockSetStartBuilding).toHaveBeenCalledWith(null);
+            });
+        });
+
+        it('shows alert when Use Current Location returns null', async () => {
+            // Arrange & Act
+            mockGetRawLocation.mockResolvedValue(null);
+            const { getByTestId } = render(<DirectionsHeader />);
+            fireEvent.press(getByTestId('current location'));
+            // Assert
+            await waitFor(() => {
+                expect(Alert.alert).toHaveBeenCalledWith(
+                    'Location Error',
+                    'Could not determine your location. Please ensure location permissions are enabled.',
+                );
+            });
+        });
+
+        it('selects a building from search results for start', () => {
+            // Arrange & Act
+            const { getByTestId, getByText } = render(<DirectionsHeader />);
+            fireEvent(getByTestId('start-input'), 'focus');
+            fireEvent.changeText(getByTestId('start-input'), 'Hall');
+            fireEvent.press(getByText('Henry F. Hall Building'));
+            // Assert
+            expect(mockSetStartBuilding).toHaveBeenCalledWith(expect.objectContaining({ id: 'h' }));
+            expect(mockSetStartCoords).toHaveBeenCalledWith(null);
+        });
+
+        it('selects a building from search results for destination', () => {
+            // Arrange & Act
+            const { getByTestId, getByText } = render(<DirectionsHeader />);
+            fireEvent(getByTestId('dest-input'), 'focus');
+            fireEvent.changeText(getByTestId('dest-input'), 'Hall');
+            fireEvent.press(getByText('Henry F. Hall Building'));
+            // Assert
+            expect(mockSetDestinationBuilding).toHaveBeenCalledWith(expect.objectContaining({ id: 'h' }));
+        });
+
+        
     });
 });

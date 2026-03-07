@@ -1,0 +1,53 @@
+name: Sprint Retrospective (M.A.R.I.A.)
+description: Add/Remove/Improve action items that can generate user stories
+title: "Retro: Sprint <#> (YYYY-MM-DD → YYYY-MM-DD)"
+labels: ["retrospective"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Fill Add/Remove/Improve with bullet points.
+        To auto-create user stories, comment `/generate-stories` after opening the issue.
+
+  - type: textarea
+    id: add
+    attributes:
+      label: Add
+      description: What should we start doing?
+      placeholder: |
+        - Add: PR template checklist (Definition of Done)
+        - Add: Performance profiling before sprint close
+    validations:
+      required: false
+
+  - type: textarea
+    id: remove
+    attributes:
+      label: Remove
+      description: What should we stop doing?
+      placeholder: |
+        - Remove: Long-lived branches
+        - Remove: Merging without linking an issue
+    validations:
+      required: false
+
+  - type: textarea
+    id: improve
+    attributes:
+      label: Improve
+      description: What should we improve?
+      placeholder: |
+        - Improve: CI test speed by caching dependencies
+        - Improve: Code review turnaround time (<24h)
+    validations:
+      required: false
+
+  - type: textarea
+    id: appreciate
+    attributes:
+      label: Appreciate
+      description: Shoutouts (not converted to stories)
+      placeholder: |
+        - Appreciate: Consistent PR reviews and helpful feedback
+    validations:
+      required: false
