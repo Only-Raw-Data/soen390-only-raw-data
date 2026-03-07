@@ -256,6 +256,7 @@ interface IndoorMapContextType {
   currentPath: GraphNode[] | null;
   pathError: string | null;
   accessible: boolean;
+  showPOIs: boolean;
   setSelectedBuilding: (building: IndoorBuildingConfig | null) => void;
   setSelectedFloor: (floor: number | null) => void;
   setSearchQuery: (query: string) => void;
@@ -269,6 +270,7 @@ interface IndoorMapContextType {
   clearDestinationRoom: () => void;
   clearPath: () => void;
   toggleAccessible: () => void;
+  togglePOIs: () => void;
 }
 
 const IndoorMapContext = createContext<IndoorMapContextType | undefined>(
@@ -297,9 +299,14 @@ export default function IndoorMapProvider({
   const [currentPath, setCurrentPath] = useState<GraphNode[] | null>(null);
   const [pathError, setPathError] = useState<string | null>(null);
   const [accessible, setAccessible] = useState(false);
+  const [showPOIs, setShowPOIs] = useState(true);
 
   const toggleAccessible = useCallback(() => {
     setAccessible((prev) => !prev);
+  }, []);
+
+  const togglePOIs = useCallback(() => {
+    setShowPOIs((prev) => !prev);
   }, []);
 
   // Cache built graphs per building dataFile to avoid rebuilding on every render
@@ -482,6 +489,8 @@ export default function IndoorMapProvider({
       clearDestinationRoom,
       clearPath,
       toggleAccessible,
+      showPOIs,
+      togglePOIs,
     }),
     [
       selectedBuilding,
@@ -498,6 +507,7 @@ export default function IndoorMapProvider({
       currentPath,
       pathError,
       accessible,
+      showPOIs,
       searchRoom,
       clearHighlight,
       searchStartRoom,
@@ -506,6 +516,7 @@ export default function IndoorMapProvider({
       clearDestinationRoom,
       clearPath,
       toggleAccessible,
+      togglePOIs,
     ],
   );
 

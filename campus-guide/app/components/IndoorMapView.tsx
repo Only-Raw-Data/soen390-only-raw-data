@@ -53,6 +53,29 @@ const ROOM_STYLE_DEFAULT = { fill: "rgba(145, 35, 56, 0.15)", stroke: "#912338",
 const ELEVATOR_LABEL = "EL";
 const STAIRCASE_LABEL = "ST";
 
+export const AMENITY_CONFIG: Record<string, {
+  label: string;
+  displayName: string;
+  fillColor: string;
+  strokeColor: string;
+  bgColor: string;
+}> = {
+  toilets: { label: "\u{1F6BB}", displayName: "Washroom", fillColor: "rgba(59, 130, 246, 0.35)", strokeColor: "#3B82F6", bgColor: "#3B82F6" },
+  fountain: { label: "\u{1F4A7}", displayName: "Water Fountain", fillColor: "rgba(6, 182, 212, 0.35)", strokeColor: "#06B6D4", bgColor: "#06B6D4" },
+  vending_machine: { label: "VM", displayName: "Vending Machine", fillColor: "rgba(168, 85, 247, 0.35)", strokeColor: "#A855F7", bgColor: "#A855F7" },
+  eating_area: { label: "\u{1F37D}\uFE0F", displayName: "Eating Area", fillColor: "rgba(249, 115, 22, 0.35)", strokeColor: "#F97316", bgColor: "#F97316" },
+  information: { label: "\u2139\uFE0F", displayName: "Information", fillColor: "rgba(20, 184, 166, 0.35)", strokeColor: "#14B8A6", bgColor: "#14B8A6" },
+  printer: { label: "\u{1F5A8}\uFE0F", displayName: "Printer", fillColor: "rgba(107, 114, 128, 0.35)", strokeColor: "#6B7280", bgColor: "#6B7280" },
+  fire_station: { label: "\u{1F9EF}", displayName: "Fire Station", fillColor: "rgba(239, 68, 68, 0.35)", strokeColor: "#EF4444", bgColor: "#EF4444" },
+};
+
+function getPointCoordinate(feature: IndoorFeature): { latitude: number; longitude: number } | null {
+  if (feature.geometry.type !== "Point") return null;
+  const coords = feature.geometry.coordinates as number[];
+  if (coords.length < 2) return null;
+  return { latitude: coords[1], longitude: coords[0] };
+}
+
 function FacilityPolygon({
   feature,
   fillColor,
@@ -60,6 +83,8 @@ function FacilityPolygon({
   label,
   markerStyle,
   convertCoordinates,
+  onPress,
+  labelStyle,
 }: {
   feature: IndoorFeature;
   fillColor: string;
@@ -67,6 +92,8 @@ function FacilityPolygon({
   label: string;
   markerStyle: object;
   convertCoordinates: (f: IndoorFeature) => { latitude: number; longitude: number }[];
+  onPress?: () => void;
+  labelStyle?: object;
 }) {
   const coords = convertCoordinates(feature);
   if (hasNoCoordinates(coords)) return null;
@@ -83,10 +110,11 @@ function FacilityPolygon({
         coordinate={centroid}
         anchor={{ x: 0.5, y: 0.5 }}
         tracksViewChanges={Platform.OS === "android"}
+        onPress={onPress}
       >
         <View style={styles.facilityMarker}>
           <View style={markerStyle}>
-            <Text style={styles.facilityMarkerText}>{label}</Text>
+            <Text style={labelStyle ?? styles.facilityMarkerText}>{label}</Text>
           </View>
         </View>
       </Marker>
@@ -118,9 +146,16 @@ export default function IndoorMapView() {
     clearDestinationRoom,
     accessible,
     toggleAccessible,
+    showPOIs,
+    togglePOIs,
   } = useIndoorMap();
 
   const mapRef = useRef<MapView>(null);
+  const [selectedPOI, setSelectedPOI] = useState<{
+    amenity: string;
+    ref?: string;
+    name?: string;
+  } | null>(null);
 
   // Brief debounce when floors change to prevent react-native-maps Android crash
   // from rapid Polyline unmount/remount on the native layer.
@@ -177,12 +212,37 @@ export default function IndoorMapView() {
     return getFeaturesForFloor(geoJson, selectedFloor);
   }, [selectedBuilding, selectedFloor]);
 
-  // Filter to only polygon features (rooms/areas)
+  // Filter to only polygon features (rooms/areas), excluding amenity POIs when shown separately
   const polygonFeatures = useMemo(() => {
     return floorFeatures.filter(
-      (f) => f.geometry.type === "Polygon" && f.properties?.indoor,
+      (f) =>
+        f.geometry.type === "Polygon" &&
+        f.properties?.indoor &&
+        !(showPOIs && f.properties?.amenity && f.properties.amenity in AMENITY_CONFIG),
     );
-  }, [floorFeatures]);
+  }, [floorFeatures, showPOIs]);
+
+  // Amenity polygon features (e.g. toilets, eating areas) — shown when POIs enabled
+  const amenityPolygonFeatures = useMemo(() => {
+    if (!showPOIs) return [];
+    return floorFeatures.filter(
+      (f) =>
+        f.geometry.type === "Polygon" &&
+        !!f.properties?.amenity &&
+        f.properties.amenity in AMENITY_CONFIG,
+    );
+  }, [floorFeatures, showPOIs]);
+
+  // Amenity point features (e.g. water fountains) — shown when POIs enabled
+  const amenityPointFeatures = useMemo(() => {
+    if (!showPOIs) return [];
+    return floorFeatures.filter(
+      (f) =>
+        f.geometry.type === "Point" &&
+        !!f.properties?.amenity &&
+        f.properties.amenity in AMENITY_CONFIG,
+    );
+  }, [floorFeatures, showPOIs]);
 
   // Elevator and staircase polygon features on the current floor
   const elevatorFeatures = useMemo(() => {
@@ -209,12 +269,14 @@ export default function IndoorMapView() {
 
   const handleBuildingSelect = (building: typeof INDOOR_BUILDINGS[0]) => {
     clearHighlight();
+    setSelectedPOI(null);
     setSelectedBuilding(building);
     setSelectedFloor(building.floors[0]);
   };
 
   const handleFloorSelect = (floor: number) => {
     clearHighlight();
+    setSelectedPOI(null);
     // Debounce Polyline during floor switch to prevent Android native crash
     setFloorTransitioning(true);
     if (floorTimer.current) clearTimeout(floorTimer.current);
@@ -376,6 +438,24 @@ export default function IndoorMapView() {
         </View>
       </TouchableOpacity>
 
+      {/* Indoor POIs Toggle */}
+      <TouchableOpacity
+        style={[styles.poiToggle, showPOIs && styles.poiToggleActive]}
+        onPress={togglePOIs}
+        testID="poi-toggle"
+        accessibilityRole="switch"
+        accessibilityState={{ checked: showPOIs }}
+        accessibilityLabel="Indoor Points of Interest"
+      >
+        <Text style={styles.poiIcon}>{"\u{1F4CD}"}</Text>
+        <Text style={[styles.poiLabel, showPOIs && styles.poiLabelActive]}>
+          Indoor POIs
+        </Text>
+        <View style={[styles.poiIndicator, showPOIs && styles.poiIndicatorActive]}>
+          <Text style={styles.poiIndicatorText}>{showPOIs ? "ON" : "OFF"}</Text>
+        </View>
+      </TouchableOpacity>
+
       {/* Building Selector */}
       <View style={styles.buildingSelectorContainer}>
         <ScrollView
@@ -506,6 +586,60 @@ export default function IndoorMapView() {
             </React.Fragment>
           ))}
 
+          {/* Amenity polygon POIs (e.g. washrooms) */}
+          {amenityPolygonFeatures.map((feature, index) => {
+            const amenity = feature.properties?.amenity ?? "";
+            const config = AMENITY_CONFIG[amenity];
+            if (!config) return null;
+            return (
+              <React.Fragment key={`amenity-poly-${amenity}-${index}`}>
+                <FacilityPolygon
+                  feature={feature}
+                  fillColor={config.fillColor}
+                  strokeColor={config.strokeColor}
+                  label={config.label}
+                  markerStyle={[styles.amenityMarkerCircle, { backgroundColor: config.bgColor }]}
+                  convertCoordinates={convertCoordinates}
+                  labelStyle={styles.amenityMarkerText}
+                  onPress={() => setSelectedPOI({
+                    amenity,
+                    ref: feature.properties?.ref,
+                    name: feature.properties?.name,
+                  })}
+                />
+              </React.Fragment>
+            );
+          })}
+
+          {/* Amenity point POIs (e.g. water fountains) */}
+          {amenityPointFeatures.map((feature, index) => {
+            const amenity = feature.properties?.amenity ?? "";
+            const config = AMENITY_CONFIG[amenity];
+            if (!config) return null;
+            const coord = getPointCoordinate(feature);
+            if (!coord) return null;
+            return (
+              <Marker
+                key={`amenity-point-${amenity}-${index}`}
+                coordinate={coord}
+                anchor={{ x: 0.5, y: 0.5 }}
+                tracksViewChanges={Platform.OS === "android"}
+                onPress={() => setSelectedPOI({
+                  amenity,
+                  ref: feature.properties?.ref,
+                  name: feature.properties?.name,
+                })}
+                testID={`amenity-point-${amenity}-${index}`}
+              >
+                <View style={styles.facilityMarker}>
+                  <View style={[styles.amenityMarkerCircle, { backgroundColor: config.bgColor }]}>
+                    <Text style={styles.amenityMarkerText}>{config.label}</Text>
+                  </View>
+                </View>
+              </Marker>
+            );
+          })}
+
           {/* Shortest path polyline — filtered to current floor.
               Uses a stable key so React updates coordinates in place (prop change)
               rather than unmounting/remounting the native overlay, which crashes
@@ -596,8 +730,41 @@ export default function IndoorMapView() {
         </MapView>
       </View>
 
+      {/* POI Info Bar */}
+      {selectedPOI && (
+        <View style={styles.infoBar} testID="poi-info-bar">
+          <View style={styles.infoRow}>
+            <Text style={styles.amenityMarkerText}>
+              {AMENITY_CONFIG[selectedPOI.amenity]?.label}
+            </Text>
+            <Text style={styles.infoTitle}>
+              {" "}{AMENITY_CONFIG[selectedPOI.amenity]?.displayName ?? selectedPOI.amenity}
+            </Text>
+          </View>
+          {selectedPOI.ref && (
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Room: </Text>
+              <Text style={styles.infoValue} testID="poi-ref">{selectedPOI.ref}</Text>
+            </View>
+          )}
+          {selectedPOI.name && (
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Name: </Text>
+              <Text style={styles.infoValue}>{selectedPOI.name}</Text>
+            </View>
+          )}
+          <TouchableOpacity
+            onPress={() => setSelectedPOI(null)}
+            style={styles.poiDismiss}
+            testID="poi-dismiss"
+          >
+            <Text style={styles.poiDismissText}>Dismiss</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Room Info Bar */}
-      {(startRoomRef || destinationRoomRef || highlightedFeature) && (
+      {!selectedPOI && (startRoomRef || destinationRoomRef || highlightedFeature) && (
         <View style={styles.infoBar}>
           {startRoomRef && (
             <View style={styles.infoRow}>
@@ -946,5 +1113,70 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: "#FFFFFF",
     letterSpacing: 0.5,
+  },
+  amenityMarkerCircle: {
+    borderRadius: 14,
+    width: 28,
+    height: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: "#FFFFFF",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  amenityMarkerText: {
+    fontSize: 14,
+  },
+  poiToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F3F4F6",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+  },
+  poiToggleActive: {
+    backgroundColor: "#EFF6FF",
+  },
+  poiIcon: {
+    fontSize: 18,
+    marginRight: 8,
+  },
+  poiLabel: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#374151",
+  },
+  poiLabelActive: {
+    color: "#3B82F6",
+  },
+  poiIndicator: {
+    backgroundColor: "#9CA3AF",
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  poiIndicatorActive: {
+    backgroundColor: "#3B82F6",
+  },
+  poiIndicatorText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  poiDismiss: {
+    marginTop: 8,
+    alignSelf: "flex-end",
+  },
+  poiDismissText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#3B82F6",
   },
 });

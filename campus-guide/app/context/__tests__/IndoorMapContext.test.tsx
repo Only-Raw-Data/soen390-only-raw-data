@@ -31,6 +31,7 @@ describe("IndoorMapContext", () => {
       expect(result.current.startSearchError).toBeNull();
       expect(result.current.destinationSearchError).toBeNull();
       expect(result.current.accessible).toBe(false);
+      expect(result.current.showPOIs).toBe(true);
     });
   });
 
@@ -576,6 +577,38 @@ describe("IndoorMapContext", () => {
       );
 
       spy.mockRestore();
+    });
+  });
+
+  describe("showPOIs toggle", () => {
+    it("should initialize with showPOIs true", () => {
+      // Arrange + Act
+      const { result } = renderHook(() => useIndoorMap(), { wrapper });
+
+      // Assert
+      expect(result.current.showPOIs).toBe(true);
+    });
+
+    it("should toggle showPOIs state", () => {
+      // Arrange
+      const { result } = renderHook(() => useIndoorMap(), { wrapper });
+      expect(result.current.showPOIs).toBe(true);
+
+      // Act
+      act(() => {
+        result.current.togglePOIs();
+      });
+
+      // Assert
+      expect(result.current.showPOIs).toBe(false);
+
+      // Act — toggle back
+      act(() => {
+        result.current.togglePOIs();
+      });
+
+      // Assert
+      expect(result.current.showPOIs).toBe(true);
     });
   });
 
