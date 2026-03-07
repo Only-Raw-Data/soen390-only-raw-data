@@ -7,7 +7,7 @@ import { Text, View } from './Themed';
 
 import Colors from '@/constants/Colors';
 
-export default function EditScreenInfo({ path }: { path: string }) {
+export default function EditScreenInfo({ path }: Readonly<{ path: string }>) {
   return (
     <View>
       <View style={styles.getStartedContainer}>
