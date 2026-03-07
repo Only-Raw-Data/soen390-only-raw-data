@@ -104,8 +104,8 @@ describe("coordKey", () => {
 describe("haversineDistance", () => {
   it("returns 0 for identical points", () => {
     // Arrange
-    const lat = 45.0;
-    const lon = -73.0;
+    const lat = 45;
+    const lon = -73;
 
     // Act
     const result = haversineDistance(lat, lon, lat, lon);
@@ -117,12 +117,12 @@ describe("haversineDistance", () => {
   it("returns a positive distance for distinct points", () => {
     // Arrange
     const lat1 = 45.497;
-    const lon1 = -73.579;
+    const lng1 = -73.579;
     const lat2 = 45.497;
-    const lon2 = -73.578;
+    const lng2 = -73.578;
 
     // Act
-    const result = haversineDistance(lat1, lon1, lat2, lon2);
+    const result = haversineDistance(lat1, lng1, lat2, lng2);
 
     // Assert
     expect(result).toBeGreaterThan(0);
@@ -131,13 +131,13 @@ describe("haversineDistance", () => {
   it("is roughly symmetric", () => {
     // Arrange
     const lat1 = 45.497;
-    const lon1 = -73.579;
+    const lng1 = -73.579;
     const lat2 = 45.498;
-    const lon2 = -73.578;
+    const lng2 = -73.578;
 
     // Act
-    const d1 = haversineDistance(lat1, lon1, lat2, lon2);
-    const d2 = haversineDistance(lat2, lon2, lat1, lon1);
+    const d1 = haversineDistance(lat1, lng1, lat2, lng2);
+    const d2 = haversineDistance(lat2, lng2, lat1, lng1);
 
     // Assert
     expect(Math.abs(d1 - d2)).toBeLessThan(0.001);

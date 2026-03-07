@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useMemo, useState, useCallback } from "react";
+import React, { useRef, useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -87,24 +87,6 @@ export default function IndoorMapView() {
   const [iosMapPadding, setIosMapPadding] = useState({ top: 0, right: 0, bottom: 0, left: 0 });
   const iosPaddingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Only show room labels when zoomed in close enough
-  const LABEL_ZOOM_THRESHOLD = 0.003;
-  const [showLabels, setShowLabels] = useState(!!selectedBuilding);
-
-  const handleRegionChange = useCallback(
-    (region: { latitudeDelta: number; longitudeDelta: number }) => {
-      // On iOS with Google Maps, onRegionChangeComplete can fire with stale/wrong
-      // deltas after programmatic animations. Always show labels when a building
-      // is selected (the map is zoomed in to 0.002 delta).
-      if (selectedBuilding) {
-        setShowLabels(true);
-      } else {
-        setShowLabels(region.latitudeDelta < LABEL_ZOOM_THRESHOLD);
-      }
-    },
-    [selectedBuilding],
-  );
-
   // Clean up timers on unmount
   useEffect(() => {
     return () => {
@@ -139,8 +121,6 @@ export default function IndoorMapView() {
         },
         500,
       );
-      const labelTimer = setTimeout(() => setShowLabels(true), 650);
-      return () => clearTimeout(labelTimer);
     }
   }, [selectedBuilding, selectedFloor]);
 
@@ -444,7 +424,6 @@ export default function IndoorMapView() {
           customMapStyle={CAMPUS_MAP_STYLE}
           initialRegion={initialRegion}
           testID="indoor-map"
-          onRegionChangeComplete={handleRegionChange}
           onMapReady={() => console.log("[IndoorMapView] MAP READY")}
           mapPadding={iosMapPadding}
         >

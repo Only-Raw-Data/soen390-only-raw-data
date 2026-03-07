@@ -416,7 +416,9 @@ export default function IndoorMapProvider({
       // Build (or reuse cached) graph for this building
       const cacheKey = selectedBuilding.dataFile;
       let graph = graphCache.current.get(cacheKey);
-      if (!graph) {
+      if (graph) {
+        console.log("[IndoorMapContext] using cached graph for:", cacheKey);
+      } else {
         console.log("[IndoorMapContext] building graph for:", cacheKey);
         graph = buildIndoorGraph(geoJson);
         graphCache.current.set(cacheKey, graph);
@@ -424,8 +426,6 @@ export default function IndoorMapProvider({
           nodeCount: graph.nodes.size,
           edgeCount: graph.edges.length,
         });
-      } else {
-        console.log("[IndoorMapContext] using cached graph for:", cacheKey);
       }
 
       console.log("[IndoorMapContext] finding path from", startRoomRef, "to", destinationRoomRef, "accessible:", accessible);

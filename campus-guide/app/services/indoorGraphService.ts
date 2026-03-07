@@ -84,6 +84,11 @@ function parseFloors(level: string): number[] {
     .filter((n) => !Number.isNaN(n));
 }
 
+// Builds a floor-specific waypoint node ID from a coordinate key and floor.
+function waypointId(key: string, floor: number): string {
+  return `${key}:${floor}`;
+}
+
 /**
  * Builds a navigation graph from an indoor GeoJSON FeatureCollection.
  *
@@ -127,11 +132,6 @@ export function buildIndoorGraph(geoJson: IndoorGeoJSON): IndoorGraph {
 
   // Tracks which coordinate keys belong to corridor waypoints, keyed by floor
   const waypointsByFloor = new Map<number, Set<string>>();
-
-  // Builds a floor-specific waypoint node ID from a coordinate key and floor.
-  function waypointId(key: string, floor: number): string {
-    return `${key}:${floor}`;
-  }
 
   // Connects a polygon node to any corridor waypoints whose coordinates appear
   // in the polygon's outer ring on the given floor.
