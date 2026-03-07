@@ -53,6 +53,7 @@
   },
   "jest": {
     "preset": "react-native",
+    "coverageReporters": ["lcov", "text"],
     "setupFilesAfterEnv": [
       "<rootDir>/jest.setup.js"
     ],
