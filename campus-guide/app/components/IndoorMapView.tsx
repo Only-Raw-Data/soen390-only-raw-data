@@ -17,7 +17,7 @@ import {
   getGeoJsonForBuilding,
   getFeaturesForFloor,
 } from "@/app/context/IndoorMapContext";
-import { IndoorFeature } from "../types/indoorMap";
+import { IndoorFeature, AmenityConfig, SelectedPOIInfo } from "../types/indoorMap";
 
 const BUILDING_LAT_DELTA = 0.002;
 const BUILDING_LNG_DELTA = 0.002;
@@ -53,13 +53,7 @@ const ROOM_STYLE_DEFAULT = { fill: "rgba(145, 35, 56, 0.15)", stroke: "#912338",
 const ELEVATOR_LABEL = "EL";
 const STAIRCASE_LABEL = "ST";
 
-export const AMENITY_CONFIG: Record<string, {
-  label: string;
-  displayName: string;
-  fillColor: string;
-  strokeColor: string;
-  bgColor: string;
-}> = {
+export const AMENITY_CONFIG: Record<string, AmenityConfig> = {
   toilets: { label: "\u{1F6BB}", displayName: "Washroom", fillColor: "#3B82F659", strokeColor: "#3B82F6", bgColor: "#3B82F6" },
   fountain: { label: "\u{1F4A7}", displayName: "Water Fountain", fillColor: "#06B6D459", strokeColor: "#06B6D4", bgColor: "#06B6D4" },
   vending_machine: { label: "VM", displayName: "Vending Machine", fillColor: "#A855F759", strokeColor: "#A855F7", bgColor: "#A855F7" },
@@ -151,11 +145,7 @@ export default function IndoorMapView() {
   } = useIndoorMap();
 
   const mapRef = useRef<MapView>(null);
-  const [selectedPOI, setSelectedPOI] = useState<{
-    amenity: string;
-    ref?: string;
-    name?: string;
-  } | null>(null);
+  const [activePOIDetail, setActivePOIDetail] = useState<SelectedPOIInfo | null>(null);
 
   // Brief debounce when floors change to prevent react-native-maps Android crash
   // from rapid Polyline unmount/remount on the native layer.
@@ -269,14 +259,14 @@ export default function IndoorMapView() {
 
   const handleBuildingSelect = (building: typeof INDOOR_BUILDINGS[0]) => {
     clearHighlight();
-    setSelectedPOI(null);
+    setActivePOIDetail(null);
     setSelectedBuilding(building);
     setSelectedFloor(building.floors[0]);
   };
 
   const handleFloorSelect = (floor: number) => {
     clearHighlight();
-    setSelectedPOI(null);
+    setActivePOIDetail(null);
     // Debounce Polyline during floor switch to prevent Android native crash
     setFloorTransitioning(true);
     if (floorTimer.current) clearTimeout(floorTimer.current);
@@ -601,7 +591,7 @@ export default function IndoorMapView() {
                   markerStyle={[styles.amenityMarkerCircle, { backgroundColor: config.bgColor }]}
                   convertCoordinates={convertCoordinates}
                   labelStyle={styles.amenityMarkerText}
-                  onPress={() => setSelectedPOI({
+                  onPress={() => setActivePOIDetail({
                     amenity,
                     ref: feature.properties?.ref,
                     name: feature.properties?.name,
@@ -624,7 +614,7 @@ export default function IndoorMapView() {
                 coordinate={coord}
                 anchor={{ x: 0.5, y: 0.5 }}
                 tracksViewChanges={Platform.OS === "android"}
-                onPress={() => setSelectedPOI({
+                onPress={() => setActivePOIDetail({
                   amenity,
                   ref: feature.properties?.ref,
                   name: feature.properties?.name,
@@ -731,30 +721,30 @@ export default function IndoorMapView() {
       </View>
 
       {/* POI Info Bar */}
-      {selectedPOI && (
+      {activePOIDetail && (
         <View style={styles.infoBar} testID="poi-info-bar">
           <View style={styles.infoRow}>
             <Text style={styles.amenityMarkerText}>
-              {AMENITY_CONFIG[selectedPOI.amenity]?.label}
+              {AMENITY_CONFIG[activePOIDetail.amenity]?.label}
             </Text>
             <Text style={styles.infoTitle}>
-              {" "}{AMENITY_CONFIG[selectedPOI.amenity]?.displayName ?? selectedPOI.amenity}
+              {" "}{AMENITY_CONFIG[activePOIDetail.amenity]?.displayName ?? activePOIDetail.amenity}
             </Text>
           </View>
-          {selectedPOI.ref && (
+          {activePOIDetail.ref && (
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Room: </Text>
-              <Text style={styles.infoValue} testID="poi-ref">{selectedPOI.ref}</Text>
+              <Text style={styles.infoValue} testID="poi-ref">{activePOIDetail.ref}</Text>
             </View>
           )}
-          {selectedPOI.name && (
+          {activePOIDetail.name && (
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Name: </Text>
-              <Text style={styles.infoValue}>{selectedPOI.name}</Text>
+              <Text style={styles.infoValue}>{activePOIDetail.name}</Text>
             </View>
           )}
           <TouchableOpacity
-            onPress={() => setSelectedPOI(null)}
+            onPress={() => setActivePOIDetail(null)}
             style={styles.poiDismiss}
             testID="poi-dismiss"
           >
@@ -764,7 +754,7 @@ export default function IndoorMapView() {
       )}
 
       {/* Room Info Bar */}
-      {!selectedPOI && (startRoomRef || destinationRoomRef || highlightedFeature) && (
+      {!activePOIDetail && (startRoomRef || destinationRoomRef || highlightedFeature) && (
         <View style={styles.infoBar}>
           {startRoomRef && (
             <View style={styles.infoRow}>

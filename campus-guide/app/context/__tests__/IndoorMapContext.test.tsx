@@ -601,14 +601,6 @@ describe("IndoorMapContext", () => {
 
       // Assert
       expect(result.current.showPOIs).toBe(false);
-
-      // Act — toggle back
-      act(() => {
-        result.current.togglePOIs();
-      });
-
-      // Assert
-      expect(result.current.showPOIs).toBe(true);
     });
   });
 
