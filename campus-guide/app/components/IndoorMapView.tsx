@@ -60,13 +60,13 @@ export const AMENITY_CONFIG: Record<string, {
   strokeColor: string;
   bgColor: string;
 }> = {
-  toilets: { label: "\u{1F6BB}", displayName: "Washroom", fillColor: "rgba(59, 130, 246, 0.35)", strokeColor: "#3B82F6", bgColor: "#3B82F6" },
-  fountain: { label: "\u{1F4A7}", displayName: "Water Fountain", fillColor: "rgba(6, 182, 212, 0.35)", strokeColor: "#06B6D4", bgColor: "#06B6D4" },
-  vending_machine: { label: "VM", displayName: "Vending Machine", fillColor: "rgba(168, 85, 247, 0.35)", strokeColor: "#A855F7", bgColor: "#A855F7" },
-  eating_area: { label: "\u{1F37D}\uFE0F", displayName: "Eating Area", fillColor: "rgba(249, 115, 22, 0.35)", strokeColor: "#F97316", bgColor: "#F97316" },
-  information: { label: "\u2139\uFE0F", displayName: "Information", fillColor: "rgba(20, 184, 166, 0.35)", strokeColor: "#14B8A6", bgColor: "#14B8A6" },
-  printer: { label: "\u{1F5A8}\uFE0F", displayName: "Printer", fillColor: "rgba(107, 114, 128, 0.35)", strokeColor: "#6B7280", bgColor: "#6B7280" },
-  fire_station: { label: "\u{1F9EF}", displayName: "Fire Station", fillColor: "rgba(239, 68, 68, 0.35)", strokeColor: "#EF4444", bgColor: "#EF4444" },
+  toilets: { label: "\u{1F6BB}", displayName: "Washroom", fillColor: "#3B82F659", strokeColor: "#3B82F6", bgColor: "#3B82F6" },
+  fountain: { label: "\u{1F4A7}", displayName: "Water Fountain", fillColor: "#06B6D459", strokeColor: "#06B6D4", bgColor: "#06B6D4" },
+  vending_machine: { label: "VM", displayName: "Vending Machine", fillColor: "#A855F759", strokeColor: "#A855F7", bgColor: "#A855F7" },
+  eating_area: { label: "\u{1F37D}\uFE0F", displayName: "Eating Area", fillColor: "#F9731659", strokeColor: "#F97316", bgColor: "#F97316" },
+  information: { label: "\u2139\uFE0F", displayName: "Information", fillColor: "#14B8A659", strokeColor: "#14B8A6", bgColor: "#14B8A6" },
+  printer: { label: "\u{1F5A8}\uFE0F", displayName: "Printer", fillColor: "#6B728059", strokeColor: "#6B7280", bgColor: "#6B7280" },
+  fire_station: { label: "\u{1F9EF}", displayName: "Fire Station", fillColor: "#EF444459", strokeColor: "#EF4444", bgColor: "#EF4444" },
 };
 
 function getPointCoordinate(feature: IndoorFeature): { latitude: number; longitude: number } | null {
