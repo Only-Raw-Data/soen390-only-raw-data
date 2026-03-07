@@ -34,10 +34,10 @@ jobs:
         run: npm ci
 
       # Produces:
-      #   campus-guide/coverage/lcov.info           — coverage (→ Codecov + Sonar)
-      #   campus-guide/coverage/coverage-summary.json — coverage summary (→ PR comment)
-      #   campus-guide/coverage/coverage-final.json   — coverage final  (→ PR comment)
-      #   campus-guide/coverage/junit.xml             — test execution  (→ Sonar)
+      #   campus-guide/coverage/lcov.info             - coverage (Codecov + Sonar)
+      #   campus-guide/coverage/coverage-summary.json - coverage summary (PR comment)
+      #   campus-guide/coverage/coverage-final.json   - coverage final (PR comment)
+      #   campus-guide/coverage/junit.xml             - test execution (Sonar)
       - name: Run Tests with Coverage
         working-directory: campus-guide
         run: npm test -- --coverage --watchAll=false
@@ -49,7 +49,6 @@ jobs:
           ls -lh campus-guide/coverage/coverage-final.json
           ls -lh campus-guide/coverage/junit.xml
 
-      # Post a PR comment table (Lines / Statements / Functions / Branches)
       - name: Jest Coverage Report
         if: github.event_name == 'pull_request'
         uses: davelosert/vitest-coverage-report-action@v2
@@ -60,7 +59,6 @@ jobs:
           file-coverage-mode: changes
           threshold-icons: '{"0": "🔴", "75": "🟠", "80": "🟢"}'
 
-      # Upload all coverage files so the sonarqube job can download them
       - name: Upload Coverage Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -94,32 +92,26 @@ jobs:
           key: ${{ runner.os }}-sonar
           restore-keys: ${{ runner.os }}-sonar
 
-      # Download lcov.info + junit.xml produced by the mobile-test job
       - name: Download Coverage Artifact
         uses: actions/download-artifact@v4
         with:
           name: coverage-report
           path: campus-guide/coverage
 
-      # Scan on push to main — establishes the default branch baseline in SonarCloud.
-      # Must succeed at least once before PR decoration can work.
-      - name: SonarQube Scan (main branch)
-        if: github.event_name == 'push' && github.ref_name == 'main'
+      # The scanner reads campus-guide/sonar-project.properties because projectBaseDir
+      # points at campus-guide. That file is the single source of truth for sonar.projectKey,
+      # sonar.organization, and the coverage/test report paths.
+      - name: SonarQube Scan (default branch bootstrap)
+        if: github.event_name == 'push' && github.ref_name == github.event.repository.default_branch
         uses: SonarSource/sonarqube-scan-action@a31c9398be7ace6bbfaf30c0bd5d415f843d45e9
         env:
           SONAR_TOKEN: ${{ secrets.SONARCLOUD_TOKEN }}
           SONAR_HOST_URL: https://sonarcloud.io
         with:
           projectBaseDir: campus-guide
-          args: >
-            -Dsonar.projectKey=${{ secrets.PROJECT_KEY }}
-            -Dsonar.organization=only-raw-data
-            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
-            -Dsonar.testExecutionReportPaths=coverage/junit.xml
 
-      # Scan on push to any non-main branch.
       - name: SonarQube Scan (feature branch)
-        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref_name != 'main'
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref_name != github.event.repository.default_branch
         uses: SonarSource/sonarqube-scan-action@a31c9398be7ace6bbfaf30c0bd5d415f843d45e9
         env:
           SONAR_TOKEN: ${{ secrets.SONARCLOUD_TOKEN }}
@@ -127,16 +119,10 @@ jobs:
         with:
           projectBaseDir: campus-guide
           args: >
-            -Dsonar.projectKey=${{ secrets.PROJECT_KEY }}
-            -Dsonar.organization=only-raw-data
-            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
-            -Dsonar.testExecutionReportPaths=coverage/junit.xml
             -Dsonar.branch.name=${{ github.ref_name }}
 
-      # PR decoration — only works after at least one main-branch scan has
-      # established a default branch baseline in SonarCloud.
       - name: SonarQube Scan (pull request)
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && vars.SONARCLOUD_READY == 'true'
         uses: SonarSource/sonarqube-scan-action@a31c9398be7ace6bbfaf30c0bd5d415f843d45e9
         env:
           SONAR_TOKEN: ${{ secrets.SONARCLOUD_TOKEN }}
@@ -144,10 +130,14 @@ jobs:
         with:
           projectBaseDir: campus-guide
           args: >
-            -Dsonar.projectKey=${{ secrets.PROJECT_KEY }}
-            -Dsonar.organization=only-raw-data
-            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
-            -Dsonar.testExecutionReportPaths=coverage/junit.xml
             -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
             -Dsonar.pullrequest.branch=${{ github.head_ref }}
             -Dsonar.pullrequest.base=${{ github.base_ref }}
+
+      - name: SonarQube PR scan skipped until bootstrap
+        if: github.event_name == 'pull_request' && vars.SONARCLOUD_READY != 'true'
+        run: |
+          echo 'Skipping SonarCloud PR analysis because SONARCLOUD_READY is not true.'
+          echo '1) Make sure the SonarCloud project exists and is bound to this repository.'
+          echo '2) Push the repository default branch (${{ github.event.repository.default_branch }}) and let the default-branch scan succeed once.'
+          echo '3) Set repository variable SONARCLOUD_READY=true to enable PR analysis.'
