@@ -109,7 +109,7 @@ npm run build
 npm run android
 ```
 
-### 3. In another terminal, run tests (e.g.: User Story 1.5)
+### 3. In another terminal,run tests (e.g.: User Story 1.5)
 
 ```bash
 maestro test campus-guide/.maestro/US-1.5-test.yml
