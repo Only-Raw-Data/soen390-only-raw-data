@@ -61,7 +61,7 @@
     "collectCoverageFrom": [
       "app/**/*.{ts,tsx}",
       "components/**/*.{ts,tsx}",
-      "constants/**/*.{ts,tsx}",
+      "!constants/**",
       "!**/__tests__/**",
       "!**/node_modules/**",
       "!**/*.config.{ts,js}"
