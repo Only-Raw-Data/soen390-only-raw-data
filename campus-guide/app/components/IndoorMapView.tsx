@@ -44,6 +44,46 @@ const ROOM_STYLE_DEFAULT = { fill: "rgba(145, 35, 56, 0.15)", stroke: "#912338",
 const ELEVATOR_LABEL = "EL";
 const STAIRCASE_LABEL = "ST";
 
+function FacilityPolygon({
+  feature,
+  fillColor,
+  strokeColor,
+  label,
+  markerStyle,
+  convertCoordinates,
+}: {
+  feature: IndoorFeature;
+  fillColor: string;
+  strokeColor: string;
+  label: string;
+  markerStyle: object;
+  convertCoordinates: (f: IndoorFeature) => { latitude: number; longitude: number }[];
+}) {
+  const coords = convertCoordinates(feature);
+  if (coords.length === 0) return null;
+  const centroid = getPolygonCentroid(coords);
+  return (
+    <>
+      <Polygon
+        coordinates={coords}
+        fillColor={fillColor}
+        strokeColor={strokeColor}
+        strokeWidth={2}
+      />
+      <Marker
+        coordinate={centroid}
+        anchor={{ x: 0.5, y: 0.5 }}
+        tracksViewChanges={Platform.OS === "android"}
+      >
+        <View style={styles.facilityMarker}>
+          <View style={markerStyle}>
+            <Text style={styles.facilityMarkerText}>{label}</Text>
+          </View>
+        </View>
+      </Marker>
+    </>
+  );
+}
 
 export default function IndoorMapView() {
   const {
@@ -443,60 +483,32 @@ export default function IndoorMapView() {
             );
           })}
           {/* Elevator polygons — always visible */}
-          {elevatorFeatures.map((feature, index) => {
-            const coords = convertCoordinates(feature);
-            if (coords.length === 0) return null;
-            const centroid = getPolygonCentroid(coords);
-            return (
-              <React.Fragment key={`elevator-${index}`}>
-                <Polygon
-                  coordinates={coords}
-                  fillColor="#7C3AED"
-                  strokeColor="#7C3AED"
-                  strokeWidth={2}
-                />
-                <Marker
-                  coordinate={centroid}
-                  anchor={{ x: 0.5, y: 0.5 }}
-                  tracksViewChanges={Platform.OS === "android"}
-                >
-                  <View style={styles.facilityMarker}>
-                    <View style={styles.facilityMarkerElevator}>
-                      <Text style={styles.facilityMarkerText}>{ELEVATOR_LABEL}</Text>
-                    </View>
-                  </View>
-                </Marker>
-              </React.Fragment>
-            );
-          })}
+          {elevatorFeatures.map((feature, index) => (
+            <React.Fragment key={`elevator-${index}`}>
+              <FacilityPolygon
+                feature={feature}
+                fillColor="#7C3AED"
+                strokeColor="#7C3AED"
+                label={ELEVATOR_LABEL}
+                markerStyle={styles.facilityMarkerElevator}
+                convertCoordinates={convertCoordinates}
+              />
+            </React.Fragment>
+          ))}
 
           {/* Staircase polygons — always visible */}
-          {staircaseFeatures.map((feature, index) => {
-            const coords = convertCoordinates(feature);
-            if (coords.length === 0) return null;
-            const centroid = getPolygonCentroid(coords);
-            return (
-              <React.Fragment key={`staircase-${index}`}>
-                <Polygon
-                  coordinates={coords}
-                  fillColor="rgba(245, 158, 11, 0.35)"
-                  strokeColor="#F59E0B"
-                  strokeWidth={2}
-                />
-                <Marker
-                  coordinate={centroid}
-                  anchor={{ x: 0.5, y: 0.5 }}
-                  tracksViewChanges={Platform.OS === "android"}
-                >
-                  <View style={styles.facilityMarker}>
-                    <View style={styles.facilityMarkerStaircase}>
-                      <Text style={styles.facilityMarkerText}>{STAIRCASE_LABEL}</Text>
-                    </View>
-                  </View>
-                </Marker>
-              </React.Fragment>
-            );
-          })}
+          {staircaseFeatures.map((feature, index) => (
+            <React.Fragment key={`staircase-${index}`}>
+              <FacilityPolygon
+                feature={feature}
+                fillColor="rgba(245, 158, 11, 0.35)"
+                strokeColor="#F59E0B"
+                label={STAIRCASE_LABEL}
+                markerStyle={styles.facilityMarkerStaircase}
+                convertCoordinates={convertCoordinates}
+              />
+            </React.Fragment>
+          ))}
 
           {/* Shortest path polyline — filtered to current floor.
               Uses a stable key so React updates coordinates in place (prop change)
