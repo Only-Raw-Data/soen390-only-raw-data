@@ -105,7 +105,7 @@ jobs:
       # Must succeed at least once before PR decoration can work.
       - name: SonarQube Scan (main branch)
         if: github.event_name == 'push' && github.ref_name == 'main'
-        uses: SonarSource/sonarqube-scan-action@v7
+        uses: SonarSource/sonarqube-scan-action@a31c9398be7ace6bbfaf30c0bd5d415f843d45e9
         env:
           SONAR_TOKEN: ${{ secrets.SONARCLOUD_TOKEN }}
           SONAR_HOST_URL: https://sonarcloud.io
@@ -120,7 +120,7 @@ jobs:
       # Scan on push to any non-main branch.
       - name: SonarQube Scan (feature branch)
         if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref_name != 'main'
-        uses: SonarSource/sonarqube-scan-action@v7
+        uses: SonarSource/sonarqube-scan-action@a31c9398be7ace6bbfaf30c0bd5d415f843d45e9
         env:
           SONAR_TOKEN: ${{ secrets.SONARCLOUD_TOKEN }}
           SONAR_HOST_URL: https://sonarcloud.io
@@ -137,7 +137,7 @@ jobs:
       # established a default branch baseline in SonarCloud.
       - name: SonarQube Scan (pull request)
         if: github.event_name == 'pull_request'
-        uses: SonarSource/sonarqube-scan-action@v7
+        uses: SonarSource/sonarqube-scan-action@a31c9398be7ace6bbfaf30c0bd5d415f843d45e9
         env:
           SONAR_TOKEN: ${{ secrets.SONARCLOUD_TOKEN }}
           SONAR_HOST_URL: https://sonarcloud.io
