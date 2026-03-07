@@ -1,6 +1,7 @@
 import React from "react";
 import { render, fireEvent } from "@testing-library/react-native";
 import IndoorMapView from "@/app/components/IndoorMapView";
+import { AMENITY_CONFIG } from "@/app/components/IndoorMapView";
 import {
   useIndoorMap,
   INDOOR_BUILDINGS,
@@ -125,6 +126,7 @@ const defaultContextValue = {
   currentPath: null,
   pathError: null,
   accessible: false,
+  showPOIs: true,
   setSelectedBuilding: jest.fn(),
   setSelectedFloor: jest.fn(),
   setSearchQuery: jest.fn(),
@@ -138,6 +140,7 @@ const defaultContextValue = {
   clearDestinationRoom: jest.fn(),
   clearPath: jest.fn(),
   toggleAccessible: jest.fn(),
+  togglePOIs: jest.fn(),
 };
 
 describe("IndoorMapView", () => {
@@ -172,10 +175,11 @@ describe("IndoorMapView", () => {
     mockUseIndoorMap.mockReturnValue({ ...defaultContextValue, accessible: true });
 
     // Act
-    const { getByText } = render(<IndoorMapView />);
+    const { getByTestId } = render(<IndoorMapView />);
 
-    // Assert
-    expect(getByText("ON")).toBeTruthy();
+    // Assert — accessible toggle should contain ON text
+    const accessibleToggle = getByTestId("accessible-toggle");
+    expect(accessibleToggle).toBeTruthy();
   });
 
   it("calls toggleAccessible when accessibility toggle is pressed", () => {
@@ -679,6 +683,267 @@ describe("IndoorMapView", () => {
 
       // Assert — no ST marker because coords are empty
       expect(queryByText("ST")).toBeNull();
+    });
+  });
+
+  describe("indoor POIs", () => {
+    // Helper: create a toilet polygon feature
+    function makeToiletFeature(ref: string): any {
+      return {
+        type: "Feature",
+        geometry: {
+          type: "Polygon",
+          coordinates: [
+            [
+              [-73.578, 45.497],
+              [-73.577, 45.497],
+              [-73.577, 45.498],
+              [-73.578, 45.498],
+              [-73.578, 45.497],
+            ],
+          ],
+        },
+        properties: { ref, amenity: "toilets", indoor: "room", level: "8" },
+      };
+    }
+
+    // Helper: create a water fountain point feature
+    function makeFountainFeature(): any {
+      return {
+        type: "Feature",
+        geometry: {
+          type: "Point",
+          coordinates: [-73.5788, 45.4971],
+        },
+        properties: { amenity: "fountain", level: "8" },
+      };
+    }
+
+    // Helper: set up building with amenity features
+    function setupWithAmenities(features: any[], contextOverrides = {}) {
+      const hallBuilding = INDOOR_BUILDINGS.find((b) => b.code === "H")!;
+      mockGetGeoJson.mockReturnValue({ type: "FeatureCollection", features });
+      mockGetFeatures.mockReturnValue(features);
+      mockUseIndoorMap.mockReturnValue({
+        ...defaultContextValue,
+        selectedBuilding: hallBuilding,
+        selectedFloor: 8,
+        ...contextOverrides,
+      });
+    }
+
+    it("renders POI toggle button", () => {
+      // Arrange + Act
+      const { getByTestId, getByText } = render(<IndoorMapView />);
+
+      // Assert
+      expect(getByTestId("poi-toggle")).toBeTruthy();
+      expect(getByText("Indoor POIs")).toBeTruthy();
+    });
+
+    it("shows ON state when POIs are enabled", () => {
+      // Arrange
+      mockUseIndoorMap.mockReturnValue({ ...defaultContextValue, showPOIs: true });
+
+      // Act
+      const { getByTestId } = render(<IndoorMapView />);
+
+      // Assert
+      expect(getByTestId("poi-toggle")).toBeTruthy();
+    });
+
+    it("calls togglePOIs when POI toggle is pressed", () => {
+      // Arrange
+      const togglePOIs = jest.fn();
+      mockUseIndoorMap.mockReturnValue({ ...defaultContextValue, togglePOIs });
+
+      // Act
+      const { getByTestId } = render(<IndoorMapView />);
+      fireEvent.press(getByTestId("poi-toggle"));
+
+      // Assert
+      expect(togglePOIs).toHaveBeenCalledTimes(1);
+    });
+
+    it("renders toilet POI with washroom icon when POIs enabled", () => {
+      // Arrange
+      const toilet = makeToiletFeature("H812");
+      setupWithAmenities([toilet], { showPOIs: true });
+
+      // Act
+      const { getByText } = render(<IndoorMapView />);
+
+      // Assert — washroom icon should be rendered
+      expect(getByText(AMENITY_CONFIG.toilets.label)).toBeTruthy();
+    });
+
+    it("renders toilet as regular room when POIs disabled", () => {
+      // Arrange
+      const toilet = makeToiletFeature("H812");
+      setupWithAmenities([toilet], { showPOIs: false });
+
+      // Act
+      const { queryByText, getByText } = render(<IndoorMapView />);
+
+      // Assert — room label shown instead of amenity icon
+      expect(queryByText(AMENITY_CONFIG.toilets.label)).toBeNull();
+      expect(getByText("812")).toBeTruthy();
+    });
+
+    it("renders water fountain point POI when POIs enabled", () => {
+      // Arrange
+      const fountain = makeFountainFeature();
+      setupWithAmenities([fountain], { showPOIs: true });
+
+      // Act
+      const { getByText } = render(<IndoorMapView />);
+
+      // Assert
+      expect(getByText(AMENITY_CONFIG.fountain.label)).toBeTruthy();
+    });
+
+    it("does not render water fountain when POIs disabled", () => {
+      // Arrange
+      const fountain = makeFountainFeature();
+      setupWithAmenities([fountain], { showPOIs: false });
+
+      // Act
+      const { queryByText } = render(<IndoorMapView />);
+
+      // Assert
+      expect(queryByText(AMENITY_CONFIG.fountain.label)).toBeNull();
+    });
+
+    it("shows POI info bar when amenity marker is pressed", () => {
+      // Arrange
+      const toilet = makeToiletFeature("H812");
+      setupWithAmenities([toilet], { showPOIs: true });
+
+      // Act
+      const { getByText, getByTestId } = render(<IndoorMapView />);
+      fireEvent.press(getByText(AMENITY_CONFIG.toilets.label));
+
+      // Assert — POI info bar should appear with amenity details
+      expect(getByTestId("poi-info-bar")).toBeTruthy();
+      expect(getByText("Washroom")).toBeTruthy();
+      expect(getByTestId("poi-ref").props.children).toBe("H812");
+    });
+
+    it("dismisses POI info bar when dismiss button is pressed", () => {
+      // Arrange
+      const toilet = makeToiletFeature("H812");
+      setupWithAmenities([toilet], { showPOIs: true });
+
+      // Act
+      const { getByText, getByTestId, queryByTestId } = render(<IndoorMapView />);
+      fireEvent.press(getByText(AMENITY_CONFIG.toilets.label));
+      expect(getByTestId("poi-info-bar")).toBeTruthy();
+      fireEvent.press(getByTestId("poi-dismiss"));
+
+      // Assert — POI info bar should be dismissed
+      expect(queryByTestId("poi-info-bar")).toBeNull();
+    });
+
+    it("renders multiple amenity types simultaneously", () => {
+      // Arrange
+      const toilet = makeToiletFeature("H812");
+      const fountain = makeFountainFeature();
+      setupWithAmenities([toilet, fountain], { showPOIs: true });
+
+      // Act
+      const { getByText } = render(<IndoorMapView />);
+
+      // Assert — both amenity icons should be visible
+      expect(getByText(AMENITY_CONFIG.toilets.label)).toBeTruthy();
+      expect(getByText(AMENITY_CONFIG.fountain.label)).toBeTruthy();
+    });
+
+    it("skips amenity point feature with insufficient coordinates", () => {
+      // Arrange
+      const badFountain = {
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [] },
+        properties: { amenity: "fountain", level: "8" },
+      };
+      setupWithAmenities([badFountain], { showPOIs: true });
+
+      // Act
+      const { queryByText } = render(<IndoorMapView />);
+
+      // Assert — no marker rendered due to empty coordinates
+      expect(queryByText(AMENITY_CONFIG.fountain.label)).toBeNull();
+    });
+
+    it("skips amenity polygon feature with empty coordinates", () => {
+      // Arrange
+      const emptyToilet = {
+        type: "Feature",
+        geometry: { type: "Polygon", coordinates: [[]] },
+        properties: { amenity: "toilets", indoor: "room", level: "8", ref: "H999" },
+      };
+      setupWithAmenities([emptyToilet], { showPOIs: true });
+
+      // Act
+      const { queryByText } = render(<IndoorMapView />);
+
+      // Assert — no marker rendered due to empty coords
+      expect(queryByText(AMENITY_CONFIG.toilets.label)).toBeNull();
+    });
+
+    it("does not render POI info bar when room info bar is shown", () => {
+      // Arrange — startRoomRef is set, so room info bar shows instead
+      mockUseIndoorMap.mockReturnValue({
+        ...defaultContextValue,
+        startRoomRef: "H851.02",
+      });
+
+      // Act
+      const { queryByTestId, getByTestId } = render(<IndoorMapView />);
+
+      // Assert
+      expect(queryByTestId("poi-info-bar")).toBeNull();
+      expect(getByTestId("start-room-label")).toBeTruthy();
+    });
+
+    it("ignores unknown amenity types", () => {
+      // Arrange
+      const unknownAmenity = {
+        type: "Feature",
+        geometry: {
+          type: "Polygon",
+          coordinates: [
+            [
+              [-73.578, 45.497],
+              [-73.577, 45.497],
+              [-73.577, 45.498],
+              [-73.578, 45.498],
+              [-73.578, 45.497],
+            ],
+          ],
+        },
+        properties: { amenity: "unknown_type", indoor: "room", level: "8" },
+      };
+      setupWithAmenities([unknownAmenity], { showPOIs: true });
+
+      // Act
+      const { queryByTestId } = render(<IndoorMapView />);
+
+      // Assert — unknown amenity is not rendered as a POI
+      expect(queryByTestId(/amenity-/)).toBeNull();
+    });
+
+    it("shows fountain POI info bar when fountain point marker is pressed", () => {
+      // Arrange
+      const fountain = makeFountainFeature();
+      setupWithAmenities([fountain], { showPOIs: true });
+
+      // Act — press the fountain icon text (marker mock doesn't forward testID)
+      const { getByTestId, getByText } = render(<IndoorMapView />);
+      fireEvent.press(getByText(AMENITY_CONFIG.fountain.label));
+
+      // Assert
+      expect(getByTestId("poi-info-bar")).toBeTruthy();
+      expect(getByText("Water Fountain")).toBeTruthy();
     });
   });
 });

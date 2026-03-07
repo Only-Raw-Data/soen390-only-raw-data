@@ -27,6 +27,20 @@ export interface IndoorGeoJSON {
   features: IndoorFeature[];
 }
 
+export interface AmenityConfig {
+  label: string;
+  displayName: string;
+  fillColor: string;
+  strokeColor: string;
+  bgColor: string;
+}
+
+export interface SelectedPOIInfo {
+  amenity: string;
+  ref?: string;
+  name?: string;
+}
+
 export interface IndoorBuildingConfig {
   code: string;
   name: string;
