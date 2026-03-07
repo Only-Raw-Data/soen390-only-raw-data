@@ -702,13 +702,13 @@ describe("MapViewApp", () => {
                 mode: "WALK",
                 coordinates: [
                   { latitude: 45.4971, longitude: -73.5791 },
-                  { latitude: 45.4960, longitude: -73.5785 },
+                  { latitude: 45.496, longitude: -73.5785 },
                 ],
               },
               {
                 mode: "BUS",
                 coordinates: [
-                  { latitude: 45.4960, longitude: -73.5785 },
+                  { latitude: 45.496, longitude: -73.5785 },
                   { latitude: 45.4953, longitude: -73.5782 },
                 ],
                 lineName: "80",
