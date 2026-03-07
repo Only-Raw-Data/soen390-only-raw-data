@@ -24,14 +24,26 @@ appId: com.soen390.campusguide
 - assertVisible: "8"
 
 - tapOn: "Destination room (e.g., H-820)"
-- inputText: "H-827"
+- inputText: "H-920"
 - pressKey: enter
 - waitForAnimationToEnd
 
 - doubleTapOn:
     point: "50%,60%"
 
+- doubleTapOn:
+    point: "50%,60%"
+
+- tapOn: "9"
+- waitForAnimationToEnd
+
+- doubleTapOn:
+    point: "50%,60%"
+
+- doubleTapOn:
+    point: "50%,60%"
+
 - assertVisible:
-    text: ".*Route:.*"
+    text: ".*Route:.*floor.*"
 
 - stopApp

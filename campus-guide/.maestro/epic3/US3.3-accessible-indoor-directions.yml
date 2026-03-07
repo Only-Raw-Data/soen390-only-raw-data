@@ -14,6 +14,9 @@ appId: com.soen390.campusguide
 - tapOn: "Indoor"
 - waitForAnimationToEnd
 
+- assertVisible: "Accessible Route"
+- assertVisible: "OFF"
+
 - assertVisible: "Start room (e.g., H-820)"
 - tapOn: "Start room (e.g., H-820)"
 - inputText: "H-813"
@@ -24,14 +27,31 @@ appId: com.soen390.campusguide
 - assertVisible: "8"
 
 - tapOn: "Destination room (e.g., H-820)"
-- inputText: "H-827"
+- inputText: "H-920"
 - pressKey: enter
+- waitForAnimationToEnd
+
+- doubleTapOn:
+    point: "55%,60%"
+
+- doubleTapOn:
+    point: "55%,60%"
+
+- tapOn: "Accessible Route"
+- waitForAnimationToEnd
+
+- assertVisible: "ON"
+
+- tapOn: "9"
 - waitForAnimationToEnd
 
 - doubleTapOn:
     point: "50%,60%"
 
+- doubleTapOn:
+    point: "50%,60%"
+
 - assertVisible:
-    text: ".*Route:.*"
+    text: ".*Route:.*floor.*"
 
 - stopApp
