@@ -1,7 +1,6 @@
-import { NavigationStep, IndoorStep, OutdoorStep } from "../types/navigation";
+import { NavigationStep } from "../types/navigation";
 import {
   getOrBuildGraph,
-  findEntranceNodes,
   GraphNode,
 } from "./indoorGraphService";
 import {
@@ -13,7 +12,6 @@ import { fetchDirections, RouteData } from "./directionsService";
 import {
   findRoomInBuildings,
   getGeoJsonForBuilding,
-  INDOOR_BUILDINGS,
 } from "../context/IndoorMapContext";
 import { IndoorBuildingConfig } from "../types/indoorMap";
 
@@ -90,31 +88,22 @@ export async function planCrossBuildingRoute(
   const exitCoords = getEntranceCoords(pathToExit, startBuilding, true);
   const enterCoords = getEntranceCoords(pathFromEntrance, destBuilding, false);
 
-  // Step 2: Outdoor walking route between buildings
-  let outdoorRoute: RouteData | null = null;
-  try {
-    outdoorRoute = await fetchDirections(exitCoords, enterCoords, "walk");
-  } catch {
-    // Fallback: create a simple straight-line route
-    outdoorRoute = {
-      coordinates: [
-        { latitude: exitCoords.lat, longitude: exitCoords.lng },
-        { latitude: enterCoords.lat, longitude: enterCoords.lng },
-      ],
-      duration: "~5 mins",
-      distance: "~0.3 km",
-    };
-  }
+  // Straight-line fallback when the directions API is unavailable
+  const fallbackRoute: RouteData = {
+    coordinates: [
+      { latitude: exitCoords.lat, longitude: exitCoords.lng },
+      { latitude: enterCoords.lat, longitude: enterCoords.lng },
+    ],
+    duration: "~5 mins",
+    distance: "~0.3 km",
+  };
 
-  if (!outdoorRoute) {
-    outdoorRoute = {
-      coordinates: [
-        { latitude: exitCoords.lat, longitude: exitCoords.lng },
-        { latitude: enterCoords.lat, longitude: enterCoords.lng },
-      ],
-      duration: "~5 mins",
-      distance: "~0.3 km",
-    };
+  // Step 2: Outdoor walking route between buildings
+  let outdoorRoute: RouteData;
+  try {
+    outdoorRoute = await fetchDirections(exitCoords, enterCoords, "walk") ?? fallbackRoute;
+  } catch {
+    outdoorRoute = fallbackRoute;
   }
 
   const steps: NavigationStep[] = [];
