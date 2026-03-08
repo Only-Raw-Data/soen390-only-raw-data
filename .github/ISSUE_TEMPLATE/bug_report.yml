@@ -1,0 +1,169 @@
+name: Bug report
+description: Report a bug using the required course/project format
+title: "BUGxxx - "
+labels:
+  - bug
+body:
+  - type: input
+    id: issue_title
+    attributes:
+      label: Title
+      description: Enter the bug title
+      placeholder: Fix SonarCloud CI to analyze PRs only instead of non-main branches on Free plan
+    validations:
+      required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: Brief description of the bug
+      placeholder: Our SonarCloud CI is currently analyzing feature branches directly...
+    validations:
+      required: true
+
+  - type: textarea
+    id: error_seen
+    attributes:
+      label: Error Seen
+      description: List the exact error messages shown
+      placeholder: |
+        - The requested project does not exist, or you have not been granted access.
+        - Organization is not allowed to access data from non main branches.
+    validations:
+      required: true
+
+  - type: textarea
+    id: cause
+    attributes:
+      label: Cause
+      description: Explain why this issue happens
+      placeholder: |
+        SonarCloud Free plan only supports:
+        - analysis of the `main` branch
+        - pull request analysis targeting the `main` branch
+
+        Our current GitHub Actions workflow is still triggering Sonar analysis on direct pushes to feature branches.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps_to_reproduce
+    attributes:
+      label: Steps to Reproduce
+      description: Provide detailed steps to reproduce the bug
+      placeholder: |
+        1. Create a feature branch from `main`
+        2. Push commits to the feature branch
+        3. Let the GitHub Actions SonarCloud workflow run
+        4. Open the SonarCloud result link for that branch
+        5. Observe the access error and non-main-branch restriction message
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected_behavior
+    attributes:
+      label: Expected Behavior
+      description: Describe what should happen instead
+      placeholder: |
+        SonarCloud should only run on:
+        - `push` to `main`
+        - `pull_request` targeting `main`
+
+        Feature branches should not be analyzed as standalone branches.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual_behavior
+    attributes:
+      label: Actual Behavior
+      description: Describe what currently happens
+      placeholder: Feature branch pushes trigger SonarCloud analysis, but the resulting branch page cannot be accessed because the organization is on the Free plan.
+    validations:
+      required: true
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: Explain the effect of this bug
+      placeholder: |
+        - Contributors cannot access Sonar results for feature branches
+        - The workflow is misleading because analysis runs, but the results are unusable
+        - This creates confusion around whether the issue is caused by permissions or by SonarCloud plan limitations
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed_fix
+    attributes:
+      label: Proposed Fix
+      description: Describe the intended fix
+      placeholder: |
+        Update the GitHub Actions workflow so Sonar runs only on:
+        - `push` to `main`
+        - `pull_request` targeting `main`
+    validations:
+      required: true
+
+  - type: textarea
+    id: workflow_example
+    attributes:
+      label: Example Fix Snippet
+      description: Paste the workflow/config snippet related to the fix
+      render: yaml
+      placeholder: |
+        on:
+          pull_request:
+            branches:
+              - main
+          push:
+            branches:
+              - main
+    validations:
+      required: false
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots / Evidence
+      description: Attach screenshots or paste links
+      placeholder: Add screenshots of the SonarCloud error and workflow run
+    validations:
+      required: true
+
+  - type: input
+    id: fix_commit
+    attributes:
+      label: Fix Commit Link
+      description: Link to the commit that fixes the bug
+      placeholder: https://github.com/ORG/REPO/commit/...
+    validations:
+      required: true
+
+  - type: input
+    id: test_commit
+    attributes:
+      label: Test Update Commit Link
+      description: Link to the commit that adds or updates tests for this bug
+      placeholder: https://github.com/ORG/REPO/commit/...
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I included replication steps
+          required: true
+        - label: I included screenshots or evidence
+          required: true
+        - label: I linked the fix commit
+          required: true
+        - label: I linked the test update commit
+          required: true
+        - label: I confirmed this issue should be labeled as bug
+          required: true
