@@ -1,0 +1,52 @@
+name: SonarQube Analysis
+
+on:
+  workflow_call:
+    secrets:
+      SONARCLOUD_TOKEN:
+        required: true
+      CODECOV_TOKEN:
+        required: true
+
+jobs:
+  sonarqube:
+    name: SonarQube Analysis
+    # Run Sonar only for PRs and main to avoid unsupported branch analysis on free SonarCloud.
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Cache SonarQube packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+
+      - name: Download Coverage Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-report
+          path: campus-guide/coverage
+
+      - name: Upload Coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: campus-guide/coverage/lcov.info,campus-guide/coverage/coverage-final.json
+
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@a31c9398be7ace6bbfaf30c0bd5d415f843d45e9
+        env:
+          SONAR_TOKEN: ${{ secrets.SONARCLOUD_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
+        with:
+          projectBaseDir: campus-guide
+
+
+
