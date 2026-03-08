@@ -1031,7 +1031,7 @@ function StoryIndoorMap({ step }: { readonly step: IndoorStep }) {
         if (coords.length === 0) return null;
         return (
           <Polygon
-            key={`story-poly-${feature.properties?.ref ?? `anon-${index}`}`}
+            key={`story-poly-${feature.properties?.ref ?? "anon-" + String(index)}`}
             coordinates={coords}
             fillColor="rgba(145, 35, 56, 0.15)"
             strokeColor="#912338"
