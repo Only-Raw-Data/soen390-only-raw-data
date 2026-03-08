@@ -135,7 +135,7 @@ export function findPathToNearestEntrance(
     visited.add(currentId);
 
     const currentNode = graph.nodes.get(currentId);
-    if (currentNode && currentNode.type === NodeType.Entrance && currentId !== startNode.id) {
+    if (currentNode?.type === NodeType.Entrance && currentId !== startNode.id) {
       return reconstructPath(currentId, graph, prev);
     }
 

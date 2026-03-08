@@ -1,5 +1,5 @@
 import React from "react";
-import { render, fireEvent } from "@testing-library/react-native";
+import { render, fireEvent, waitFor } from "@testing-library/react-native";
 import IndoorMapView from "@/app/components/IndoorMapView";
 import { AMENITY_CONFIG } from "@/app/components/IndoorMapView";
 import {
@@ -8,6 +8,14 @@ import {
   getGeoJsonForBuilding,
   getFeaturesForFloor,
 } from "@/app/context/IndoorMapContext";
+
+// Mock the cross-building route service
+jest.mock("@/app/services/crossBuildingRouteService", () => ({
+  planCrossBuildingRoute: jest.fn(),
+}));
+
+import { planCrossBuildingRoute } from "@/app/services/crossBuildingRouteService";
+const mockPlanRoute = planCrossBuildingRoute as jest.MockedFunction<typeof planCrossBuildingRoute>;
 
 // Mock the IndoorMapContext
 jest.mock("@/app/context/IndoorMapContext", () => {
@@ -996,6 +1004,144 @@ describe("IndoorMapView", () => {
 
       // Assert
       expect(queryByTestId("path-error-banner")).toBeNull();
+    });
+
+    it("starts story mode with steps on successful route planning", async () => {
+      // Arrange
+      const mockSteps = [
+        {
+          kind: "indoor" as const,
+          buildingCode: "H",
+          buildingName: "Hall Building",
+          path: [{ id: "room:H820:8", lat: 45.497, lng: -73.578, floor: 8, type: "room", ref: "H820" }],
+          startLabel: "H820",
+          endLabel: "Exit",
+        },
+        {
+          kind: "outdoor" as const,
+          route: { distance: "500m", duration: "6 min", polyline: "", steps: [] },
+          startLabel: "Hall Building",
+          endLabel: "MB Building",
+        },
+      ];
+      mockPlanRoute.mockResolvedValue(mockSteps);
+      mockUseIndoorMap.mockReturnValue({
+        ...defaultContextValue,
+        isCrossBuilding: true,
+        startRoomRef: "H820",
+        destinationRoomRef: "MBS2.210",
+        startSearchQuery: "H-820",
+        destinationSearchQuery: "MBS2.210",
+      });
+
+      // Act
+      const { getByTestId } = render(<IndoorMapView />);
+      fireEvent.press(getByTestId("cross-building-directions-button"));
+
+      // Assert — wait for async route planning to complete
+      await waitFor(() => {
+        expect(mockPlanRoute).toHaveBeenCalledWith("H-820", "MBS2.210", false);
+        expect(getByTestId("story-exit-button")).toBeTruthy();
+      });
+    });
+
+    it("shows error when planCrossBuildingRoute returns empty steps", async () => {
+      // Arrange
+      mockPlanRoute.mockResolvedValue([]);
+      mockUseIndoorMap.mockReturnValue({
+        ...defaultContextValue,
+        isCrossBuilding: true,
+        startRoomRef: "H820",
+        destinationRoomRef: "MBS2.210",
+        startSearchQuery: "H-820",
+        destinationSearchQuery: "MBS2.210",
+      });
+
+      // Act
+      const { getByTestId, findByText } = render(<IndoorMapView />);
+      fireEvent.press(getByTestId("cross-building-directions-button"));
+
+      // Assert
+      expect(await findByText("Could not compute cross-building route")).toBeTruthy();
+    });
+
+    it("shows error when planCrossBuildingRoute throws", async () => {
+      // Arrange
+      mockPlanRoute.mockRejectedValue(new Error("Network error"));
+      mockUseIndoorMap.mockReturnValue({
+        ...defaultContextValue,
+        isCrossBuilding: true,
+        startRoomRef: "H820",
+        destinationRoomRef: "MBS2.210",
+        startSearchQuery: "H-820",
+        destinationSearchQuery: "MBS2.210",
+      });
+
+      // Act
+      const { getByTestId, findByText } = render(<IndoorMapView />);
+      fireEvent.press(getByTestId("cross-building-directions-button"));
+
+      // Assert
+      expect(await findByText("Error computing cross-building route")).toBeTruthy();
+    });
+
+    it("exits story mode when exit button is pressed", async () => {
+      // Arrange
+      const mockSteps = [
+        {
+          kind: "indoor" as const,
+          buildingCode: "H",
+          buildingName: "Hall Building",
+          path: [{ id: "room:H820:8", lat: 45.497, lng: -73.578, floor: 8, type: "room", ref: "H820" }],
+          startLabel: "H820",
+          endLabel: "Exit",
+        },
+      ];
+      mockPlanRoute.mockResolvedValue(mockSteps);
+      mockUseIndoorMap.mockReturnValue({
+        ...defaultContextValue,
+        isCrossBuilding: true,
+        startRoomRef: "H820",
+        destinationRoomRef: "MBS2.210",
+        startSearchQuery: "H-820",
+        destinationSearchQuery: "MBS2.210",
+      });
+
+      // Act — enter story mode, then exit
+      const { getByTestId, queryByTestId } = render(<IndoorMapView />);
+      fireEvent.press(getByTestId("cross-building-directions-button"));
+      await waitFor(() => expect(getByTestId("story-exit-button")).toBeTruthy());
+      fireEvent.press(getByTestId("story-exit-button"));
+
+      // Assert — story panel gone, cross-building banner back
+      await waitFor(() => {
+        expect(queryByTestId("story-exit-button")).toBeNull();
+        expect(getByTestId("cross-building-banner")).toBeTruthy();
+      });
+    });
+
+    it("shows loading indicator while computing route", async () => {
+      // Arrange — make planRoute hang so we can observe loading state
+      let resolveRoute!: (value: any) => void;
+      mockPlanRoute.mockReturnValue(new Promise((res) => { resolveRoute = res; }));
+      mockUseIndoorMap.mockReturnValue({
+        ...defaultContextValue,
+        isCrossBuilding: true,
+        startRoomRef: "H820",
+        destinationRoomRef: "MBS2.210",
+        startSearchQuery: "H-820",
+        destinationSearchQuery: "MBS2.210",
+      });
+
+      // Act
+      const { getByTestId } = render(<IndoorMapView />);
+      fireEvent.press(getByTestId("cross-building-directions-button"));
+
+      // Assert — loading indicator should appear
+      await waitFor(() => expect(getByTestId("story-loading")).toBeTruthy());
+
+      // Cleanup — resolve to avoid dangling promise
+      resolveRoute([]);
     });
   });
 });

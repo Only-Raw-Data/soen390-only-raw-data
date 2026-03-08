@@ -73,6 +73,15 @@ export const AMENITY_CONFIG: Record<string, {
   fire_station: { label: "\u{1F9EF}", displayName: "Fire Station", fillColor: "#EF444459", strokeColor: "#EF4444", bgColor: "#EF4444" },
 };
 
+function convertCoordinates(feature: IndoorFeature): { latitude: number; longitude: number }[] {
+  if (feature.geometry.type !== "Polygon") return [];
+  const coords = feature.geometry.coordinates as number[][][];
+  return coords[0].map((coord) => ({
+    latitude: coord[1],
+    longitude: coord[0],
+  }));
+}
+
 function getPointCoordinate(feature: IndoorFeature): { latitude: number; longitude: number } | null {
   if (feature.geometry.type !== "Point") return null;
   const coords = feature.geometry.coordinates as number[];
@@ -86,18 +95,16 @@ function FacilityPolygon({
   strokeColor,
   label,
   markerStyle,
-  convertCoordinates,
   onPress,
   labelStyle,
 }: {
-  feature: IndoorFeature;
-  fillColor: string;
-  strokeColor: string;
-  label: string;
-  markerStyle: object;
-  convertCoordinates: (f: IndoorFeature) => { latitude: number; longitude: number }[];
-  onPress?: () => void;
-  labelStyle?: object;
+  readonly feature: IndoorFeature;
+  readonly fillColor: string;
+  readonly strokeColor: string;
+  readonly label: string;
+  readonly markerStyle: object;
+  readonly onPress?: () => void;
+  readonly labelStyle?: object;
 }) {
   const coords = convertCoordinates(feature);
   if (hasNoCoordinates(coords)) return null;
@@ -321,15 +328,6 @@ export default function IndoorMapView() {
     if (floorTimer.current) clearTimeout(floorTimer.current);
     setSelectedFloor(floor);
     floorTimer.current = setTimeout(() => setFloorTransitioning(false), 150);
-  };
-
-  const convertCoordinates = (feature: IndoorFeature) => {
-    if (feature.geometry.type !== "Polygon") return [];
-    const coords = feature.geometry.coordinates as number[][][];
-    return coords[0].map((coord) => ({
-      latitude: coord[1],
-      longitude: coord[0],
-    }));
   };
 
   const isHighlighted = (feature: IndoorFeature) => {
@@ -609,9 +607,9 @@ export default function IndoorMapView() {
                 : "Outdoor — Walking"}
             </Text>
             <View style={styles.storyDots}>
-              {storySteps.map((_, i) => (
+              {storySteps.map((step, i) => (
                 <View
-                  key={`dot-${i}`}
+                  key={`dot-${step.kind}-${step.startLabel}-${step.endLabel}`}
                   style={[
                     styles.storyDot,
                     i === storyIndex && styles.storyDotActive,
@@ -715,7 +713,7 @@ export default function IndoorMapView() {
                 strokeColor="#7C3AED"
                 label={ELEVATOR_LABEL}
                 markerStyle={styles.facilityMarkerElevator}
-                convertCoordinates={convertCoordinates}
+
               />
             </React.Fragment>
           ))}
@@ -729,7 +727,7 @@ export default function IndoorMapView() {
                 strokeColor="#F59E0B"
                 label={STAIRCASE_LABEL}
                 markerStyle={styles.facilityMarkerStaircase}
-                convertCoordinates={convertCoordinates}
+
               />
             </React.Fragment>
           ))}
@@ -747,7 +745,7 @@ export default function IndoorMapView() {
                   strokeColor={config.strokeColor}
                   label={config.label}
                   markerStyle={[styles.amenityMarkerCircle, { backgroundColor: config.bgColor }]}
-                  convertCoordinates={convertCoordinates}
+  
                   labelStyle={styles.amenityMarkerText}
                   onPress={() => setSelectedPOI({
                     amenity,
@@ -989,7 +987,7 @@ export default function IndoorMapView() {
 }
 
 /** Renders an indoor map for a story mode step, showing path on the first floor segment. */
-function StoryIndoorMap({ step }: { step: IndoorStep }) {
+function StoryIndoorMap({ step }: { readonly step: IndoorStep }) {
   const building = INDOOR_BUILDINGS.find((b) => b.code === step.buildingCode);
   if (!building) return null;
 
@@ -1002,15 +1000,6 @@ function StoryIndoorMap({ step }: { step: IndoorStep }) {
   const polygonFeatures = floorFeatures.filter(
     (f) => f.geometry.type === "Polygon" && f.properties?.indoor,
   );
-
-  const convertCoordinates = (feature: IndoorFeature) => {
-    if (feature.geometry.type !== "Polygon") return [];
-    const coords = feature.geometry.coordinates as number[][][];
-    return coords[0].map((coord) => ({
-      latitude: coord[1],
-      longitude: coord[0],
-    }));
-  };
 
   const pathCoords = step.path
     .filter((n) => n.floor === floor && Number.isFinite(n.lat) && Number.isFinite(n.lng))
@@ -1042,7 +1031,7 @@ function StoryIndoorMap({ step }: { step: IndoorStep }) {
         if (coords.length === 0) return null;
         return (
           <Polygon
-            key={`story-poly-${index}`}
+            key={`story-poly-${feature.properties?.ref ?? `anon-${index}`}`}
             coordinates={coords}
             fillColor="rgba(145, 35, 56, 0.15)"
             strokeColor="#912338"

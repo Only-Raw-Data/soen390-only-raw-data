@@ -5,9 +5,28 @@ import { RouteData } from "../services/directionsService";
 import { hasNoCoordinates } from "./IndoorMapView";
 
 interface StoryOutdoorMapProps {
-  route: RouteData;
-  startLabel: string;
-  endLabel: string;
+  readonly route: RouteData;
+  readonly startLabel: string;
+  readonly endLabel: string;
+}
+
+function computeRegion(coords: { latitude: number; longitude: number }[]) {
+  let minLat = Infinity;
+  let maxLat = -Infinity;
+  let minLng = Infinity;
+  let maxLng = -Infinity;
+  coords.forEach((c) => {
+    if (c.latitude < minLat) minLat = c.latitude;
+    if (c.latitude > maxLat) maxLat = c.latitude;
+    if (c.longitude < minLng) minLng = c.longitude;
+    if (c.longitude > maxLng) maxLng = c.longitude;
+  });
+  return {
+    latitude: (minLat + maxLat) / 2,
+    longitude: (minLng + maxLng) / 2,
+    latitudeDelta: Math.max((maxLat - minLat) * 1.5, 0.003),
+    longitudeDelta: Math.max((maxLng - minLng) * 1.5, 0.003),
+  };
 }
 
 export default function StoryOutdoorMap({
@@ -16,29 +35,15 @@ export default function StoryOutdoorMap({
   endLabel,
 }: StoryOutdoorMapProps) {
   const coords = route?.coordinates;
-  if (!coords || hasNoCoordinates(coords)) return null;
+  const region = useMemo(
+    () => (coords && !hasNoCoordinates(coords) ? computeRegion(coords) : null),
+    [coords],
+  );
+
+  if (!coords || !region) return null;
 
   const startCoord = coords[0];
   const endCoord = coords[coords.length - 1];
-
-  const region = useMemo(() => {
-    let minLat = Infinity;
-    let maxLat = -Infinity;
-    let minLng = Infinity;
-    let maxLng = -Infinity;
-    coords.forEach((c) => {
-      if (c.latitude < minLat) minLat = c.latitude;
-      if (c.latitude > maxLat) maxLat = c.latitude;
-      if (c.longitude < minLng) minLng = c.longitude;
-      if (c.longitude > maxLng) maxLng = c.longitude;
-    });
-    return {
-      latitude: (minLat + maxLat) / 2,
-      longitude: (minLng + maxLng) / 2,
-      latitudeDelta: Math.max((maxLat - minLat) * 1.5, 0.003),
-      longitudeDelta: Math.max((maxLng - minLng) * 1.5, 0.003),
-    };
-  }, [coords]);
 
   return (
     <View style={styles.container}>
