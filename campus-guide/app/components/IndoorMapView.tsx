@@ -19,7 +19,7 @@ import {
   getFeaturesForFloor,
 } from "@/app/context/IndoorMapContext";
 import { IndoorFeature } from "../types/indoorMap";
-import { NavigationStep } from "../types/navigation";
+import {IndoorStep, NavigationStep, OutdoorStep} from "../types/navigation";
 import { planCrossBuildingRoute } from "../services/crossBuildingRouteService";
 import StoryOutdoorMap from "./StoryOutdoorMap";
 
@@ -605,7 +605,7 @@ export default function IndoorMapView() {
               Step {storyIndex + 1} of {storySteps.length}
               {" · "}
               {storySteps[storyIndex].kind === "indoor"
-                ? `Indoor — ${(storySteps[storyIndex] as import("../types/navigation").IndoorStep).buildingName}`
+                ? `Indoor — ${(storySteps[storyIndex] as IndoorStep).buildingName}`
                 : "Outdoor — Walking"}
             </Text>
             <View style={styles.storyDots}>
@@ -632,13 +632,13 @@ export default function IndoorMapView() {
           <View style={styles.storyMapContainer}>
             {storySteps[storyIndex].kind === "outdoor" ? (
               <StoryOutdoorMap
-                route={(storySteps[storyIndex] as import("../types/navigation").OutdoorStep).route}
+                route={(storySteps[storyIndex] as OutdoorStep).route}
                 startLabel={storySteps[storyIndex].startLabel}
                 endLabel={storySteps[storyIndex].endLabel}
               />
             ) : (
               <StoryIndoorMap
-                step={storySteps[storyIndex] as import("../types/navigation").IndoorStep}
+                step={storySteps[storyIndex] as IndoorStep}
               />
             )}
           </View>
@@ -989,7 +989,7 @@ export default function IndoorMapView() {
 }
 
 /** Renders an indoor map for a story mode step, showing path on the first floor segment. */
-function StoryIndoorMap({ step }: { step: import("../types/navigation").IndoorStep }) {
+function StoryIndoorMap({ step }: { step: IndoorStep }) {
   const building = INDOOR_BUILDINGS.find((b) => b.code === step.buildingCode);
   if (!building) return null;
 

@@ -267,6 +267,7 @@ export function buildIndoorGraph(geoJson: IndoorGeoJSON): IndoorGraph {
 
       // Connect to nearest corridor waypoint on the same floor
       const floorWaypoints = waypointsByFloor.get(floor);
+      // Skip floors with no corridor data – the entrance cannot be linked
       if (!floorWaypoints) continue;
 
       let bestId: string | null = null;
@@ -274,6 +275,7 @@ export function buildIndoorGraph(geoJson: IndoorGeoJSON): IndoorGraph {
       for (const key of floorWaypoints) {
         const wpNodeId = waypointId(key, floor);
         const wp = nodes.get(wpNodeId);
+        // Guard against stale keys whose node was never created (data mismatch)
         if (!wp) continue;
         const d = haversineDistance(lat, lng, wp.lat, wp.lng);
         if (d < bestDist) {
