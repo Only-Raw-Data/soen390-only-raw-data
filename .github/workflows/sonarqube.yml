@@ -38,7 +38,7 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: campus-guide/coverage/lcov.info
+          files: campus-guide/coverage/lcov.info,campus-guide/coverage/coverage-final.json
 
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@a31c9398be7ace6bbfaf30c0bd5d415f843d45e9
@@ -47,5 +47,6 @@ jobs:
           SONAR_HOST_URL: https://sonarcloud.io
         with:
           projectBaseDir: campus-guide
+
 
 

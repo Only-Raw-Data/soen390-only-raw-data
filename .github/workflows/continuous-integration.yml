@@ -61,7 +61,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
-          path: campus-guide/coverage/lcov.info
+          path: |
+            campus-guide/coverage/lcov.info
+            campus-guide/coverage/coverage-summary.json
+            campus-guide/coverage/coverage-final.json
           retention-days: 1
 
   sonarqube:
