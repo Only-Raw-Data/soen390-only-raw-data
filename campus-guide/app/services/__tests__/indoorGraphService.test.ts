@@ -2,6 +2,9 @@ import {
   buildIndoorGraph,
   coordKey,
   haversineDistance,
+  findEntranceNodes,
+  getOrBuildGraph,
+  NodeType,
 } from "@/app/services/indoorGraphService";
 import { IndoorGeoJSON } from "@/app/types/indoorMap";
 
@@ -760,5 +763,157 @@ describe("buildIndoorGraph – integration with real hall.json", () => {
           toAdj.some((e) => e.nodeId === edge.from),
       ).toBe(true);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+
+function entrancePoint(
+  coords: number[],
+  level = "1",
+): IndoorGeoJSON["features"][number] {
+  return {
+    type: "Feature",
+    properties: { entrance: "yes", level },
+    geometry: { type: "Point", coordinates: coords },
+  };
+}
+
+describe("buildIndoorGraph – entrance point features", () => {
+  it("creates an entrance node for a Point feature with entrance=yes", () => {
+    // Arrange
+    const geoJson = makeGeoJSON([
+      corridor([WP1, WP2]),
+      entrancePoint(WP1),
+    ]);
+
+    // Act
+    const graph = buildIndoorGraph(geoJson);
+
+    // Assert
+    const entranceNodes = [...graph.nodes.values()].filter(
+        (n) => n.type === NodeType.Entrance,
+    );
+    expect(entranceNodes).toHaveLength(1);
+  });
+
+  it("connects entrance node to nearest corridor waypoint", () => {
+    // Arrange
+    const geoJson = makeGeoJSON([
+      corridor([WP1, WP2, WP3]),
+      entrancePoint(WP1),
+    ]);
+
+    // Act
+    const graph = buildIndoorGraph(geoJson);
+
+    // Assert
+    const entranceNode = [...graph.nodes.values()].find(
+        (n) => n.type === NodeType.Entrance,
+    )!;
+    const neighbors = graph.adjacency.get(entranceNode.id)!;
+    expect(neighbors.length).toBeGreaterThan(0);
+    const neighbor = graph.nodes.get(neighbors[0].nodeId)!;
+    expect(neighbor.type).toBe(NodeType.Waypoint);
+  });
+
+  it("does not create entrance node for tunnel entrances", () => {
+    // Arrange — entrance="tunnel" should be ignored
+    const geoJson = makeGeoJSON([
+      corridor([WP1, WP2]),
+      {
+        type: "Feature",
+        properties: { entrance: "tunnel", level: "1" },
+        geometry: { type: "Point", coordinates: WP1 },
+      },
+    ]);
+
+    // Act
+    const graph = buildIndoorGraph(geoJson);
+
+    // Assert
+    const entranceNodes = [...graph.nodes.values()].filter(
+        (n) => n.type === NodeType.Entrance,
+    );
+    expect(entranceNodes).toHaveLength(0);
+  });
+
+  it("assigns the correct floor to entrance nodes", () => {
+    // Arrange
+    const geoJson = makeGeoJSON([
+      corridor([WP1, WP2], "8"),
+      entrancePoint(WP1, "8"),
+    ]);
+
+    // Act
+    const graph = buildIndoorGraph(geoJson);
+
+    // Assert
+    const entranceNode = [...graph.nodes.values()].find(
+        (n) => n.type === NodeType.Entrance,
+    )!;
+    expect(entranceNode.floor).toBe(8);
+  });
+});
+
+// ---------------------------------------------------------------------------
+
+describe("findEntranceNodes", () => {
+  it("returns only entrance nodes", () => {
+    // Arrange
+    const geoJson = makeGeoJSON([
+      corridor([WP1, WP2]),
+      room(ROOM_COORDS, "H101"),
+      entrancePoint(WP2),
+    ]);
+    const graph = buildIndoorGraph(geoJson);
+
+    // Act
+    const entrances = findEntranceNodes(graph);
+
+    // Assert
+    expect(entrances).toHaveLength(1);
+    expect(entrances[0].type).toBe(NodeType.Entrance);
+  });
+
+  it("returns empty array when no entrance nodes exist", () => {
+    // Arrange
+    const geoJson = makeGeoJSON([corridor([WP1, WP2])]);
+    const graph = buildIndoorGraph(geoJson);
+
+    // Act
+    const entrances = findEntranceNodes(graph);
+
+    // Assert
+    expect(entrances).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+
+describe("getOrBuildGraph", () => {
+  it("caches graph for the same dataFile key", () => {
+    // Arrange
+    const geoJson = makeGeoJSON([corridor([WP1, WP2])]);
+
+    // Act
+    const graph1 = getOrBuildGraph("test-cache-key", geoJson);
+    const graph2 = getOrBuildGraph("test-cache-key", geoJson);
+
+    // Assert — same reference (cached)
+    expect(graph1).toBe(graph2);
+  });
+
+  it("returns different graphs for different dataFile keys", () => {
+    // Arrange
+    const geoJson1 = makeGeoJSON([corridor([WP1, WP2])]);
+    const geoJson2 = makeGeoJSON([corridor([WP2, WP3])]);
+
+    // Act
+    const graph1 = getOrBuildGraph("test-key-a", geoJson1);
+    const graph2 = getOrBuildGraph("test-key-b", geoJson2);
+
+    // Assert — different references
+    expect(graph1).not.toBe(graph2);
   });
 });

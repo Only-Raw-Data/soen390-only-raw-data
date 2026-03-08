@@ -1,10 +1,11 @@
-import { IndoorGeoJSON } from "../types/indoorMap";
+import { IndoorGeoJSON, IndoorFeature } from "../types/indoorMap";
 
 export enum NodeType {
   Room = "room",
   Waypoint = "waypoint",
   Elevator = "elevator",
   Staircase = "staircase",
+  Entrance = "entrance",
 }
 
 export enum EdgeType {
@@ -89,23 +90,23 @@ function waypointId(key: string, floor: number): string {
   return `${key}:${floor}`;
 }
 
-// Context object shared across graph-building helper functions.
-interface GraphBuildContext {
+// Shared helper context for graph-building sub-functions.
+interface GraphContext {
   nodes: Map<string, GraphNode>;
   edges: GraphEdge[];
   adjacency: Map<string, Array<{ nodeId: string; weight: number; type: EdgeType }>>;
   waypointsByFloor: Map<number, Set<string>>;
 }
 
-function addNodeCtx(ctx: GraphBuildContext, node: GraphNode): void {
+function addNode(ctx: GraphContext, node: GraphNode): void {
   if (!ctx.nodes.has(node.id)) {
     ctx.nodes.set(node.id, node);
     ctx.adjacency.set(node.id, []);
   }
 }
 
-function addEdgeCtx(
-  ctx: GraphBuildContext,
+function addEdge(
+  ctx: GraphContext,
   from: string,
   to: string,
   weight: number,
@@ -119,7 +120,7 @@ function addEdgeCtx(
 // Connects a polygon node to any corridor waypoints whose coordinates appear
 // in the polygon's outer ring on the given floor.
 function connectToCorridors(
-  ctx: GraphBuildContext,
+  ctx: GraphContext,
   nodeId: string,
   cLat: number,
   cLng: number,
@@ -133,7 +134,7 @@ function connectToCorridors(
     if (floorWaypoints.has(key)) {
       const wpId = waypointId(key, floor);
       const wp = ctx.nodes.get(wpId)!;
-      addEdgeCtx(ctx, nodeId, wpId, haversineDistance(cLat, cLng, wp.lat, wp.lng), EdgeType.Corridor);
+      addEdge(ctx, nodeId, wpId, haversineDistance(cLat, cLng, wp.lat, wp.lng), EdgeType.Corridor);
     }
   }
 }
@@ -142,7 +143,7 @@ function connectToCorridors(
 // staircase), connects each to the corridor network, and returns the ordered
 // list of node ids (parallel to the floors array).
 function buildTransitionNodes(
-  ctx: GraphBuildContext,
+  ctx: GraphContext,
   floors: number[],
   cLat: number,
   cLng: number,
@@ -151,17 +152,40 @@ function buildTransitionNodes(
 ): string[] {
   return floors.map((floor) => {
     const id = `${prefix}:${coordKey(cLng, cLat)}:${floor}`;
-    addNodeCtx(ctx, { id, lat: cLat, lng: cLng, floor, type: prefix });
+    addNode(ctx, { id, lat: cLat, lng: cLng, floor, type: prefix });
     connectToCorridors(ctx, id, cLat, cLng, floor, outerRing);
     return id;
   });
 }
 
+// Processes a single corridor LineString on a given floor, creating waypoint
+// nodes and corridor edges between consecutive coordinates.
+function processCorridorOnFloor(
+  ctx: GraphContext,
+  coords: number[][],
+  floor: number,
+): void {
+  if (!ctx.waypointsByFloor.has(floor)) ctx.waypointsByFloor.set(floor, new Set());
+  const floorWaypoints = ctx.waypointsByFloor.get(floor)!;
+
+  let prevId: string | null = null;
+  for (const coord of coords) {
+    const [lng, lat] = coord;
+    const key = coordKey(lng, lat);
+    floorWaypoints.add(key);
+    const id = waypointId(key, floor);
+    addNode(ctx, { id, lat, lng, floor, type: NodeType.Waypoint });
+    if (prevId) {
+      const prev = ctx.nodes.get(prevId)!;
+      addEdge(ctx, prevId, id, haversineDistance(prev.lat, prev.lng, lat, lng), EdgeType.Corridor);
+    }
+    prevId = id;
+  }
+}
+
 // ── Pass 1: corridors (LineString + highway=footway) ──────────────────────
-// Each coordinate in a corridor becomes a waypoint node; consecutive
-// coordinates on the same LineString are joined by a corridor edge.
-function processCorridorFeatures(ctx: GraphBuildContext, geoJson: IndoorGeoJSON): void {
-  for (const feature of geoJson.features) {
+function processCorridors(ctx: GraphContext, features: IndoorFeature[]): void {
+  for (const feature of features) {
     if (feature.geometry.type !== "LineString") continue;
     if (feature.properties?.highway !== "footway") continue;
     if (!feature.properties?.level) continue;
@@ -170,56 +194,30 @@ function processCorridorFeatures(ctx: GraphBuildContext, geoJson: IndoorGeoJSON)
     const coords = feature.geometry.coordinates as number[][];
 
     for (const floor of floors) {
-      if (!ctx.waypointsByFloor.has(floor)) ctx.waypointsByFloor.set(floor, new Set());
-      const floorWaypoints = ctx.waypointsByFloor.get(floor)!;
-
-      let prevId: string | null = null;
-      for (const coord of coords) {
-        const [lng, lat] = coord;
-        const key = coordKey(lng, lat);
-        floorWaypoints.add(key);
-        const id = waypointId(key, floor);
-        addNodeCtx(ctx, { id, lat, lng, floor, type: NodeType.Waypoint });
-        if (prevId) {
-          const prev = ctx.nodes.get(prevId)!;
-          addEdgeCtx(ctx, prevId, id, haversineDistance(prev.lat, prev.lng, lat, lng), EdgeType.Corridor);
-        }
-        prevId = id;
-      }
+      processCorridorOnFloor(ctx, coords, floor);
     }
   }
 }
 
-function processElevatorFeature(
-  ctx: GraphBuildContext,
-  floors: number[],
-  cLat: number,
-  cLng: number,
-  outerRing: number[][],
-): void {
-  const ids = buildTransitionNodes(ctx, floors, cLat, cLng, outerRing, NodeType.Elevator);
+// Links elevator nodes across all floor pairs with full connectivity.
+function linkElevatorFloors(ctx: GraphContext, ids: string[], floors: number[]): void {
   for (let i = 0; i < ids.length; i++) {
     for (let j = i + 1; j < ids.length; j++) {
-      addEdgeCtx(ctx, ids[i], ids[j], Math.abs(floors[i] - floors[j]) * ELEVATOR_FLOOR_PENALTY, EdgeType.Elevator);
+      addEdge(ctx, ids[i], ids[j], Math.abs(floors[i] - floors[j]) * ELEVATOR_FLOOR_PENALTY, EdgeType.Elevator);
     }
   }
 }
 
-function processStaircaseFeature(
-  ctx: GraphBuildContext,
-  floors: number[],
-  cLat: number,
-  cLng: number,
-  outerRing: number[][],
-): void {
-  const ids = buildTransitionNodes(ctx, floors, cLat, cLng, outerRing, NodeType.Staircase);
+// Links staircase nodes between consecutive floors.
+function linkStaircaseFloors(ctx: GraphContext, ids: string[], floors: number[]): void {
   for (let i = 0; i < ids.length - 1; i++) {
-    addEdgeCtx(ctx, ids[i], ids[i + 1], Math.abs(floors[i] - floors[i + 1]) * STAIRCASE_FLOOR_PENALTY, EdgeType.Staircase);
+    addEdge(ctx, ids[i], ids[i + 1], Math.abs(floors[i] - floors[i + 1]) * STAIRCASE_FLOOR_PENALTY, EdgeType.Staircase);
   }
 }
 
-function processRoomFeature(
-  ctx: GraphBuildContext,
+// Creates room nodes for each floor and connects them to corridors.
+function processRoomFloors(
+  ctx: GraphContext,
   floors: number[],
   cLat: number,
   cLng: number,
@@ -230,17 +228,14 @@ function processRoomFeature(
     const roomId = ref
       ? `room:${ref}:${floor}`
       : `room:${coordKey(cLng, cLat)}:${floor}`;
-    addNodeCtx(ctx, { id: roomId, lat: cLat, lng: cLng, floor, type: NodeType.Room, ref });
+    addNode(ctx, { id: roomId, lat: cLat, lng: cLng, floor, type: NodeType.Room, ref });
     connectToCorridors(ctx, roomId, cLat, cLng, floor, outerRing);
   }
 }
 
 // ── Pass 2: polygons (rooms, elevators, staircases) ─────────────────────
-// Room nodes sit at the polygon centroid; elevators and staircases create
-// per-floor nodes.  All polygon node types connect to the corridor network
-// wherever a polygon vertex coincides with a corridor waypoint.
-function processPolygonFeatures(ctx: GraphBuildContext, geoJson: IndoorGeoJSON): void {
-  for (const feature of geoJson.features) {
+function processPolygons(ctx: GraphContext, features: IndoorFeature[]): void {
+  for (const feature of features) {
     if (feature.geometry.type !== "Polygon") continue;
     if (!feature.properties?.level) continue;
 
@@ -255,11 +250,75 @@ function processPolygonFeatures(ctx: GraphBuildContext, geoJson: IndoorGeoJSON):
     const [cLng, cLat] = polygonCentroid(outerRing);
 
     if (isElevator) {
-      processElevatorFeature(ctx, floors, cLat, cLng, outerRing);
+      const ids = buildTransitionNodes(ctx, floors, cLat, cLng, outerRing, NodeType.Elevator);
+      linkElevatorFloors(ctx, ids, floors);
     } else if (isStaircase) {
-      processStaircaseFeature(ctx, floors, cLat, cLng, outerRing);
+      const ids = buildTransitionNodes(ctx, floors, cLat, cLng, outerRing, NodeType.Staircase);
+      linkStaircaseFloors(ctx, ids, floors);
     } else {
-      processRoomFeature(ctx, floors, cLat, cLng, outerRing, feature.properties.ref ?? undefined);
+      processRoomFloors(ctx, floors, cLat, cLng, outerRing, feature.properties.ref ?? undefined);
+    }
+  }
+}
+
+// Finds the nearest corridor waypoint to a given coordinate on a floor.
+function findNearestWaypoint(
+  ctx: GraphContext,
+  lat: number,
+  lng: number,
+  floorWaypoints: Set<string>,
+  floor: number,
+): { id: string; dist: number } | null {
+  let bestId: string | null = null;
+  let bestDist = Infinity;
+  for (const key of floorWaypoints) {
+    const wpNodeId = waypointId(key, floor);
+    const wp = ctx.nodes.get(wpNodeId);
+    // Guard against stale keys whose node was never created (data mismatch)
+    if (!wp) continue;
+    const d = haversineDistance(lat, lng, wp.lat, wp.lng);
+    if (d < bestDist) {
+      bestDist = d;
+      bestId = wpNodeId;
+    }
+  }
+  return bestId ? { id: bestId, dist: bestDist } : null;
+}
+
+// Links an entrance node to the nearest corridor waypoint on its floor.
+function linkEntranceToCorridors(
+  ctx: GraphContext,
+  entranceId: string,
+  lat: number,
+  lng: number,
+  floor: number,
+): void {
+  const floorWaypoints = ctx.waypointsByFloor.get(floor);
+  // Skip floors with no corridor data – the entrance cannot be linked
+  if (!floorWaypoints) return;
+
+  const nearest = findNearestWaypoint(ctx, lat, lng, floorWaypoints, floor);
+  if (nearest) {
+    // Use at least a tiny weight so all edges remain positive
+    addEdge(ctx, entranceId, nearest.id, Math.max(nearest.dist, 0.1), EdgeType.Corridor);
+  }
+}
+
+// ── Pass 3: entrance points (Point + entrance="yes") ───────────────────
+function processEntrances(ctx: GraphContext, features: IndoorFeature[]): void {
+  for (const feature of features) {
+    if (feature.geometry.type !== "Point") continue;
+    if (feature.properties?.entrance !== "yes") continue;
+    if (!feature.properties?.level) continue;
+
+    const floors = parseFloors(feature.properties.level);
+    const coords = feature.geometry.coordinates as number[];
+    const [lng, lat] = coords;
+
+    for (const floor of floors) {
+      const id = `entrance:${coordKey(lng, lat)}:${floor}`;
+      addNode(ctx, { id, lat, lng, floor, type: NodeType.Entrance });
+      linkEntranceToCorridors(ctx, id, lat, lng, floor);
     }
   }
 }
@@ -280,15 +339,45 @@ function processPolygonFeatures(ctx: GraphBuildContext, geoJson: IndoorGeoJSON):
  *   - "staircase"  – connects staircase nodes on different floors
  */
 export function buildIndoorGraph(geoJson: IndoorGeoJSON): IndoorGraph {
-  const ctx: GraphBuildContext = {
+  const ctx: GraphContext = {
     nodes: new Map<string, GraphNode>(),
     edges: [],
     adjacency: new Map<string, Array<{ nodeId: string; weight: number; type: EdgeType }>>(),
     waypointsByFloor: new Map<number, Set<string>>(),
   };
 
-  processCorridorFeatures(ctx, geoJson);
-  processPolygonFeatures(ctx, geoJson);
+  processCorridors(ctx, geoJson.features);
+  processPolygons(ctx, geoJson.features);
+  processEntrances(ctx, geoJson.features);
 
   return { nodes: ctx.nodes, edges: ctx.edges, adjacency: ctx.adjacency };
+}
+
+/**
+ * Returns all entrance nodes in the given graph.
+ */
+export function findEntranceNodes(graph: IndoorGraph): GraphNode[] {
+  return [...graph.nodes.values()].filter(
+    (n) => n.type === NodeType.Entrance,
+  );
+}
+
+// Module-level cache so both IndoorMapContext and crossBuildingRouteService
+// share one graph per building data file.
+const graphCacheMap = new Map<string, IndoorGraph>();
+
+/**
+ * Returns a cached IndoorGraph for the given data file key, building it from
+ * geoJson if not already cached.
+ */
+export function getOrBuildGraph(
+  dataFile: string,
+  geoJson: IndoorGeoJSON,
+): IndoorGraph {
+  let graph = graphCacheMap.get(dataFile);
+  if (!graph) {
+    graph = buildIndoorGraph(geoJson);
+    graphCacheMap.set(dataFile, graph);
+  }
+  return graph;
 }
