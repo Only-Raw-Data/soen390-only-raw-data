@@ -10,6 +10,28 @@ const DEV_MOCK_LOCATION = {
   longitude: -73.5788,
 };
 
+async function getMockPosition(): Promise<Location.LocationObject> {
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  return {
+    coords: {
+      latitude: DEV_MOCK_LOCATION.latitude,
+      longitude: DEV_MOCK_LOCATION.longitude,
+      altitude: null,
+      accuracy: 10,
+      altitudeAccuracy: null,
+      heading: null,
+      speed: null,
+    },
+    timestamp: Date.now(),
+  };
+}
+
+async function getRealPosition(): Promise<Location.LocationObject> {
+  return Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+}
+
+const getPosition = DEV_MODE_ENABLED ? getMockPosition : getRealPosition;
+
 export interface UserLocationState {
   location: Location.LocationObject | null;
   errorMsg: string | null;
@@ -82,38 +104,12 @@ export default function useUserLocation() {
   }, []);
 
   const getCurrentLocation = useCallback(async () => {
-    if (DEV_MODE_ENABLED) {
-      setState((prev) => ({ ...prev, isLoading: true }));
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      const mockLocation: Location.LocationObject = {
-        coords: {
-          latitude: DEV_MOCK_LOCATION.latitude,
-          longitude: DEV_MOCK_LOCATION.longitude,
-          altitude: null,
-          accuracy: 10,
-          altitudeAccuracy: null,
-          heading: null,
-          speed: null,
-        },
-        timestamp: Date.now(),
-      };
-      const stateUpdate = createLocationStateUpdate(mockLocation, "You don't appear to be on campus.");
-      setState((prev) => ({
-        ...prev,
-        ...stateUpdate,
-        permissionStatus: "granted" as Location.PermissionStatus,
-      }));
-      return;
-    }
-
     const hasPermission = await requestLocationPermission();
     if (!hasPermission) return;
 
     setState((prev) => ({ ...prev, isLoading: true }));
     try {
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
-      });
+      const location = await getPosition();
       const stateUpdate = createLocationStateUpdate(
         location,
         "You don't appear to be on campus. Move closer to a Concordia campus to see your nearest building.",
@@ -121,11 +117,7 @@ export default function useUserLocation() {
       setState((prev) => ({ ...prev, ...stateUpdate }));
     } catch (error) {
       console.warn("Failed to get current location:", error);
-      setState((prev) => ({
-        ...prev,
-        isLoading: false,
-        errorMsg: "Failed to get your location. Please try again.",
-      }));
+      setState((prev) => ({ ...prev, isLoading: false, errorMsg: "Failed to get your location. Please try again." }));
     }
   }, [requestLocationPermission]);
 
