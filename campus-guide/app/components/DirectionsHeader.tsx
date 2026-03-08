@@ -122,14 +122,9 @@ export default function DirectionsHeader() {
     }
   };
 
-  let startDisplayValue: string;
-  if (isSearchingStart) {
-    startDisplayValue = searchQuery;
-  } else if (startCoords) {
-    startDisplayValue = 'Current Location';
-  } else {
-    startDisplayValue = startBuilding?.name || '';
-  }
+  const startDisplayValue = isSearchingStart ? searchQuery
+    : startCoords ? 'Current Location'
+      : startBuilding?.name || '';
 
   return (
     <>
