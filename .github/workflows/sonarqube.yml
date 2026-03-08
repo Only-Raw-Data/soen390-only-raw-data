@@ -5,6 +5,8 @@ on:
     secrets:
       SONARCLOUD_TOKEN:
         required: true
+      CODECOV_TOKEN:
+        required: true
 
 jobs:
   sonarqube:
@@ -32,6 +34,13 @@ jobs:
           name: coverage-report
           path: campus-guide/coverage
 
+      - name: Upload Coverage to Codecov
+        if: github.event_name == 'pull_request'
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: campus-guide/coverage/lcov.info
+
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@a31c9398be7ace6bbfaf30c0bd5d415f843d45e9
         env:
@@ -39,4 +48,5 @@ jobs:
           SONAR_HOST_URL: https://sonarcloud.io
         with:
           projectBaseDir: campus-guide
+
 
