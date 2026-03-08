@@ -61,50 +61,16 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
-          path: campus-guide/coverage/lcov.info
+          path: |
+            campus-guide/coverage/lcov.info
+            campus-guide/coverage/coverage-summary.json
+            campus-guide/coverage/coverage-final.json
           retention-days: 1
-
-      # - name: Upload Coverage to Codecov
-      #   uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de
-      #   with:
-      #     token: ${{ secrets.CODECOV_TOKEN }}
-      #     files: campus-guide/coverage/lcov.info
 
   sonarqube:
     name: SonarQube Analysis
-    runs-on: ubuntu-latest
     needs: mobile-test
-
-    steps:
-      - name: Checkout Source
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Cache SonarQube packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.sonar/cache
-          key: ${{ runner.os }}-sonar
-          restore-keys: ${{ runner.os }}-sonar
-
-      - name: Download Coverage Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: coverage-report
-          path: campus-guide/coverage
-
-
-      - name: SonarQube Scan
-        uses: SonarSource/sonarqube-scan-action@a31c9398be7ace6bbfaf30c0bd5d415f843d45e9
-        env:
-          SONAR_TOKEN: ${{ secrets.SONARCLOUD_TOKEN }}
-          SONAR_HOST_URL: https://sonarcloud.io
-        with:
-          projectBaseDir: campus-guide
-          args: >
-            -Dsonar.branch.name=${{ github.ref_name }}
-
-
-
-
+    uses: ./.github/workflows/sonarqube.yml
+    secrets:
+      SONARCLOUD_TOKEN: ${{ secrets.SONARCLOUD_TOKEN }}
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
