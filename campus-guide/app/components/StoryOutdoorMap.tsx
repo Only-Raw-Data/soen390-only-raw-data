@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 import { RouteData } from "../services/directionsService";
+import { hasNoCoordinates } from "./IndoorMapView";
 
 interface StoryOutdoorMapProps {
   route: RouteData;
@@ -14,39 +15,37 @@ export default function StoryOutdoorMap({
   startLabel,
   endLabel,
 }: StoryOutdoorMapProps) {
-  const coords = route.coordinates;
-  if (coords.length === 0) return null;
+  const coords = route?.coordinates;
+  if (!coords || hasNoCoordinates(coords)) return null;
 
   const startCoord = coords[0];
   const endCoord = coords[coords.length - 1];
 
-  // Compute region to fit the route
-  let minLat = Infinity;
-  let maxLat = -Infinity;
-  let minLng = Infinity;
-  let maxLng = -Infinity;
-  for (const c of coords) {
-    if (c.latitude < minLat) minLat = c.latitude;
-    if (c.latitude > maxLat) maxLat = c.latitude;
-    if (c.longitude < minLng) minLng = c.longitude;
-    if (c.longitude > maxLng) maxLng = c.longitude;
-  }
-  const midLat = (minLat + maxLat) / 2;
-  const midLng = (minLng + maxLng) / 2;
-  const latDelta = Math.max((maxLat - minLat) * 1.5, 0.003);
-  const lngDelta = Math.max((maxLng - minLng) * 1.5, 0.003);
+  const region = useMemo(() => {
+    let minLat = Infinity;
+    let maxLat = -Infinity;
+    let minLng = Infinity;
+    let maxLng = -Infinity;
+    coords.forEach((c) => {
+      if (c.latitude < minLat) minLat = c.latitude;
+      if (c.latitude > maxLat) maxLat = c.latitude;
+      if (c.longitude < minLng) minLng = c.longitude;
+      if (c.longitude > maxLng) maxLng = c.longitude;
+    });
+    return {
+      latitude: (minLat + maxLat) / 2,
+      longitude: (minLng + maxLng) / 2,
+      latitudeDelta: Math.max((maxLat - minLat) * 1.5, 0.003),
+      longitudeDelta: Math.max((maxLng - minLng) * 1.5, 0.003),
+    };
+  }, [coords]);
 
   return (
     <View style={styles.container}>
       <MapView
         style={styles.map}
         provider={PROVIDER_GOOGLE}
-        initialRegion={{
-          latitude: midLat,
-          longitude: midLng,
-          latitudeDelta: latDelta,
-          longitudeDelta: lngDelta,
-        }}
+        initialRegion={region}
         testID="story-outdoor-map"
       >
         <Polyline

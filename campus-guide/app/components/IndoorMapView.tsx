@@ -28,7 +28,7 @@ const BUILDING_LNG_DELTA = 0.002;
 const DEFAULT_LAT_DELTA = 0.005;
 const DEFAULT_LNG_DELTA = 0.005;
 
-function hasNoCoordinates(coords: { latitude: number; longitude: number }[]) {
+export function hasNoCoordinates(coords: { latitude: number; longitude: number }[]) {
   return coords.length === 0;
 }
 
