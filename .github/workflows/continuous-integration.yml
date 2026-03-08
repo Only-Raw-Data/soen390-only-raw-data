@@ -72,6 +72,8 @@ jobs:
 
   sonarqube:
     name: SonarQube Analysis
+    # Run Sonar only for PRs and main to avoid unsupported branch analysis on free SonarCloud.
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     needs: mobile-test
 
@@ -102,9 +104,4 @@ jobs:
           SONAR_HOST_URL: https://sonarcloud.io
         with:
           projectBaseDir: campus-guide
-          args: >
-            -Dsonar.branch.name=${{ github.ref_name }}
-
-
-
 
