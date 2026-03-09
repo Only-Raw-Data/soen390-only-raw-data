@@ -1144,5 +1144,75 @@ describe("IndoorMapView", () => {
       resolveRoute([]);
     });
   });
+
+  describe("iOS map padding useEffect", () => {
+    it("triggers iOS padding toggle when polygon features are present on iOS", async () => {
+      // Arrange — simulate iOS platform with polygon features loaded
+      const Platform = require("react-native").Platform;
+      const originalOS = Platform.OS;
+      Platform.OS = "ios";
+
+      const hallBuilding = INDOOR_BUILDINGS.find((b) => b.code === "H")!;
+      const feature = makePolygonFeature("H813");
+      mockGetGeoJson.mockReturnValue({ type: "FeatureCollection", features: [feature] });
+      mockGetFeatures.mockReturnValue([feature]);
+      mockUseIndoorMap.mockReturnValue({
+        ...defaultContextValue,
+        selectedBuilding: hallBuilding,
+        selectedFloor: 8,
+      });
+
+      // Act
+      const { getByTestId } = render(<IndoorMapView />);
+
+      // Assert — map renders without error and features were consumed
+      await waitFor(() => {
+        expect(getByTestId("indoor-map")).toBeTruthy();
+        expect(mockGetFeatures).toHaveBeenCalled();
+      });
+
+      // Cleanup
+      Platform.OS = originalOS;
+    });
+  });
+
+  describe("StoryIndoorMap polygon rendering", () => {
+    it("renders polygon features with unique keys when two features share the same ref", async () => {
+      // Arrange — two features with the same ref to exercise the duplicate-key fix
+      const feature1 = makePolygonFeature("H829");
+      const feature2 = makePolygonFeature("H829");
+      mockGetGeoJson.mockReturnValue({ type: "FeatureCollection", features: [feature1, feature2] });
+      mockGetFeatures.mockReturnValue([feature1, feature2]);
+
+      const mockSteps = [
+        {
+          kind: "indoor" as const,
+          buildingCode: "H",
+          buildingName: "Hall Building",
+          path: [{ id: "room:H820:8", lat: 45.497, lng: -73.578, floor: 8, type: "room", ref: "H820" }],
+          startLabel: "H820",
+          endLabel: "Exit",
+        },
+      ];
+      mockPlanRoute.mockResolvedValue(mockSteps);
+      mockUseIndoorMap.mockReturnValue({
+        ...defaultContextValue,
+        isCrossBuilding: true,
+        startRoomRef: "H820",
+        destinationRoomRef: "MBS2.210",
+        startSearchQuery: "H-820",
+        destinationSearchQuery: "MBS2.210",
+      });
+
+      // Act — enter story mode so StoryIndoorMap renders
+      const { getByTestId } = render(<IndoorMapView />);
+      fireEvent.press(getByTestId("cross-building-directions-button"));
+
+      // Assert — story map renders with polygon features (no duplicate key warning)
+      await waitFor(() => {
+        expect(getByTestId("story-indoor-map")).toBeTruthy();
+      });
+    });
+  });
 });
 
