@@ -32,29 +32,35 @@ export default function DirectionsHeader() {
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [nextShuttleTime, setNextShuttleTime] = useState<string | null>(null);
 
+  function getNextShuttleTimeLabel(
+    startBuilding: Building,
+    destinationBuilding: Building,
+  ): string {
+    const now = new Date();
+    const schedule = getScheduleForDay(now.getDay());
+    if (!schedule) return "No shuttle on weekends";
+
+    const currentCampus = startBuilding.campus;
+    const currentTimeStr =
+      now.getHours().toString().padStart(2, '0') + ":" +
+      now.getMinutes().toString().padStart(2, '0');
+
+    const nextBus = schedule.find((time) => {
+      const busTime = currentCampus === 'Loyola' ? time.loyola : time.sgw;
+      return !!busTime && busTime.replace('*', '') > currentTimeStr;
+    });
+
+    const directionLabel = currentCampus === 'SGW' ? 'To Loyola' : 'To SGW';
+    if (nextBus) {
+      const time = currentCampus === 'Loyola' ? nextBus.loyola : nextBus.sgw;
+      return `Next shuttle ${directionLabel}: ${time}`;
+    }
+    return "No more shuttles today";
+  }
+
   useEffect(() => {
     if (transportationMode === 'shuttle' && startBuilding && destinationBuilding && startBuilding.campus !== destinationBuilding.campus) {
-      const now = new Date();
-      const schedule = getScheduleForDay(now.getDay());
-      if (!schedule) {
-        setNextShuttleTime("No shuttle on weekends");
-        return;
-      }
-      const currentCampus = startBuilding.campus;
-      const currentTimeStr = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
-      const nextBus = schedule.find(time => {
-        const busTime = currentCampus === 'Loyola' ? time.loyola : time.sgw;
-        if (!busTime) return false;
-        const cleanBusTime = busTime.replace('*', '');
-        return cleanBusTime > currentTimeStr;
-      });
-      const directionLabel = currentCampus === 'SGW' ? 'To Loyola' : 'To SGW';
-      if (nextBus) {
-        const time = currentCampus === 'Loyola' ? nextBus.loyola : nextBus.sgw;
-        setNextShuttleTime(`Next shuttle ${directionLabel}: ${time}`);
-      } else {
-        setNextShuttleTime("No more shuttles today");
-      }
+      setNextShuttleTime(getNextShuttleTimeLabel(startBuilding, destinationBuilding));
     } else {
       setNextShuttleTime(null);
     }
@@ -116,14 +122,9 @@ export default function DirectionsHeader() {
     }
   };
 
-  let startDisplayValue: string;
-if (isSearchingStart) {
-  startDisplayValue = searchQuery;
-} else if (startCoords) {
-  startDisplayValue = 'Current Location';
-} else {
-  startDisplayValue = startBuilding?.name || '';
-}
+  const startDisplayValue = isSearchingStart ? searchQuery
+    : startCoords ? 'Current Location'
+      : startBuilding?.name || '';
 
   return (
     <>

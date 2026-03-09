@@ -27,11 +27,11 @@ import { isWithinShuttleHours } from "../utils/shuttleHours";
 import { SegmentMode } from "../types/transportation";
 
 const SEGMENT_COLORS: Record<SegmentMode, string> = {
-  WALK:   '#3B82F6',
-  BUS:    '#16A34A',
+  WALK: '#3B82F6',
+  BUS: '#16A34A',
   SUBWAY: '#F97316',
-  TRAM:   '#DC2626',
-  RAIL:   '#DC2626',
+  TRAM: '#DC2626',
+  RAIL: '#DC2626',
 };
 
 interface MapViewAppProps {
@@ -101,7 +101,7 @@ export default function MapViewApp({
   const handleCampusChange = (campus: Campus) => {
     setSelectedCampus(campus);
     setSelectedBuilding(null);
-    
+
     // Animate map to the new campus
     if (mapRef.current) {
       mapRef.current.animateToRegion(CAMPUS_REGIONS[campus], 1000);
@@ -112,7 +112,7 @@ export default function MapViewApp({
     // Switch campus context (markers/polygons) if the building is on the other campus
     if (building.id !== selectedBuilding?.id && building.campus !== selectedCampus) {
       setSelectedCampus(building.campus);
-      
+
       // Animate to the new campus to avoid disorientation
       if (mapRef.current) {
         mapRef.current.animateToRegion({
@@ -123,15 +123,15 @@ export default function MapViewApp({
         }, 1000);
       }
     }
-    
+
     setSelectedBuilding(building);
     setInfoBuilding(null);
   };
 
   const getMarkerTitle = (building: Building) => {
-    if (startBuilding?.id === building.id) return "START - "+building.code+" - "+building.address;
-    if (destinationBuilding?.id === building.id) return "DESTINATION - "+building.code+" - "+building.address;
-    return building.code+" - "+building.address;
+    if (startBuilding?.id === building.id) return "START - " + building.code + " - " + building.address;
+    if (destinationBuilding?.id === building.id) return "DESTINATION - " + building.code + " - " + building.address;
+    return building.code + " - " + building.address;
   };
 
 
@@ -193,7 +193,7 @@ export default function MapViewApp({
     } else if (building.id !== startBuilding.id) {
       setDestinationBuilding(building);
     }
-    
+
     setSelectedBuilding(null); // Close the bottom bar
     setInfoBuilding(null); // Close the detail popup
     router.push("/(tabs)/two");
@@ -205,7 +205,6 @@ export default function MapViewApp({
     const coords = route?.coordinates;
 
     if ((coords?.length ?? 0) > 0 && mapRef.current?.fitToCoordinates) {
-      console.log("Fitting map to coordinates:", coords?.length);
       mapRef.current.fitToCoordinates(coords, {
         edgePadding: { top: 150, right: 50, bottom: 50, left: 50 },
         animated: true,
@@ -275,13 +274,13 @@ export default function MapViewApp({
             // Auto-switch campus markers based on the map center
             const sgwCenter = CAMPUS_REGIONS.SGW;
             const loyolaCenter = CAMPUS_REGIONS.Loyola;
-            
+
             const distToSGW = Math.sqrt(
-              Math.pow(region.latitude - sgwCenter.latitude, 2) + 
+              Math.pow(region.latitude - sgwCenter.latitude, 2) +
               Math.pow(region.longitude - sgwCenter.longitude, 2)
             );
             const distToLoyola = Math.sqrt(
-              Math.pow(region.latitude - loyolaCenter.latitude, 2) + 
+              Math.pow(region.latitude - loyolaCenter.latitude, 2) +
               Math.pow(region.longitude - loyolaCenter.longitude, 2)
             );
 
@@ -316,116 +315,116 @@ export default function MapViewApp({
               const isCurrentLocation = highlightedBuildingId === building.id;
               return (
                 <Marker
-                key={building.id}
-                testID={`building-marker-${building.id}`}
-                coordinate={{ latitude: building.lat, longitude: building.lng }}
-                title={getMarkerTitle(building)}
-                onPress={() => handleBuildingPress(building)}
-                anchor={{ x: 0.5, y: 0.5 }}
-                tracksViewChanges={false}
-              >
-                <View style={[
-                  styles.labelMarker,
-                  isCurrentLocation && styles.labelMarkerCurrent,
-                  startBuilding?.id === building.id && styles.labelMarkerStart,
-                  destinationBuilding?.id === building.id && styles.labelMarkerDest,
-                ]}>
-                  <Text style={[
-                    styles.labelMarkerText,
-                    isCurrentLocation && styles.labelMarkerTextCurrent,
-                    (startBuilding?.id === building.id || destinationBuilding?.id === building.id) && styles.labelMarkerTextAlt,
-                  ]} numberOfLines={1}>
-                    {building.code}
-                  </Text>
-                </View>
-              
-                {isCurrentLocation && (
-                  <Callout tooltip>
-                    <View style={styles.youAreHereCallout}>
-                      <View style={styles.youAreHereDot} />
-                      <Text style={styles.youAreHereText}>You are here</Text>
-                    </View>
-                  </Callout>
-                )}
-              </Marker>
+                  key={building.id}
+                  testID={`building-marker-${building.id}`}
+                  coordinate={{ latitude: building.lat, longitude: building.lng }}
+                  title={getMarkerTitle(building)}
+                  onPress={() => handleBuildingPress(building)}
+                  anchor={{ x: 0.5, y: 0.5 }}
+                  tracksViewChanges={false}
+                >
+                  <View style={[
+                    styles.labelMarker,
+                    isCurrentLocation && styles.labelMarkerCurrent,
+                    startBuilding?.id === building.id && styles.labelMarkerStart,
+                    destinationBuilding?.id === building.id && styles.labelMarkerDest,
+                  ]}>
+                    <Text style={[
+                      styles.labelMarkerText,
+                      isCurrentLocation && styles.labelMarkerTextCurrent,
+                      (startBuilding?.id === building.id || destinationBuilding?.id === building.id) && styles.labelMarkerTextAlt,
+                    ]} numberOfLines={1}>
+                      {building.code}
+                    </Text>
+                  </View>
+
+                  {isCurrentLocation && (
+                    <Callout tooltip>
+                      <View style={styles.youAreHereCallout}>
+                        <View style={styles.youAreHereDot} />
+                        <Text style={styles.youAreHereText}>You are here</Text>
+                      </View>
+                    </Callout>
+                  )}
+                </Marker>
               );
             })}
 
           {/* Render Directions Polyline */}
           {showRoute && (
-  <>
-    {/* Walking — dashed */}
-    {transportationMode === 'walk' && (
-      <Polyline
-        coordinates={route.coordinates}
-        strokeWidth={4}
-        strokeColor="#3B82F6"
-        lineDashPattern={[8, 6]}
-        zIndex={10}
-      />
-    )}
+            <>
+              {/* Walking — dashed */}
+              {transportationMode === 'walk' && (
+                <Polyline
+                  coordinates={route.coordinates}
+                  strokeWidth={4}
+                  strokeColor="#3B82F6"
+                  lineDashPattern={[8, 6]}
+                  zIndex={10}
+                />
+              )}
 
-    {/* Driving — solid */}
-    {transportationMode === 'car' && (
-      <Polyline
-        coordinates={route.coordinates}
-        strokeWidth={5}
-        strokeColor="#F59E0B"
-        zIndex={10}
-      />
-    )}
+              {/* Driving — solid */}
+              {transportationMode === 'car' && (
+                <Polyline
+                  coordinates={route.coordinates}
+                  strokeWidth={5}
+                  strokeColor="#F59E0B"
+                  zIndex={10}
+                />
+              )}
 
-    {/* Transit — per-segment polylines (walk/bus/metro/tram/rail) */}
-    {transportationMode === 'transit' && route.segments && route.segments.length > 0
-      ? route.segments.map((seg, i) => {
-          const isWalk = seg.mode === 'WALK';
-          const color = SEGMENT_COLORS[seg.mode];
-          const segKey = `transit-seg-${seg.mode}-${i}-${seg.coordinates[0]?.latitude ?? i}`;
-          return (
-            <Polyline
-              key={segKey}
-              coordinates={seg.coordinates}
-              strokeWidth={isWalk ? 3 : 5}
-              strokeColor={color}
-              lineDashPattern={isWalk ? [6, 5] : undefined}
-              zIndex={10}
-            />
-          );
-        })
-      : transportationMode === 'transit' && (
-          <Polyline
-            coordinates={route.coordinates}
-            strokeWidth={4}
-            strokeColor="#8B5CF6"
-            lineDashPattern={[16, 8]}
-            zIndex={10}
-          />
-        )
-    }
+              {/* Transit — per-segment polylines (walk/bus/metro/tram/rail) */}
+              {transportationMode === 'transit' && route.segments && route.segments.length > 0
+                ? route.segments.map((seg, i) => {
+                  const isWalk = seg.mode === 'WALK';
+                  const color = SEGMENT_COLORS[seg.mode];
+                  const segKey = `transit-seg-${seg.mode}-${i}-${seg.coordinates[0]?.latitude ?? i}`;
+                  return (
+                    <Polyline
+                      key={segKey}
+                      coordinates={seg.coordinates}
+                      strokeWidth={isWalk ? 3 : 5}
+                      strokeColor={color}
+                      lineDashPattern={isWalk ? [6, 5] : undefined}
+                      zIndex={10}
+                    />
+                  );
+                })
+                : transportationMode === 'transit' && (
+                  <Polyline
+                    coordinates={route.coordinates}
+                    strokeWidth={4}
+                    strokeColor="#8B5CF6"
+                    lineDashPattern={[16, 8]}
+                    zIndex={10}
+                  />
+                )
+              }
 
-    {/* Shuttle — dotted */}
-    {transportationMode === 'shuttle' && (
-      <Polyline
-        coordinates={route.coordinates}
-        strokeWidth={4}
-        strokeColor="#EC4899"
-        lineDashPattern={[2, 6]}
-        zIndex={10}
-      />
-    )}
-  </>
-)}
-          
+              {/* Shuttle — dotted */}
+              {transportationMode === 'shuttle' && (
+                <Polyline
+                  coordinates={route.coordinates}
+                  strokeWidth={4}
+                  strokeColor="#EC4899"
+                  lineDashPattern={[2, 6]}
+                  zIndex={10}
+                />
+              )}
+            </>
+          )}
+
           {/* Add markers for start and destination if they are from different campuses */}
           {showRoute && startBuilding && destinationBuilding && startBuilding.campus !== destinationBuilding.campus && (
             <>
-               <Marker 
+              <Marker
                 key={`start-marker-${startBuilding.id}`}
                 coordinate={{ latitude: startBuilding.lat, longitude: startBuilding.lng }}
                 pinColor="#10B981"
                 title="Start"
               />
-              <Marker 
+              <Marker
                 key={`dest-marker-${destinationBuilding.id}`}
                 coordinate={{ latitude: destinationBuilding.lat, longitude: destinationBuilding.lng }}
                 pinColor="#FFEA00"
@@ -477,14 +476,14 @@ export default function MapViewApp({
           building={infoBuilding}
           onGetDirections={handleGetDirections}
           onClose={() => setInfoBuilding(null)}
-          getDirectionsButtonText={startBuilding ?  "Set as Destination" : "Set as Start" }
+          getDirectionsButtonText={startBuilding ? "Set as Destination" : "Set as Start"}
         />
       )}
 
       {selectedBuilding && (
         <View style={styles.bottomBar} testID="bottom-bar">
           <View style={styles.bottomBarInfo}>
-          <View style={styles.bottomBarCodeRow}>
+            <View style={styles.bottomBarCodeRow}>
               <Text style={styles.bottomBarCode} testID="bottom-bar-code">
                 {selectedBuilding.code}
               </Text>

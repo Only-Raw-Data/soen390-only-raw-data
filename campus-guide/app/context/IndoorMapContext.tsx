@@ -316,62 +316,44 @@ export default function IndoorMapProvider({
     setSearchError(null);
   }, []);
 
-  const searchRoom = useCallback((query: string) => {
-    setSearchError(null);
-    setHighlightedRoomRef(null);
-
+  const searchRoomFor = useCallback((
+    query: string,
+    setError: (msg: string | null) => void,
+    onFound: (result: { building: IndoorBuildingConfig; floor: number; ref: string }) => void,
+  ) => {
+    setError(null);
     const normalized = query.replaceAll(/[\s-]/g, "").toUpperCase();
     if (!normalized) return;
-
     const result = findRoomInBuildings(normalized);
     if (result) {
+      onFound(result);
+    } else {
+      setError("Room not found");
+    }
+  }, []);
+
+  const searchRoom = useCallback((query: string) => {
+    setHighlightedRoomRef(null);
+    searchRoomFor(query, setSearchError, (result) => {
       setSelectedBuilding(result.building);
       setSelectedFloor(result.floor);
       setHighlightedRoomRef(result.ref);
-    } else {
-      setSearchError("Room not found");
-    }
-  }, []);
+    });
+  }, [searchRoomFor]);
 
   const searchStartRoom = useCallback((query: string) => {
-    setStartSearchError(null);
-    const normalized = query.replaceAll(/[\s-]/g, "").toUpperCase();
-    console.log("[IndoorMapContext] searchStartRoom", { query, normalized });
-    if (!normalized) return;
-    const result = findRoomInBuildings(normalized);
-    console.log("[IndoorMapContext] searchStartRoom result", {
-      found: !!result,
-      buildingCode: result?.building.code,
-      floor: result?.floor,
-      ref: result?.ref,
-    });
-    if (result) {
+    searchRoomFor(query, setStartSearchError, (result) => {
       setSelectedBuilding(result.building);
       setSelectedFloor(result.floor);
       setStartRoomRef(result.ref);
-    } else {
-      setStartSearchError("Room not found");
-    }
-  }, []);
+    });
+  }, [searchRoomFor]);
 
   const searchDestinationRoom = useCallback((query: string) => {
-    setDestinationSearchError(null);
-    const normalized = query.replaceAll(/[\s-]/g, "").toUpperCase();
-    console.log("[IndoorMapContext] searchDestinationRoom", { query, normalized });
-    if (!normalized) return;
-    const result = findRoomInBuildings(normalized);
-    console.log("[IndoorMapContext] searchDestinationRoom result", {
-      found: !!result,
-      buildingCode: result?.building.code,
-      floor: result?.floor,
-      ref: result?.ref,
-    });
-    if (result) {
+    searchRoomFor(query, setDestinationSearchError, (result) => {
       setDestinationRoomRef(result.ref);
-    } else {
-      setDestinationSearchError("Room not found");
-    }
-  }, []);
+    });
+  }, [searchRoomFor]);
 
   const clearStartRoom = useCallback(() => {
     setStartRoomRef(null);

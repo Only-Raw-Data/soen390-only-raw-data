@@ -12,6 +12,14 @@ const OVERPASS_URL = process.env.EXPO_PUBLIC_OVERPASS_URL as string;
 const CACHE_DIR_NAME = "building_polygons";
 const CACHE_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
 
+const CAMPUS_BBOX = {
+  SGW:    "45.492,-73.583,45.500,-73.573",
+  Loyola: "45.454,-73.645,45.462,-73.636",
+} as const;
+
+const MAX_BUILDING_MATCH_DISTANCE_M = 50;
+const MIN_POLYGON_NODES = 3;
+
 // Re-export BuildingPolygon for backwards compatibility
 export { BuildingPolygon } from "../types/buildingPolygon";
 
@@ -107,14 +115,14 @@ function calculatePolygonCenter(geometry: OverpassNode[]): { lat: number; lon: n
 function isValidPolygonElement(element: OverpassElement, usedElements: Set<number>): boolean {
   return !usedElements.has(element.id) && 
          !!element.geometry && 
-         element.geometry.length >= 3;
+         element.geometry.length >= MIN_POLYGON_NODES;
 }
 
 function findBestMatchForBuilding(
   building: Building,
   osmElements: OverpassElement[],
   usedElements: Set<number>,
-  maxDistance: number = 50
+  maxDistance: number = MAX_BUILDING_MATCH_DISTANCE_M
 ): OverpassElement | null {
   let bestMatch: OverpassElement | null = null;
   let bestDistance = Infinity;
@@ -170,10 +178,7 @@ async function fetchPolygonsFromOSM(
   const buildings = campus === "SGW" ? SGW_BUILDINGS : LOYOLA_BUILDINGS;
 
   // Define bounding boxes for each campus with some padding
-  const bbox =
-    campus === "SGW"
-      ? "45.492,-73.583,45.500,-73.573" // SGW campus area
-      : "45.454,-73.645,45.462,-73.636"; // Loyola campus area
+  const bbox = CAMPUS_BBOX[campus]
 
   const query = `
         [out:json][timeout:25];
