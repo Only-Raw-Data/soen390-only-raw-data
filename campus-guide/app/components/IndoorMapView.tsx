@@ -193,18 +193,6 @@ export default function IndoorMapView() {
     };
   }, []);
 
-  // Force iOS Google Maps to render Marker bitmaps by toggling map padding
-  // after polygon features change (building/floor selection).
-  useEffect(() => {
-    if (Platform.OS === "ios" && polygonFeatures.length > 0) {
-      setIosMapPadding({ top: 0, right: 0, bottom: 1, left: 0 });
-      if (iosPaddingTimer.current) clearTimeout(iosPaddingTimer.current);
-      iosPaddingTimer.current = setTimeout(() => {
-        setIosMapPadding({ top: 0, right: 0, bottom: 0, left: 0 });
-      }, 300);
-    }
-  }, [polygonFeatures]);
-
   // Animate map to building when selected or floor changes.
   // On iOS with Google Maps, Markers with custom views don't render their bitmaps
   // until the map is invalidated. A short animateToRegion forces the redraw.
@@ -239,6 +227,18 @@ export default function IndoorMapView() {
         !(showPOIs && f.properties?.amenity && f.properties.amenity in AMENITY_CONFIG),
     );
   }, [floorFeatures, showPOIs]);
+
+  // Force iOS Google Maps to render Marker bitmaps by toggling map padding
+  // after polygon features change (building/floor selection).
+  useEffect(() => {
+    if (Platform.OS === "ios" && polygonFeatures.length > 0) {
+      setIosMapPadding({ top: 0, right: 0, bottom: 1, left: 0 });
+      if (iosPaddingTimer.current) clearTimeout(iosPaddingTimer.current);
+      iosPaddingTimer.current = setTimeout(() => {
+        setIosMapPadding({ top: 0, right: 0, bottom: 0, left: 0 });
+      }, 300);
+    }
+  }, [polygonFeatures]);
 
   // Amenity polygon features (e.g. toilets, eating areas) — shown when POIs enabled
   const amenityPolygonFeatures = useMemo(() => {
@@ -1031,7 +1031,7 @@ function StoryIndoorMap({ step }: { readonly step: IndoorStep }) {
         if (coords.length === 0) return null;
         return (
           <Polygon
-            key={`story-poly-${feature.properties?.ref ?? "anon-" + String(index)}`}
+            key={`story-poly-${feature.properties?.ref ?? "anon"}-${index}`}
             coordinates={coords}
             fillColor="rgba(145, 35, 56, 0.15)"
             strokeColor="#912338"
