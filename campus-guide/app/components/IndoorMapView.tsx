@@ -238,7 +238,7 @@ export default function IndoorMapView() {
         setIosMapPadding({ top: 0, right: 0, bottom: 0, left: 0 });
       }, 300);
     }
-  }, [polygonFeatures]);
+  }, [polygonFeatures.length]);
 
   // Amenity polygon features (e.g. toilets, eating areas) — shown when POIs enabled
   const amenityPolygonFeatures = useMemo(() => {
