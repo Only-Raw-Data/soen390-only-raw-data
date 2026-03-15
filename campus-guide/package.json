@@ -14,7 +14,7 @@
     "test": "jest --coverage",
     "build": "expo prebuild",
     "bundle:native": "expo export --platform ios --platform android",
-    "ci": "npm run test ; npm run bundle:native"
+    "ci": "npm run test && npm run bundle:native"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

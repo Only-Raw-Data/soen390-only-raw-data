@@ -10,7 +10,7 @@ import {
 const mockPromptAsync = jest.fn();
 let mockAuthRequest: { codeVerifier: string; redirectUri: string } | null = {
   codeVerifier: "verifier",
-  redirectUri: "https://auth.expo.io/@nguyen2026/campus-guide",
+  redirectUri: "https://example.com/auth-callback",
 };
 let mockAuthResponse: any = null;
 
@@ -33,7 +33,7 @@ jest.mock("@/services/calendarAuthService", () => ({
   completeAuthSession: jest.fn(),
   disconnectGoogleCalendar: jest.fn(),
   getCalendarConnectionState: jest.fn(),
-  getRedirectUri: jest.fn(() => "https://auth.expo.io/@nguyen2026/campus-guide"),
+  getRedirectUri: jest.fn(() => "https://example.com/auth-callback"),
 }));
 
 describe("CalendarAuthContext", () => {
@@ -54,7 +54,7 @@ describe("CalendarAuthContext", () => {
     mockPromptAsync.mockResolvedValue({ type: "success", params: { code: "abc" } });
     mockAuthRequest = {
       codeVerifier: "verifier",
-      redirectUri: "https://auth.expo.io/@nguyen2026/campus-guide",
+      redirectUri: "https://example.com/auth-callback",
     };
     mockAuthResponse = null;
     (completeAuthSession as jest.Mock).mockResolvedValue({
@@ -148,7 +148,7 @@ describe("CalendarAuthContext", () => {
     expect(completeAuthSession).toHaveBeenCalledWith(
       "auth-code",
       "verifier",
-      "https://auth.expo.io/@nguyen2026/campus-guide",
+      "https://example.com/auth-callback",
     );
     expect(result.current.isConnected).toBe(true);
     expect(result.current.connectedAt).toBe("2026-03-14T00:00:00.000Z");
