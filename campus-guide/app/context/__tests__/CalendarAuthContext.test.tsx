@@ -5,7 +5,7 @@ import {
   completeAuthSession,
   disconnectGoogleCalendar,
   getCalendarConnectionState,
-} from "@services/calendarAuthService";
+} from "@/services/calendarAuthService";
 
 const mockPromptAsync = jest.fn();
 let mockAuthRequest: { codeVerifier: string; redirectUri: string } | null = {
@@ -29,7 +29,7 @@ jest.mock("expo-web-browser", () => ({
   coolDownAsync: jest.fn().mockResolvedValue(undefined),
 }));
 
-jest.mock("@services/calendarAuthService", () => ({
+jest.mock("@/services/calendarAuthService", () => ({
   completeAuthSession: jest.fn(),
   disconnectGoogleCalendar: jest.fn(),
   getCalendarConnectionState: jest.fn(),
