@@ -14,7 +14,7 @@ import {
   disconnectGoogleCalendar,
   getCalendarConnectionState,
   getRedirectUri,
-} from "@services/calendarAuthService";
+} from "../../services/calendarAuthService";
 
 interface CalendarAuthContextType {
   isConnected: boolean;
@@ -40,10 +40,14 @@ export default function CalendarAuthProvider({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const googleClientId =
+    process.env.EXPO_PUBLIC_GOOGLE_CALENDAR_CLIENT_ID?.trim() ||
+    process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID?.trim() ||
+    "";
+
   const [request, response, promptAsync] = Google.useAuthRequest({
-    clientId: process.env.EXPO_PUBLIC_GOOGLE_CALENDAR_CLIENT_ID,
-    iosClientId: process.env.EXPO_PUBLIC_IOS_CLIENT_ID,
-    androidClientId: process.env.EXPO_PUBLIC_ANDROID_CLIENT_ID,
+    clientId: googleClientId,
+    expoClientId: googleClientId,
     redirectUri: getRedirectUri(),
     scopes: [
       "https://www.googleapis.com/auth/calendar.readonly",
@@ -106,8 +110,14 @@ export default function CalendarAuthProvider({
     setError(null);
     setIsLoading(true);
 
+    if (!googleClientId) {
+      setError("Google OAuth web client ID is missing. Update .env and restart.");
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      await promptAsync();
+      await promptAsync({ useProxy: true });
       // The actual connection completion happens in the useEffect when response changes
     } catch (connectionError) {
       const message =
@@ -117,7 +127,7 @@ export default function CalendarAuthProvider({
       setError(message);
       setIsLoading(false);
     }
-  }, [promptAsync]);
+  }, [promptAsync, googleClientId]);
 
   const disconnectCalendar = useCallback(async () => {
     setError(null);
