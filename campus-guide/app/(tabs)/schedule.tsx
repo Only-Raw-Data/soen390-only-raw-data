@@ -8,8 +8,8 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import Header from "../components/Header";
-import { useCalendarAuth } from "../context/CalendarAuthContext";
+import Header from "@/app/components/Header";
+import { useCalendarAuth } from "@context/CalendarAuthContext";
 
 type WeekDay = {
   label: string;
@@ -241,4 +241,3 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 });
-

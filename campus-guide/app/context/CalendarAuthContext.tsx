@@ -14,7 +14,7 @@ import {
   disconnectGoogleCalendar,
   getCalendarConnectionState,
   getRedirectUri,
-} from "../../services/calendarAuthService";
+} from "@services/calendarAuthService";
 
 interface CalendarAuthContextType {
   isConnected: boolean;
