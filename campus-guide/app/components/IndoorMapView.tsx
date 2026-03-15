@@ -23,6 +23,8 @@ import {IndoorStep, NavigationStep, OutdoorStep} from "../types/navigation";
 import { planCrossBuildingRoute } from "../services/crossBuildingRouteService";
 import StoryOutdoorMap from "./StoryOutdoorMap";
 
+const shouldLogIndoorMapDebug = process.env.NODE_ENV !== "test";
+
 const BUILDING_LAT_DELTA = 0.002;
 const BUILDING_LNG_DELTA = 0.002;
 const DEFAULT_LAT_DELTA = 0.005;
@@ -417,12 +419,14 @@ export default function IndoorMapView() {
       longitudeDelta: DEFAULT_LNG_DELTA,
     };
 
-  console.log("[IndoorMapView] RENDER", {
-    floorTransitioning,
-    pathCoordinatesLength: pathCoordinates.length,
-    selectedFloor,
-    willRenderPolyline: !!(!floorTransitioning && pathCoordinates.length > 1),
-  });
+  if (shouldLogIndoorMapDebug) {
+    console.log("[IndoorMapView] RENDER", {
+      floorTransitioning,
+      pathCoordinatesLength: pathCoordinates.length,
+      selectedFloor,
+      willRenderPolyline: !!(!floorTransitioning && pathCoordinates.length > 1),
+    });
+  }
 
   return (
     <View style={styles.container}>
@@ -686,7 +690,11 @@ export default function IndoorMapView() {
           customMapStyle={CAMPUS_MAP_STYLE}
           initialRegion={initialRegion}
           testID="indoor-map"
-          onMapReady={() => console.log("[IndoorMapView] MAP READY")}
+          onMapReady={() => {
+            if (shouldLogIndoorMapDebug) {
+              console.log("[IndoorMapView] MAP READY");
+            }
+          }}
           mapPadding={iosMapPadding}
         >
           {polygonFeatures.map((feature, index) => {
@@ -839,13 +847,15 @@ export default function IndoorMapView() {
           {/* Room number labels */}
           {(() => {
             const labelFeatures = polygonFeatures.filter((f) => !!f.properties?.ref);
-            console.log("[IndoorMapView] LABELS", {
-              polygonFeaturesCount: polygonFeatures.length,
-              labelFeaturesCount: labelFeatures.length,
-              selectedBuilding: selectedBuilding?.code ?? null,
-              selectedFloor,
-              sampleRefs: labelFeatures.slice(0, 5).map((f) => f.properties?.ref),
-            });
+            if (shouldLogIndoorMapDebug) {
+              console.log("[IndoorMapView] LABELS", {
+                polygonFeaturesCount: polygonFeatures.length,
+                labelFeaturesCount: labelFeatures.length,
+                selectedBuilding: selectedBuilding?.code ?? null,
+                selectedFloor,
+                sampleRefs: labelFeatures.slice(0, 5).map((f) => f.properties?.ref),
+              });
+            }
             return labelFeatures.map((feature, index) => {
               const coords = convertCoordinates(feature);
               if (hasNoCoordinates(coords)) return null;

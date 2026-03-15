@@ -7,6 +7,18 @@ globalThis.__ExpoImportMetaRegistry = {};
 // Mock react-native/src/private/animated/NativeAnimatedHelper for newer React Native versions
 jest.mock("react-native/src/private/animated/NativeAnimatedHelper");
 
+const originalConsoleError = console.error;
+jest.spyOn(console, "error").mockImplementation((...args) => {
+  const firstArg = args[0];
+  if (
+    typeof firstArg === "string" &&
+    firstArg.includes("An update to Animated(View) inside a test was not wrapped in act")
+  ) {
+    return;
+  }
+  originalConsoleError(...args);
+});
+
 jest.mock("react-native-maps", () => {
   const React = require("react");
   const { View, Text } = require("react-native");
