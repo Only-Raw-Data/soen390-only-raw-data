@@ -19,12 +19,14 @@
     "@googlemaps/polyline-codec": "^1.0.28",
     "@react-navigation/native": "^7.1.8",
     "expo": "~54.0.33",
+    "expo-auth-session": "~7.0.8",
     "expo-build-properties": "~1.0.10",
     "expo-constants": "~18.0.13",
     "expo-font": "~14.0.11",
     "expo-linking": "~8.0.11",
     "expo-location": "~19.0.8",
     "expo-router": "~6.0.23",
+    "expo-secure-store": "~15.0.7",
     "expo-splash-screen": "~31.0.13",
     "expo-status-bar": "~3.0.9",
     "expo-web-browser": "~15.0.10",
@@ -85,9 +87,9 @@
       "^@hooks/(.*)$": "<rootDir>/app/hooks/$1",
       "^@navigation/(.*)$": "<rootDir>/app/navigation/$1",
       "^@screens/(.*)$": "<rootDir>/app/screens/$1",
-      "^@services/(.*)$": "<rootDir>/app/services/$1",
-      "^@types/(.*)$": "<rootDir>/app/types/$1",
-      "^@utils/(.*)$": "<rootDir>/app/utils/$1"
+      "^@services/(.*)$": "<rootDir>/services/$1",
+      "^@types/(.*)$": "<rootDir>/types/$1",
+      "^@utils/(.*)$": "<rootDir>/utils/$1"
     }
   }
 }
