@@ -82,8 +82,13 @@
       "json",
       "node"
     ],
+    "moduleDirectories": [
+      "node_modules",
+      "<rootDir>"
+    ],
     "moduleNameMapper": {
       "^@/(.*)$": "<rootDir>/$1",
+      "^@/services/(.*)$": "<rootDir>/services/$1",
       "^@app/(.*)$": "<rootDir>/app/$1",
       "^@constants/(.*)$": "<rootDir>/constants/$1",
       "^@components/(.*)$": "<rootDir>/components/$1",
@@ -91,6 +96,7 @@
       "^@hooks/(.*)$": "<rootDir>/app/hooks/$1",
       "^@navigation/(.*)$": "<rootDir>/app/navigation/$1",
       "^@screens/(.*)$": "<rootDir>/app/screens/$1",
+      "^@services/(.*)$": "<rootDir>/services/$1",
       "^@services/(.*)$": "<rootDir>/services/$1",
       "^\\.\\.\\/\\.\\.\\/\\.\\.\\/services\\/(.*)$": "<rootDir>/services/$1",
       "^@types/(.*)$": "<rootDir>/types/$1",
