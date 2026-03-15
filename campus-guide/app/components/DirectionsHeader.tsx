@@ -3,10 +3,10 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Activi
 import { Ionicons } from '@expo/vector-icons';
 import { useDirections } from '../context/DirectionsContext';
 import { TransportationMode } from '../types/transportation';
-import { SGW_BUILDINGS, LOYOLA_BUILDINGS, Building } from './../../constants/buildings';
+import { SGW_BUILDINGS, LOYOLA_BUILDINGS, Building } from '@/constants/buildings';
 import useUserLocation from '@hooks/useUserLocation';
 import ShuttleSchedule from './ShuttleSchedule';
-import { getScheduleForDay } from './../../constants/shuttleSchedule';
+import { getScheduleForDay } from '@/constants/shuttleSchedule';
 
 export default function DirectionsHeader() {
   const {

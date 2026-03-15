@@ -9,7 +9,7 @@ import {
   SGW_BUILDINGS,
   LOYOLA_BUILDINGS,
   CAMPUS_REGIONS,
-} from "./../../constants/buildings";
+} from "@/constants/buildings";
 import { useDirections } from "../context/DirectionsContext";
 import MapView, {
   Callout,
@@ -19,7 +19,7 @@ import MapView, {
   Polyline,
 } from "react-native-maps";
 import useBuildingPolygons from "../hooks/useBuildingPolygons";
-import { CAMPUS_MAP_STYLE } from "../../constants/mapStyle";
+import { CAMPUS_MAP_STYLE } from "@/constants/mapStyle";
 import BuildingInformation from "./BuildingInformation";
 import LocateMeButton from "./LocateMeButton";
 import useUserLocation from "../hooks/useUserLocation";
