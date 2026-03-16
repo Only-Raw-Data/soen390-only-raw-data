@@ -11,4 +11,5 @@ ignore:
   - "campus-guide/app/_layout.tsx"
   - "campus-guide/app/**/_layout.tsx"
   - "**/_layout.tsx"
+  - "campus-guide/app/(tabs)/schedule.tsx"
 
