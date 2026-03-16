@@ -1,6 +1,6 @@
 import { fetchPOIs } from "../poiService";
 import { haversineDistance } from "../../utils/locationUtils";
-import { File } from "expo-file-system/next";
+import { File, Directory } from "expo-file-system/next";
 
 // Mock the native modules
 jest.mock('expo-file-system/next', () => {
@@ -111,7 +111,7 @@ describe("fetchPOIs", () => {
 
     // Override File mock for this test
     const mockText = jest.fn().mockResolvedValue(JSON.stringify(mockCachedPOIs));
-    (File as jest.Mock).mockImplementationOnce(() => ({
+    (File as unknown as jest.Mock).mockImplementationOnce(() => ({
       exists: true,
       text: mockText,
     }));
@@ -122,5 +122,82 @@ describe("fetchPOIs", () => {
     expect(pois).toHaveLength(1);
     expect(pois[0].name).toBe("Cached Place");
     expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it("should create cache directory if it does not exist", async () => {
+    const mockCreate = jest.fn();
+    (Directory as unknown as jest.Mock).mockImplementation(() => ({
+      exists: false,
+      create: mockCreate,
+    }));
+    
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ elements: [] }),
+    });
+
+    await fetchPOIs(45.497092, -73.5788);
+    expect(mockCreate).toHaveBeenCalled();
+  });
+
+  it("should handle cache read JSON parse errors silently", async () => {
+    const mockText = jest.fn().mockResolvedValue("{ bad json }");
+    (File as unknown as jest.Mock).mockImplementation(() => ({
+      exists: true,
+      text: mockText,
+      write: jest.fn().mockResolvedValue(true),
+    }));
+
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ elements: [] }),
+    });
+
+    const pois = await fetchPOIs(45.497, -73.578);
+    // Since cache read fails, it fetches from network
+    expect(global.fetch).toHaveBeenCalled();
+    expect(pois).toEqual([]);
+  });
+
+  it("should handle cache write errors silently", async () => {
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
+    
+    (File as unknown as jest.Mock).mockImplementation(() => ({
+      exists: false,
+      text: jest.fn().mockResolvedValue("{}"),
+      write: jest.fn().mockRejectedValue(new Error("Write error")),
+    }));
+
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ elements: [] }),
+    });
+
+    await fetchPOIs(45.497, -73.578);
+    expect(console.warn).toHaveBeenCalledWith("Failed to cache POIs:", expect.any(Error));
+  });
+
+  it("should throw if Overpass URL is not configured", async () => {
+    delete process.env.EXPO_PUBLIC_OVERPASS_URL;
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
+    
+    const pois = await fetchPOIs(45.497, -73.578);
+    expect(pois).toEqual([]);
+    expect(console.warn).toHaveBeenCalledWith("Error fetching POIs:", expect.any(Error));
+  });
+
+  it("should skip nodes without lat/lon or tags", async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        elements: [
+          { type: "node", id: 1, tags: { name: "Test" } }, // missing coords
+          { type: "node", id: 2, lat: 45.5, lon: -73.5 } // missing tags
+        ]
+      }),
+    });
+
+    const pois = await fetchPOIs(45.497, -73.578);
+    expect(pois).toEqual([]);
   });
 });

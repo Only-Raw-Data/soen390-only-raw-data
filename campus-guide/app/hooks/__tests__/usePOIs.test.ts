@@ -71,4 +71,28 @@ describe('usePOIs', () => {
     expect(result.current.pois).toEqual([]);
     expect(result.current.error).toEqual(mockError);
   });
+
+  it('should not update state if unmounted before fetch completes', async () => {
+    // Return a promise that doesn't resolve immediately
+    let resolvePromise: any;
+    const fetchPromise = new Promise(resolve => {
+      resolvePromise = resolve;
+    });
+    (fetchPOIs as jest.Mock).mockReturnValueOnce(fetchPromise);
+
+    const { result, unmount } = renderHook(() => 
+      usePOIs({ lat: 45.5, lon: -73.5 }) // test default radius, limit, enabled
+    );
+
+    // Unmount before promise resolves
+    unmount();
+    
+    // Now resolve the promise
+    await act(async () => {
+      resolvePromise(mockPois);
+    });
+
+    // POIs should still be empty because it was cancelled
+    expect(result.current.pois).toEqual([]);
+  });
 });
