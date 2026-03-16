@@ -1,4 +1,4 @@
-import { IndoorGeoJSON, IndoorFeature } from "@app/types/indoorMap";
+import { IndoorGeoJSON, IndoorFeature } from "../types/indoorMap";
 
 export enum NodeType {
   Room = "room",

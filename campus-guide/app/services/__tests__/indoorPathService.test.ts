@@ -1,7 +1,7 @@
 import { buildIndoorGraph, IndoorGraph, GraphNode, NodeType, EdgeType } from "../indoorGraphService";
 import { findIndoorPath, findPathToNearestEntrance, findPathFromEntrance } from "../indoorPathService";
 import hallData from "@/constants/indoorData/hall.json";
-import { IndoorGeoJSON } from "@app/types/indoorMap";
+import { IndoorGeoJSON } from "@/app/types/indoorMap";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 

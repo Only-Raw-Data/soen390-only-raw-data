@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Building, Campus } from "@/constants/buildings";
-import { ToastType } from "@app/types/ToastType";
+import { ToastType } from "../types/ToastType";
 
 interface LocateMeButtonProps {
   readonly onLocate: () => Promise<void>;

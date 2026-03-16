@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
-import { RouteData } from "@app/services/directionsService";
+import { RouteData } from "../services/directionsService";
 import { hasNoCoordinates } from "./IndoorMapView";
 
 interface StoryOutdoorMapProps {

@@ -19,7 +19,7 @@ jest.mock("expo-location", () => ({
 }));
 
 // Mock building constants (needed by locationUtils)
-jest.mock("@/constants/buildings", () => ({
+jest.mock("../../../constants/buildings", () => ({
   All_BUILDINGS: [],
   SGW_BUILDINGS: [],
   LOYOLA_BUILDINGS: [],

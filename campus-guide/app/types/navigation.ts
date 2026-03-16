@@ -1,5 +1,5 @@
-import { GraphNode } from "@app/services/indoorGraphService";
-import { RouteData } from "@app/services/directionsService";
+import { GraphNode } from "../services/indoorGraphService";
+import { RouteData } from "../services/directionsService";
 
 export interface IndoorStep {
   kind: "indoor";

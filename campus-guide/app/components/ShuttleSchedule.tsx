@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { SHUTTLE_SCHEDULE, ShuttleTime } from '@/constants/shuttleSchedule';
+import { SHUTTLE_SCHEDULE, ShuttleTime } from '../../constants/shuttleSchedule';
 
 type ScheduleDay = 'mondayThursday' | 'friday';
 

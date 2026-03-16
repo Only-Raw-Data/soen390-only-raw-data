@@ -1,7 +1,7 @@
 import React from "react";
 import { render, fireEvent } from "@testing-library/react-native";
 import ShuttleSchedule from "../ShuttleSchedule";
-import { SHUTTLE_SCHEDULE } from "@/constants/shuttleSchedule";
+import { SHUTTLE_SCHEDULE } from "../../../constants/shuttleSchedule";
 
 describe("ShuttleSchedule", () => {
   beforeEach(() => {

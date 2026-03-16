@@ -12,9 +12,9 @@ import {
   IndoorBuildingConfig,
   IndoorFeature,
   IndoorGeoJSON,
-} from "@app/types/indoorMap";
-import { GraphNode, getOrBuildGraph } from "@app/services/indoorGraphService";
-import { findIndoorPath } from "@app/services/indoorPathService";
+} from "../types/indoorMap";
+import { GraphNode, getOrBuildGraph } from "../services/indoorGraphService";
+import { findIndoorPath } from "../services/indoorPathService";
 
 import hallData from "@/constants/indoorData/hall.json";
 import jmsbData from "@/constants/indoorData/jmsb.json";

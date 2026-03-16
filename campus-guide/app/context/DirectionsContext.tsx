@@ -7,8 +7,8 @@ import React, {
   ReactNode,
 } from "react";
 import { Building } from "@/constants/buildings";
-import { TransportationMode } from "@app/types/transportation";
-import { fetchDirections, RouteData } from "@app/services/directionsService";
+import { TransportationMode } from "../types/transportation";
+import { fetchDirections, RouteData } from "../services/directionsService";
 
 interface DirectionsContextType {
   startBuilding: Building | null;

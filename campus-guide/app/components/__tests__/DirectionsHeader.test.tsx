@@ -4,7 +4,7 @@ import { Alert } from 'react-native';
 import DirectionsHeader from '../DirectionsHeader';
 import { useDirections } from '../../context/DirectionsContext';
 import useUserLocation from '../../hooks/useUserLocation';
-import { LOYOLA_BUILDINGS, SGW_BUILDINGS } from '@/constants/buildings';
+import { LOYOLA_BUILDINGS, SGW_BUILDINGS } from '../../../constants/buildings';
 
 
 jest.mock('../../context/DirectionsContext', () => ({

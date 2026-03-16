@@ -5,8 +5,8 @@ import IndoorMapProvider, {
   INDOOR_BUILDINGS,
   getGeoJsonForBuilding,
   getFeaturesForFloor,
-} from "@app/context/IndoorMapContext";
-import * as indoorPathService from "@app/services/indoorPathService";
+} from "@/app/context/IndoorMapContext";
+import * as indoorPathService from "@/app/services/indoorPathService";
 
 describe("IndoorMapContext", () => {
   const wrapper = ({ children }: { readonly children: React.ReactNode }) => (

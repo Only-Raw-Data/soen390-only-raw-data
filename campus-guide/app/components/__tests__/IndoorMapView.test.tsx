@@ -1,25 +1,25 @@
 import React from "react";
-import { render, fireEvent, waitFor, act } from "@testing-library/react-native";
-import IndoorMapView from "@app/components/IndoorMapView";
-import { AMENITY_CONFIG } from "@app/components/IndoorMapView";
+import { render, fireEvent, waitFor } from "@testing-library/react-native";
+import IndoorMapView from "@/app/components/IndoorMapView";
+import { AMENITY_CONFIG } from "@/app/components/IndoorMapView";
 import {
   useIndoorMap,
   INDOOR_BUILDINGS,
   getGeoJsonForBuilding,
   getFeaturesForFloor,
-} from "@app/context/IndoorMapContext";
+} from "@/app/context/IndoorMapContext";
 
 // Mock the cross-building route service
-jest.mock("@app/services/crossBuildingRouteService", () => ({
+jest.mock("@/app/services/crossBuildingRouteService", () => ({
   planCrossBuildingRoute: jest.fn(),
 }));
 
-import { planCrossBuildingRoute } from "@app/services/crossBuildingRouteService";
+import { planCrossBuildingRoute } from "@/app/services/crossBuildingRouteService";
 const mockPlanRoute = planCrossBuildingRoute as jest.MockedFunction<typeof planCrossBuildingRoute>;
 
 // Mock the IndoorMapContext
-jest.mock("@app/context/IndoorMapContext", () => {
-  const actual = jest.requireActual("@app/context/IndoorMapContext");
+jest.mock("@/app/context/IndoorMapContext", () => {
+  const actual = jest.requireActual("@/app/context/IndoorMapContext");
   return {
     ...actual,
     useIndoorMap: jest.fn(),
@@ -607,22 +607,6 @@ describe("IndoorMapView", () => {
       expect(getByText("ST")).toBeTruthy();
       expect(queryByText(/[▲▼]/)).toBeNull();
     });
-
-    it("uses previous node floor when next node is on the same floor", () => {
-      // Arrange — staircase at floor 8 has previous node on floor 7 and next node on floor 8
-      setupPathContext([
-        { id: "room:prev:7", lat: 45.496, lng: -73.579, floor: 7, type: "room", ref: "H751" },
-        { id: "stair:8",    lat: 45.497, lng: -73.579, floor: 8, type: "staircase" },
-        { id: "room:next:8", lat: 45.498, lng: -73.579, floor: 8, type: "room", ref: "H851" },
-      ]);
-
-      // Act
-      const { getByText } = render(<IndoorMapView />);
-
-      // Assert — previous floor (7) is used, producing down arrow from floor 8
-      expect(getByText("ST")).toBeTruthy();
-      expect(getByText("▼7")).toBeTruthy();
-    });
   });
 
   describe("facility markers", () => {
@@ -1159,64 +1143,6 @@ describe("IndoorMapView", () => {
       // Cleanup — resolve to avoid dangling promise
       resolveRoute([]);
     });
-
-    it("navigates to outdoor step and back using story nav buttons", async () => {
-      // Arrange
-      const mockSteps = [
-        {
-          kind: "indoor" as const,
-          buildingCode: "H",
-          buildingName: "Hall Building",
-          path: [
-            { id: "room:H820:8", lat: 45.497, lng: -73.578, floor: 8, type: "room", ref: "H820" },
-          ],
-          startLabel: "H820",
-          endLabel: "Hall Exit",
-        },
-        {
-          kind: "outdoor" as const,
-          route: {
-            distance: "500m",
-            duration: "6 min",
-            coordinates: [
-              { latitude: 45.497, longitude: -73.578 },
-              { latitude: 45.498, longitude: -73.579 },
-            ],
-            steps: [],
-          },
-          startLabel: "Hall Exit",
-          endLabel: "MB Entrance",
-        },
-      ];
-      mockPlanRoute.mockResolvedValue(mockSteps as any);
-      mockUseIndoorMap.mockReturnValue({
-        ...defaultContextValue,
-        isCrossBuilding: true,
-        startRoomRef: "H820",
-        destinationRoomRef: "MBS2.210",
-        startSearchQuery: "H-820",
-        destinationSearchQuery: "MBS2.210",
-      });
-
-      // Act — start story mode and navigate next/prev
-      const { getByTestId, queryByTestId } = render(<IndoorMapView />);
-      fireEvent.press(getByTestId("cross-building-directions-button"));
-      await waitFor(() => expect(getByTestId("story-step-indicator").props.children.join("")).toContain("Step 1 of 2"));
-      fireEvent.press(getByTestId("story-next-button"));
-
-      // Assert — outdoor map is rendered on step 2
-      await waitFor(() => {
-        expect(getByTestId("story-outdoor-map")).toBeTruthy();
-        expect(getByTestId("story-step-indicator").props.children.join("")).toContain("Step 2 of 2");
-      });
-
-      // Act + Assert — go back to indoor step
-      fireEvent.press(getByTestId("story-prev-button"));
-      await waitFor(() => {
-        expect(queryByTestId("story-outdoor-map")).toBeNull();
-        expect(getByTestId("story-step-indicator").props.children.join("")).toContain("Step 1 of 2");
-      });
-    });
   });
 
   describe("iOS map padding useEffect", () => {
@@ -1247,37 +1173,6 @@ describe("IndoorMapView", () => {
 
       // Cleanup
       Platform.OS = originalOS;
-    });
-
-    it("executes the iOS padding reset timer callback", () => {
-      // Arrange
-      jest.useFakeTimers();
-      const Platform = require("react-native").Platform;
-      const originalOS = Platform.OS;
-      Platform.OS = "ios";
-
-      const hallBuilding = INDOOR_BUILDINGS.find((b) => b.code === "H")!;
-      const feature = makePolygonFeature("H813");
-      mockGetGeoJson.mockReturnValue({ type: "FeatureCollection", features: [feature] });
-      mockGetFeatures.mockReturnValue([feature]);
-      mockUseIndoorMap.mockReturnValue({
-        ...defaultContextValue,
-        selectedBuilding: hallBuilding,
-        selectedFloor: 8,
-      });
-
-      // Act
-      render(<IndoorMapView />);
-      act(() => {
-        jest.advanceTimersByTime(350);
-      });
-
-      // Assert — advancing timers should not throw and covers reset callback branch
-      expect(mockGetFeatures).toHaveBeenCalled();
-
-      // Cleanup
-      Platform.OS = originalOS;
-      jest.useRealTimers();
     });
   });
 
@@ -1317,91 +1212,6 @@ describe("IndoorMapView", () => {
       await waitFor(() => {
         expect(getByTestId("story-indoor-map")).toBeTruthy();
       });
-    });
-
-    it("renders story indoor polyline from non-room waypoints", async () => {
-      // Arrange — include at least 2 non-room waypoints so filtered path is used
-      const feature = makePolygonFeature("H829");
-      mockGetGeoJson.mockReturnValue({ type: "FeatureCollection", features: [feature] });
-      mockGetFeatures.mockReturnValue([feature]);
-
-      const mockSteps = [
-        {
-          kind: "indoor" as const,
-          buildingCode: "H",
-          buildingName: "Hall Building",
-          path: [
-            { id: "wp:1", lat: 45.497, lng: -73.578, floor: 8, type: "waypoint" },
-            { id: "wp:2", lat: 45.4975, lng: -73.5785, floor: 8, type: "waypoint" },
-            { id: "room:end", lat: 45.498, lng: -73.579, floor: 8, type: "room", ref: "H829" },
-          ],
-          startLabel: "Hall Start",
-          endLabel: "Hall End",
-        },
-      ];
-      mockPlanRoute.mockResolvedValue(mockSteps as any);
-      mockUseIndoorMap.mockReturnValue({
-        ...defaultContextValue,
-        isCrossBuilding: true,
-        startSearchQuery: "H-820",
-        destinationSearchQuery: "H-829",
-      });
-
-      // Act
-      const { getByTestId } = render(<IndoorMapView />);
-      fireEvent.press(getByTestId("cross-building-directions-button"));
-
-      // Assert — polyline uses the 2 non-room waypoints
-      await waitFor(() => {
-        expect(getByTestId("story-indoor-polyline").props.accessibilityLabel).toBe("polyline-2-coords");
-      });
-    });
-  });
-
-  describe("debug logging branches", () => {
-    it("logs render, map-ready, and labels payloads when debug flag is enabled", () => {
-      // Arrange
-      const previousDebugFlag = process.env.INDOOR_MAP_DEBUG;
-      const logSpy = jest.spyOn(console, "log").mockImplementation(() => undefined);
-
-      try {
-        process.env.INDOOR_MAP_DEBUG = "1";
-
-        setupBuildingWithFeature("H813");
-
-        // Act
-        const { getByTestId } = render(<IndoorMapView />);
-        fireEvent(getByTestId("indoor-map"), "onMapReady");
-
-        // Assert
-        expect(logSpy).toHaveBeenCalledWith(
-          "[IndoorMapView] RENDER",
-          expect.objectContaining({
-            floorTransitioning: false,
-            selectedFloor: 8,
-            pathCoordinatesLength: 0,
-            willRenderPolyline: false,
-          }),
-        );
-        expect(logSpy).toHaveBeenCalledWith("[IndoorMapView] MAP READY");
-        expect(logSpy).toHaveBeenCalledWith(
-          "[IndoorMapView] LABELS",
-          expect.objectContaining({
-            polygonFeaturesCount: 1,
-            labelFeaturesCount: 1,
-            selectedBuilding: "H",
-            selectedFloor: 8,
-            sampleRefs: ["H813"],
-          }),
-        );
-      } finally {
-        if (previousDebugFlag === undefined) {
-          delete process.env.INDOOR_MAP_DEBUG;
-        } else {
-          process.env.INDOOR_MAP_DEBUG = previousDebugFlag;
-        }
-        logSpy.mockRestore();
-      }
     });
   });
 });

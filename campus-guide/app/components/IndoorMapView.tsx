@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import MapView, { Marker, Polygon, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
-import { NodeType, GraphNode } from "@app/services/indoorGraphService";
+import { NodeType, GraphNode } from "@/app/services/indoorGraphService";
 import { CAMPUS_MAP_STYLE } from "@/constants/mapStyle";
 import RoomSearchBar from "./RoomSearchBar";
 import {
@@ -17,15 +17,11 @@ import {
   INDOOR_BUILDINGS,
   getGeoJsonForBuilding,
   getFeaturesForFloor,
-} from "@app/context/IndoorMapContext";
-import { IndoorFeature } from "@app/types/indoorMap";
-import { IndoorStep, NavigationStep, OutdoorStep } from "@app/types/navigation";
-import { planCrossBuildingRoute } from "@app/services/crossBuildingRouteService";
+} from "@/app/context/IndoorMapContext";
+import { IndoorFeature } from "../types/indoorMap";
+import {IndoorStep, NavigationStep, OutdoorStep} from "../types/navigation";
+import { planCrossBuildingRoute } from "../services/crossBuildingRouteService";
 import StoryOutdoorMap from "./StoryOutdoorMap";
-
-function shouldLogIndoorMapDebug() {
-  return process.env.NODE_ENV !== "test" || process.env.INDOOR_MAP_DEBUG === "1";
-}
 
 const BUILDING_LAT_DELTA = 0.002;
 const BUILDING_LNG_DELTA = 0.002;
@@ -421,14 +417,12 @@ export default function IndoorMapView() {
       longitudeDelta: DEFAULT_LNG_DELTA,
     };
 
-  if (shouldLogIndoorMapDebug()) {
-    console.log("[IndoorMapView] RENDER", {
-      floorTransitioning,
-      pathCoordinatesLength: pathCoordinates.length,
-      selectedFloor,
-      willRenderPolyline: !!(!floorTransitioning && pathCoordinates.length > 1),
-    });
-  }
+  console.log("[IndoorMapView] RENDER", {
+    floorTransitioning,
+    pathCoordinatesLength: pathCoordinates.length,
+    selectedFloor,
+    willRenderPolyline: !!(!floorTransitioning && pathCoordinates.length > 1),
+  });
 
   return (
     <View style={styles.container}>
@@ -692,11 +686,7 @@ export default function IndoorMapView() {
           customMapStyle={CAMPUS_MAP_STYLE}
           initialRegion={initialRegion}
           testID="indoor-map"
-          onMapReady={() => {
-            if (shouldLogIndoorMapDebug()) {
-              console.log("[IndoorMapView] MAP READY");
-            }
-          }}
+          onMapReady={() => console.log("[IndoorMapView] MAP READY")}
           mapPadding={iosMapPadding}
         >
           {polygonFeatures.map((feature, index) => {
@@ -849,15 +839,13 @@ export default function IndoorMapView() {
           {/* Room number labels */}
           {(() => {
             const labelFeatures = polygonFeatures.filter((f) => !!f.properties?.ref);
-            if (shouldLogIndoorMapDebug()) {
-              console.log("[IndoorMapView] LABELS", {
-                polygonFeaturesCount: polygonFeatures.length,
-                labelFeaturesCount: labelFeatures.length,
-                selectedBuilding: selectedBuilding?.code ?? null,
-                selectedFloor,
-                sampleRefs: labelFeatures.slice(0, 5).map((f) => f.properties?.ref),
-              });
-            }
+            console.log("[IndoorMapView] LABELS", {
+              polygonFeaturesCount: polygonFeatures.length,
+              labelFeaturesCount: labelFeatures.length,
+              selectedBuilding: selectedBuilding?.code ?? null,
+              selectedFloor,
+              sampleRefs: labelFeatures.slice(0, 5).map((f) => f.properties?.ref),
+            });
             return labelFeatures.map((feature, index) => {
               const coords = convertCoordinates(feature);
               if (hasNoCoordinates(coords)) return null;

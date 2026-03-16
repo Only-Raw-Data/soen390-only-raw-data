@@ -6,7 +6,7 @@ import {
   SGW_BUILDINGS,
   LOYOLA_BUILDINGS,
 } from "@/constants/buildings";
-import { BuildingPolygon } from "@app/types/buildingPolygon";
+import { BuildingPolygon } from "../types/buildingPolygon";
 
 const OVERPASS_URL = process.env.EXPO_PUBLIC_OVERPASS_URL as string;
 const CACHE_DIR_NAME = "building_polygons";
@@ -21,7 +21,7 @@ const MAX_BUILDING_MATCH_DISTANCE_M = 50;
 const MIN_POLYGON_NODES = 3;
 
 // Re-export BuildingPolygon for backwards compatibility
-export { BuildingPolygon } from "@app/types/buildingPolygon";
+export { BuildingPolygon } from "../types/buildingPolygon";
 
 interface CacheData {
   timestamp: number;

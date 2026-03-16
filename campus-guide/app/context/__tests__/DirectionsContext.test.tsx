@@ -1,10 +1,10 @@
 import React from 'react';
 import { renderHook, act } from '@testing-library/react-native';
 import DirectionsProvider, { useDirections } from '../DirectionsContext';
-import { SGW_BUILDINGS } from '@/constants/buildings';
-import { fetchDirections } from '@app/services/directionsService';
+import { SGW_BUILDINGS } from '../../../constants/buildings';
+import { fetchDirections } from '@/app/services/directionsService';
 
-jest.mock('@app/services/directionsService', () => ({
+jest.mock('../../services/directionsService', () => ({
     fetchDirections: jest.fn(),
 }));
 

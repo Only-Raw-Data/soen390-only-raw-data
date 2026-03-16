@@ -1,7 +1,7 @@
 import React from "react";
 import { View, TouchableOpacity, Text, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Screen } from "@app/types/Screen";
+import { Screen } from "../types/Screen";
 
 interface BottomNavProps {
   readonly currentScreen: Screen;

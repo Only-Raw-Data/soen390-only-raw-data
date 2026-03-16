@@ -8,8 +8,8 @@ import {
   ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Building } from "@/constants/buildings";
-import { BUILDING_IMAGES } from "@/constants/buildingImages";
+import { Building } from "./../../constants/buildings";
+import { BUILDING_IMAGES } from "./../../constants/buildingImages";
 
 interface BuildingInformationProps {
   readonly building: Building;

@@ -18,8 +18,7 @@ export default {
     },
 
     ios: {
-      supportsTablet: true,
-      bundleIdentifier: "com.soen390.campusguide"
+      supportsTablet: true
     },
 
     android: {
@@ -46,8 +45,6 @@ export default {
 
     plugins: [
       "expo-router",
-      "expo-secure-store",
-      "expo-web-browser",
       [
         "expo-location",
         {
