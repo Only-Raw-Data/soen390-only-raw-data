@@ -4,7 +4,7 @@ import {
   SHUTTLE_DURATION,
   SHUTTLE_ROUTE_SGW_TO_LOYOLA,
 } from "@/constants/shuttleRoute";
-import { TransportationMode, TransitSegment, SegmentMode } from "../types/transportation";
+import { TransportationMode, TransitSegment, SegmentMode } from "@app/types/transportation";
 import { decode } from "@googlemaps/polyline-codec";
 
 export interface RouteData {
@@ -130,7 +130,12 @@ export const fetchDirections = async (
     }
 
     if (!data.routes || data.routes.length === 0) {
-      console.error("No routes found");
+      // An empty routes array is a valid API outcome (not a crash-level error).
+      console.warn("No routes found for request", {
+        mode,
+        origin,
+        destination,
+      });
       return null;
     }
 

@@ -1,6 +1,6 @@
 import React from "react";
-import Header from "@/app/components/Header";
-import IndoorMapView from "@/app/components/IndoorMapView";
+import Header from "@app/components/Header";
+import IndoorMapView from "@app/components/IndoorMapView";
 import { View, Text, ScrollView } from "react-native";
 
 class IndoorErrorBoundary extends React.Component<

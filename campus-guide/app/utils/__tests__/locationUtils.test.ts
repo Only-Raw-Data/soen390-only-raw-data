@@ -1,7 +1,7 @@
 import { haversineDistance, findNearestBuilding } from '../locationUtils';
 
 // Mock building constants
-jest.mock('../../../constants/buildings', () => ({
+jest.mock('@/constants/buildings', () => ({
   All_BUILDINGS: [
     {
       id: 'h',

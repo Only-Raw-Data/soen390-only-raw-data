@@ -4,7 +4,7 @@ import {
   SHUTTLE_ROUTE_SGW_TO_LOYOLA,
 } from "@/constants/shuttleRoute";
 import { fetchDirections } from "../directionsService";
-import { TransportationMode } from "../../types/transportation";
+import { TransportationMode } from "@app/types/transportation";
 
 // Mock fetch
 globalThis.fetch = jest.fn();
