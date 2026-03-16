@@ -24,7 +24,7 @@ import BuildingInformation from "./BuildingInformation";
 import LocateMeButton from "./LocateMeButton";
 import useUserLocation from "../hooks/useUserLocation";
 import { isWithinShuttleHours } from "../utils/shuttleHours";
-import { SegmentMode } from "../types/transportation";
+import { SegmentMode } from "@app/types/transportation";
 
 const SEGMENT_COLORS: Record<SegmentMode, string> = {
   WALK: '#3B82F6',

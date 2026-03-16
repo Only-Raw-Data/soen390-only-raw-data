@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import MapView, { Marker, Polygon, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
-import { NodeType, GraphNode } from "@/app/services/indoorGraphService";
+import { NodeType, GraphNode } from "@app/services/indoorGraphService";
 import { CAMPUS_MAP_STYLE } from "@/constants/mapStyle";
 import RoomSearchBar from "./RoomSearchBar";
 import {
@@ -17,10 +17,10 @@ import {
   INDOOR_BUILDINGS,
   getGeoJsonForBuilding,
   getFeaturesForFloor,
-} from "@/app/context/IndoorMapContext";
-import { IndoorFeature } from "../types/indoorMap";
-import {IndoorStep, NavigationStep, OutdoorStep} from "../types/navigation";
-import { planCrossBuildingRoute } from "../services/crossBuildingRouteService";
+} from "@app/context/IndoorMapContext";
+import { IndoorFeature } from "@app/types/indoorMap";
+import { IndoorStep, NavigationStep, OutdoorStep } from "@app/types/navigation";
+import { planCrossBuildingRoute } from "@app/services/crossBuildingRouteService";
 import StoryOutdoorMap from "./StoryOutdoorMap";
 
 const shouldLogIndoorMapDebug = process.env.NODE_ENV !== "test";

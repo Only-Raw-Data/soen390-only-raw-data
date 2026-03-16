@@ -1,2 +1,3 @@
-export * from "../../services/calendarAuthService";
+export * from "@services/calendarAuthService";
+
 

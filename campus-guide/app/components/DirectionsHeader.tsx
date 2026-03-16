@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useDirections } from '../context/DirectionsContext';
-import { TransportationMode } from '../types/transportation';
+import { TransportationMode } from '@app/types/transportation';
 import { SGW_BUILDINGS, LOYOLA_BUILDINGS, Building } from '@/constants/buildings';
 import useUserLocation from '@hooks/useUserLocation';
 import ShuttleSchedule from './ShuttleSchedule';

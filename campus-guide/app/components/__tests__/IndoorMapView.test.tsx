@@ -1,25 +1,25 @@
 import React from "react";
 import { render, fireEvent, waitFor } from "@testing-library/react-native";
-import IndoorMapView from "@/app/components/IndoorMapView";
-import { AMENITY_CONFIG } from "@/app/components/IndoorMapView";
+import IndoorMapView from "@app/components/IndoorMapView";
+import { AMENITY_CONFIG } from "@app/components/IndoorMapView";
 import {
   useIndoorMap,
   INDOOR_BUILDINGS,
   getGeoJsonForBuilding,
   getFeaturesForFloor,
-} from "@/app/context/IndoorMapContext";
+} from "@app/context/IndoorMapContext";
 
 // Mock the cross-building route service
-jest.mock("@/app/services/crossBuildingRouteService", () => ({
+jest.mock("@app/services/crossBuildingRouteService", () => ({
   planCrossBuildingRoute: jest.fn(),
 }));
 
-import { planCrossBuildingRoute } from "@/app/services/crossBuildingRouteService";
+import { planCrossBuildingRoute } from "@app/services/crossBuildingRouteService";
 const mockPlanRoute = planCrossBuildingRoute as jest.MockedFunction<typeof planCrossBuildingRoute>;
 
 // Mock the IndoorMapContext
-jest.mock("@/app/context/IndoorMapContext", () => {
-  const actual = jest.requireActual("@/app/context/IndoorMapContext");
+jest.mock("@app/context/IndoorMapContext", () => {
+  const actual = jest.requireActual("@app/context/IndoorMapContext");
   return {
     ...actual,
     useIndoorMap: jest.fn(),

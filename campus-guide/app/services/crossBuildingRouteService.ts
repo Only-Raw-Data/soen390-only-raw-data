@@ -1,4 +1,4 @@
-import { NavigationStep } from "../types/navigation";
+import { NavigationStep } from "@app/types/navigation";
 import {
   getOrBuildGraph,
   GraphNode,
@@ -13,7 +13,7 @@ import {
   findRoomInBuildings,
   getGeoJsonForBuilding,
 } from "../context/IndoorMapContext";
-import { IndoorBuildingConfig } from "../types/indoorMap";
+import { IndoorBuildingConfig } from "@app/types/indoorMap";
 
 function getBuildingGraph(building: IndoorBuildingConfig) {
   const geoJson = getGeoJsonForBuilding(building);

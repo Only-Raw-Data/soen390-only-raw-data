@@ -12,11 +12,45 @@ jest.spyOn(console, "error").mockImplementation((...args) => {
   const firstArg = args[0];
   if (
     typeof firstArg === "string" &&
-    firstArg.includes("An update to Animated(View) inside a test was not wrapped in act")
+    firstArg.includes("not wrapped in act(...)")
   ) {
     return;
   }
+  // These errors are intentionally triggered in tests that validate failure paths.
+  if (typeof firstArg === "string") {
+    const expectedTestErrors = [
+      "Routes API error:",
+      "Error fetching routes:",
+      "Google Maps API Key is missing",
+      "Failed to fetch route #",
+    ];
+    if (expectedTestErrors.some((msg) => firstArg.includes(msg))) {
+      return;
+    }
+  }
   originalConsoleError(...args);
+});
+
+const originalConsoleWarn = console.warn;
+jest.spyOn(console, "warn").mockImplementation((...args) => {
+  const firstArg = args[0];
+  // These warnings are intentionally triggered in tests that validate fallback behavior.
+  if (typeof firstArg === "string") {
+    const expectedTestWarnings = [
+      "No routes found for request",
+      "Failed to fetch building polygons from OSM:",
+      "Failed to cache building polygons:",
+      "Failed to get current location:",
+      "Failed to request location permission:",
+      "Failed to get nearest building:",
+      "Failed to start location tracking:",
+      "Failed to get raw location:",
+    ];
+    if (expectedTestWarnings.some((msg) => firstArg.includes(msg))) {
+      return;
+    }
+  }
+  originalConsoleWarn(...args);
 });
 
 jest.mock("react-native-maps", () => {
