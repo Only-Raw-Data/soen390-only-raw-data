@@ -34,7 +34,7 @@ const MOCK_LOYOLA_BUILDING = {
   y: 0,
 };
 
-jest.mock("../../../constants/buildings", () => ({
+jest.mock("@/constants/buildings", () => ({
   SGW_BUILDINGS: [
     {
       id: "h",

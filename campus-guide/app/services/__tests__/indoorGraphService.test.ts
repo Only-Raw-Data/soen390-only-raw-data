@@ -5,8 +5,8 @@ import {
   findEntranceNodes,
   getOrBuildGraph,
   NodeType,
-} from "@/app/services/indoorGraphService";
-import { IndoorGeoJSON } from "@/app/types/indoorMap";
+} from "@app/services/indoorGraphService";
+import { IndoorGeoJSON } from "@app/types/indoorMap";
 
 // Shared corridor waypoint coordinates used across tests
 const WP1 = [-73.579, 45.497];
