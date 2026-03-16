@@ -15,7 +15,7 @@
         "./constants/*"
       ],
       "@components/*": [
-        "./components/*"
+        "./app/components/*"
       ],
       "@context/*": [
         "./app/context/*"

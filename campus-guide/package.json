@@ -97,17 +97,17 @@
       "<rootDir>"
     ],
     "moduleNameMapper": {
-      "^@/services/(.*)$": "<rootDir>/services/$1",
-      "^@services/(.*)$": "<rootDir>/services/$1",
+      "^@/services/(.*)$": "<rootDir>/app/services/$1",
+      "^@services/(.*)$": "<rootDir>/app/services/$1",
       "^@app/(.*)$": "<rootDir>/app/$1",
       "^@constants/(.*)$": "<rootDir>/constants/$1",
-      "^@components/(.*)$": "<rootDir>/components/$1",
+      "^@components/(.*)$": "<rootDir>/app/components/$1",
       "^@context/(.*)$": "<rootDir>/app/context/$1",
       "^@hooks/(.*)$": "<rootDir>/app/hooks/$1",
       "^@navigation/(.*)$": "<rootDir>/app/navigation/$1",
       "^@screens/(.*)$": "<rootDir>/app/screens/$1",
-      "^@types/(.*)$": "<rootDir>/types/$1",
-      "^@utils/(.*)$": "<rootDir>/utils/$1",
+      "^@types/(.*)$": "<rootDir>/app/types/$1",
+      "^@utils/(.*)$": "<rootDir>/app/utils/$1",
       "^@/(.*)$": "<rootDir>/$1"
     }
   }

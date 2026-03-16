@@ -45,23 +45,17 @@ export default {
     },
 
     plugins: [
-      [
-        "expo-router",
-      "expo-secure-store",
-      "expo-web-browser",
-        {
-          "origin": "https://campus-guide.com",
-          "asyncRoutes": "development"
-        }
-      ],
-      [
-        "expo-location",
-        {
-          locationWhenInUsePermission:
-            "Allow Campus Guide to use your location to find the nearest building."
-        }
-      ]
-    ],
+  "expo-router",
+  "expo-secure-store",
+  "expo-web-browser",
+  [
+    "expo-location",
+    {
+      locationWhenInUsePermission:
+        "Allow Campus Guide to use your location to find the nearest building."
+    }
+  ]
+],
 
     experiments: {
       typedRoutes: true
