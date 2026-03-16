@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
 import BuildingSearchHeader from "./BuildingSearchComponent";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -25,6 +25,8 @@ import LocateMeButton from "./LocateMeButton";
 import useUserLocation from "../hooks/useUserLocation";
 import { isWithinShuttleHours } from "../utils/shuttleHours";
 import { SegmentMode } from "../types/transportation";
+import usePOIs from "../hooks/usePOIs";
+import { PointOfInterest } from "../types/poi";
 
 const SEGMENT_COLORS: Record<SegmentMode, string> = {
   WALK: '#3B82F6',
@@ -91,6 +93,31 @@ export default function MapViewApp({
     getCurrentLocation,
   } = useUserLocation();
 
+  // Track current map region for dynamic POI fetching
+  const [mapRegion, setMapRegion] = useState({
+    latitude: userLocation?.coords.latitude || CAMPUS_REGIONS[selectedCampus].latitude,
+    longitude: userLocation?.coords.longitude || CAMPUS_REGIONS[selectedCampus].longitude,
+  });
+
+  // Update map region when campus changes explicitly
+  React.useEffect(() => {
+    setMapRegion({
+      latitude: CAMPUS_REGIONS[selectedCampus].latitude,
+      longitude: CAMPUS_REGIONS[selectedCampus].longitude,
+    });
+  }, [selectedCampus]);
+
+  // POIs fetching
+  const [showPOIs, setShowPOIs] = useState(false);
+  const { pois, loading: poisLoading } = usePOIs({
+    // Prioritize map center over static user location so we can explore
+    lat: mapRegion.latitude,
+    lon: mapRegion.longitude,
+    radius: 2000, // 2 km radius based on where the user is looking
+    limit: 50,
+    enabled: showPOIs,
+  });
+
   const allBuildingsList = [...SGW_BUILDINGS, ...LOYOLA_BUILDINGS];
   const filteredBuildings = allBuildingsList.filter(
     (b) =>
@@ -134,6 +161,21 @@ export default function MapViewApp({
     return building.code + " - " + building.address;
   };
 
+  const getPoiIcon = (type: string) => {
+    if (type.includes("cafe")) return "cafe";
+    if (type.includes("restaurant") || type.includes("fast_food")) return "restaurant";
+    if (type.includes("pub") || type.includes("bar")) return "beer";
+    if (type.includes("supermarket") || type.includes("convenience")) return "cart";
+    return "location";
+  };
+
+  const getPoiColor = (type: string) => {
+    if (type.includes("cafe")) return "#D97706"; // Amber
+    if (type.includes("restaurant") || type.includes("fast_food")) return "#EF4444"; // Red
+    if (type.includes("pub") || type.includes("bar")) return "#8B5CF6"; // Purple
+    if (type.includes("supermarket") || type.includes("convenience")) return "#10B981"; // Green
+    return "#6B7280"; // Gray fallback
+  };
 
   const getStrokeColorForBuilding = (isStart: boolean, isDest: boolean) => {
     if (isStart) return "#10B981";
@@ -268,6 +310,19 @@ export default function MapViewApp({
           showsMyLocationButton={false}
           customMapStyle={CAMPUS_MAP_STYLE}
           onRegionChangeComplete={(region) => {
+            // Track the region so POIs can fetch around where the user is looking
+            // Only update if we moved a significant distance (roughly > 500m) to avoid API spam (429 Rate Limit)
+            const latDelta = Math.abs(region.latitude - mapRegion.latitude);
+            const lonDelta = Math.abs(region.longitude - mapRegion.longitude);
+            if (latDelta > 0.005 || lonDelta > 0.005) {
+              setMapRegion({
+                latitude: region.latitude,
+                longitude: region.longitude,
+              });
+              // Deactivate POI toggle when moving beyond threshold
+              setShowPOIs(false);
+            }
+
             // Only auto-switch if zoomed in enough to see buildings (guard against flip-flopping)
             if (region.latitudeDelta > 0.02) return;
 
@@ -349,6 +404,34 @@ export default function MapViewApp({
                 </Marker>
               );
             })}
+
+          {/* POI Markers */}
+          {showPOIs && pois.map((poi) => {
+            const poiColor = getPoiColor(poi.type);
+            const poiIcon = getPoiIcon(poi.type);
+            return (
+              <Marker
+                key={`poi-${poi.id}`}
+                coordinate={{ latitude: poi.lat, longitude: poi.lon }}
+                title={poi.name}
+                description={poi.type}
+                tracksViewChanges={false}
+                testID={`poi-marker-${poi.id}`}
+              >
+                <View style={[styles.poiMarkerContainer, { backgroundColor: poiColor }]}>
+                  <Ionicons name={poiIcon as any} size={14} color="#FFFFFF" />
+                </View>
+                <Callout tooltip>
+                  <View style={[styles.youAreHereCallout, { borderColor: poiColor, width: 140 }]}>
+                    <Text style={[styles.youAreHereText, { color: poiColor }]} numberOfLines={1}>{poi.name}</Text>
+                    <Text style={{ fontSize: 10, color: "#6B7280", textTransform: "capitalize" }} numberOfLines={1}>
+                      {poi.type.replace('_', ' ')}
+                    </Text>
+                  </View>
+                </Callout>
+              </Marker>
+            );
+          })}
 
           {/* Render Directions Polyline */}
           {showRoute && (
@@ -459,6 +542,20 @@ export default function MapViewApp({
           </View>
         </View>
       )}
+
+      {showPOIs && poisLoading && (
+        <View style={styles.poiLoadingIndicator}>
+          <ActivityIndicator size="small" color="#8B5CF6" />
+        </View>
+      )}
+
+      <TouchableOpacity
+        style={[styles.poiToggleButton, showPOIs && styles.poiToggleButtonActive]}
+        onPress={() => setShowPOIs(!showPOIs)}
+        testID="poi-toggle-button"
+      >
+        <Ionicons name="restaurant" size={24} color={showPOIs ? "#FFFFFF" : "#8B5CF6"} />
+      </TouchableOpacity>
 
       <LocateMeButton
         onLocate={getCurrentLocation}
@@ -750,6 +847,48 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
     zIndex: 30,
+  },
+  poiToggleButton: {
+    position: "absolute",
+    bottom: 80,
+    right: 16,
+    backgroundColor: "#FFFFFF",
+    padding: 12,
+    borderRadius: 50,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    zIndex: 100,
+    borderWidth: 2,
+    borderColor: "#8B5CF6",
+  },
+  poiToggleButtonActive: {
+    backgroundColor: "#8B5CF6",
+  },
+  poiLoadingIndicator: {
+    position: "absolute",
+    bottom: 144,
+    right: 20,
+    backgroundColor: "rgba(255,255,255,0.8)",
+    padding: 8,
+    borderRadius: 20,
+    zIndex: 100,
+  },
+  poiMarkerContainer: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 4,
   },
   mapWrapper: {
     flex: 1,
