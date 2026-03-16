@@ -16,7 +16,7 @@ module.exports = {
                     '@hooks': './app/hooks',
                     '@navigation': './app/navigation',
                     '@screens': './app/screens',
-                    '@services': './services',
+                    '@services': './app/services',
                     '@types': './types',
                     '@utils': './utils',
                 },

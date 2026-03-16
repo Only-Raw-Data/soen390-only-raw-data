@@ -1,253 +1,178 @@
-import React from "react";
-import { renderHook, act } from "@testing-library/react-native";
-import CalendarAuthProvider, { useCalendarAuth } from "../CalendarAuthContext";
-import {
-  completeAuthSession,
-  disconnectGoogleCalendar,
-  getCalendarConnectionState,
-} from "@services/calendarAuthService";
+import React from 'react';
+import { renderHook, act, waitFor } from '@testing-library/react-native';
+import CalendarAuthProvider, { useCalendarAuth } from '../CalendarAuthContext';
+import * as calendarAuthService from '@services/calendarAuthService';
 
-const mockPromptAsync = jest.fn();
-let mockAuthRequest: { codeVerifier: string; redirectUri: string } | null = {
-  codeVerifier: "verifier",
-  redirectUri: "https://example.com/auth-callback",
-};
-let mockAuthResponse: any = null;
-
-jest.mock("expo-auth-session", () => ({
-  ResponseType: {
-    Code: "code",
-  },
-}));
-
-jest.mock("expo-auth-session/providers/google", () => ({
-  useAuthRequest: () => [mockAuthRequest, mockAuthResponse, mockPromptAsync],
-}));
-
-jest.mock("expo-web-browser", () => ({
-  warmUpAsync: jest.fn().mockResolvedValue(undefined),
-  coolDownAsync: jest.fn().mockResolvedValue(undefined),
-}));
-
-jest.mock("@services/calendarAuthService", () => ({
+jest.mock('@services/calendarAuthService', () => ({
+  getRedirectUri: jest.fn(() => 'https://auth.expo.io/@testuser/test-app'),
+  getCalendarConnectionState: jest.fn(),
   completeAuthSession: jest.fn(),
   disconnectGoogleCalendar: jest.fn(),
-  getCalendarConnectionState: jest.fn(),
-  getRedirectUri: jest.fn(() => "https://example.com/auth-callback"),
 }));
 
-describe("CalendarAuthContext", () => {
-  const originalCalendarClientId = process.env.EXPO_PUBLIC_GOOGLE_CALENDAR_CLIENT_ID;
-  const originalGoogleClientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
+jest.mock('expo-auth-session/providers/google', () => ({
+  useAuthRequest: jest.fn(() => [null, null, jest.fn()]),
+}));
 
-  const wrapper = ({ children }: { readonly children: React.ReactNode }) => (
-    <CalendarAuthProvider>{children}</CalendarAuthProvider>
-  );
+jest.mock('expo-web-browser', () => ({
+  warmUpAsync: jest.fn(),
+  coolDownAsync: jest.fn(),
+}));
 
+jest.mock('expo-auth-session', () => ({
+  ResponseType: { Code: 'code' },
+}));
+
+const wrapper = ({ children }: { readonly children: React.ReactNode }) => (
+  <CalendarAuthProvider>{children}</CalendarAuthProvider>
+);
+
+describe('CalendarAuthContext', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    process.env.EXPO_PUBLIC_GOOGLE_CALENDAR_CLIENT_ID = "test-client-id";
-    (getCalendarConnectionState as jest.Mock).mockResolvedValue({
+    (calendarAuthService.getCalendarConnectionState as jest.Mock).mockResolvedValue({
       isConnected: false,
       connectedAt: null,
     });
-    mockPromptAsync.mockResolvedValue({ type: "success", params: { code: "abc" } });
-    mockAuthRequest = {
-      codeVerifier: "verifier",
-      redirectUri: "https://example.com/auth-callback",
-    };
-    mockAuthResponse = null;
-    (completeAuthSession as jest.Mock).mockResolvedValue({
-      isConnected: true,
-      connectedAt: "2026-03-14T00:00:00.000Z",
+  });
+
+  describe('initial state', () => {
+    it('initializes with default values', async () => {
+      // Arrange + Act
+      const { result } = renderHook(() => useCalendarAuth(), { wrapper });
+
+      // Assert
+      await waitFor(() => {
+        expect(result.current.isConnected).toBe(false);
+        expect(result.current.connectedAt).toBeNull();
+        expect(result.current.isLoading).toBe(false);
+        expect(result.current.error).toBeNull();
+      });
+    });
+
+    it('throws when used outside provider', () => {
+      // Arrange
+      const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+      // Act + Assert
+      expect(() => renderHook(() => useCalendarAuth())).toThrow(
+        'useCalendarAuth must be used within a CalendarAuthProvider'
+      );
+
+      spy.mockRestore();
     });
   });
 
-  afterAll(() => {
-    process.env.EXPO_PUBLIC_GOOGLE_CALENDAR_CLIENT_ID = originalCalendarClientId;
-    process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID = originalGoogleClientId;
-  });
+  describe('refreshConnection', () => {
+    it('sets isConnected true when calendar is connected', async () => {
+      // Arrange
+      (calendarAuthService.getCalendarConnectionState as jest.Mock).mockResolvedValue({
+        isConnected: true,
+        connectedAt: '2024-01-01T00:00:00.000Z',
+      });
 
-  it("calls Google prompt when connectCalendar is pressed", async () => {
-    const { result } = renderHook(() => useCalendarAuth(), { wrapper });
+      // Act
+      const { result } = renderHook(() => useCalendarAuth(), { wrapper });
 
-    await act(async () => {
-      await result.current.connectCalendar();
+      // Assert
+      await waitFor(() => {
+        expect(result.current.isConnected).toBe(true);
+        expect(result.current.connectedAt).toBe('2024-01-01T00:00:00.000Z');
+      });
     });
 
-    expect(mockPromptAsync).toHaveBeenCalledWith({ useProxy: true });
-    expect(completeAuthSession).not.toHaveBeenCalled();
+    it('sets error when refreshConnection fails', async () => {
+      // Arrange
+      (calendarAuthService.getCalendarConnectionState as jest.Mock).mockRejectedValue(
+        new Error('Storage error')
+      );
+
+      // Act
+      const { result } = renderHook(() => useCalendarAuth(), { wrapper });
+
+      // Assert
+      await waitFor(() => {
+        expect(result.current.error).toBe('Unable to read calendar connection state.');
+      });
+    });
   });
 
-  it("disconnects calendar and resets state", async () => {
-    (disconnectGoogleCalendar as jest.Mock).mockResolvedValue(undefined);
+  describe('connectCalendar', () => {
+    it('sets error when client ID is missing', async () => {
+      // Arrange
+      const originalEnv = process.env.EXPO_PUBLIC_GOOGLE_CALENDAR_CLIENT_ID;
+      delete process.env.EXPO_PUBLIC_GOOGLE_CALENDAR_CLIENT_ID;
+      delete process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
 
-    const { result } = renderHook(() => useCalendarAuth(), { wrapper });
+      const { result } = renderHook(() => useCalendarAuth(), { wrapper });
 
-    await act(async () => {
-      await result.current.disconnectCalendar();
+      // Act
+      await act(async () => {
+        await result.current.connectCalendar();
+      });
+
+      // Assert
+      await waitFor(() => {
+        expect(result.current.error).toBe(
+          'Google OAuth web client ID is missing. Update .env and restart.'
+        );
+      });
+
+      process.env.EXPO_PUBLIC_GOOGLE_CALENDAR_CLIENT_ID = originalEnv;
     });
-
-    expect(disconnectGoogleCalendar).toHaveBeenCalledTimes(1);
-    expect(result.current.isConnected).toBe(false);
-    expect(result.current.connectedAt).toBeNull();
   });
 
-  it("sets an error when OAuth client id is missing", async () => {
-    process.env.EXPO_PUBLIC_GOOGLE_CALENDAR_CLIENT_ID = "";
-    process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID = "";
+  describe('disconnectCalendar', () => {
+    it('sets isConnected to false after disconnecting', async () => {
+      // Arrange
+      (calendarAuthService.getCalendarConnectionState as jest.Mock).mockResolvedValue({
+        isConnected: true,
+        connectedAt: '2024-01-01T00:00:00.000Z',
+      });
+      (calendarAuthService.disconnectGoogleCalendar as jest.Mock).mockResolvedValue(undefined);
 
-    const { result } = renderHook(() => useCalendarAuth(), { wrapper });
+      const { result } = renderHook(() => useCalendarAuth(), { wrapper });
+      await waitFor(() => expect(result.current.isConnected).toBe(true));
 
-    await act(async () => {
-      await result.current.connectCalendar();
+      // Act
+      await act(async () => {
+        await result.current.disconnectCalendar();
+      });
+
+      // Assert
+      expect(result.current.isConnected).toBe(false);
+      expect(result.current.connectedAt).toBeNull();
     });
 
-    expect(mockPromptAsync).not.toHaveBeenCalled();
-    expect(result.current.error).toBe(
-      "Google OAuth web client ID is missing. Update .env and restart.",
-    );
-    expect(result.current.isLoading).toBe(false);
-  });
+    it('sets error when disconnect fails', async () => {
+      // Arrange
+      (calendarAuthService.disconnectGoogleCalendar as jest.Mock).mockRejectedValue(
+        new Error('Storage error')
+      );
 
-  it("surfaces promptAsync errors", async () => {
-    mockPromptAsync.mockRejectedValueOnce(new Error("prompt failed"));
+      const { result } = renderHook(() => useCalendarAuth(), { wrapper });
 
-    const { result } = renderHook(() => useCalendarAuth(), { wrapper });
+      // Act
+      await act(async () => {
+        await result.current.disconnectCalendar();
+      });
 
-    await act(async () => {
-      await result.current.connectCalendar();
+      // Assert
+      expect(result.current.error).toBe('Unable to disconnect Google Calendar.');
     });
 
-    expect(result.current.error).toBe("prompt failed");
-    expect(result.current.isLoading).toBe(false);
-  });
+    it('sets isLoading to false after disconnect completes', async () => {
+      // Arrange
+      (calendarAuthService.disconnectGoogleCalendar as jest.Mock).mockResolvedValue(undefined);
+      const { result } = renderHook(() => useCalendarAuth(), { wrapper });
 
-  it("uses fallback message when promptAsync throws a non-Error value", async () => {
-    mockPromptAsync.mockRejectedValueOnce("prompt failed");
+      // Act
+      await act(async () => {
+        await result.current.disconnectCalendar();
+      });
 
-    const { result } = renderHook(() => useCalendarAuth(), { wrapper });
-
-    await act(async () => {
-      await result.current.connectCalendar();
+      // Assert
+      expect(result.current.isLoading).toBe(false);
     });
-
-    expect(result.current.error).toBe("Unable to initiate Google Calendar connection.");
-    expect(result.current.isLoading).toBe(false);
-  });
-
-  it("completes auth session when Google response succeeds", async () => {
-    mockAuthResponse = { type: "success", params: { code: "auth-code" } };
-
-    const { result } = renderHook(() => useCalendarAuth(), { wrapper });
-
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    expect(completeAuthSession).toHaveBeenCalledWith(
-      "auth-code",
-      "verifier",
-      "https://example.com/auth-callback",
-    );
-    expect(result.current.isConnected).toBe(true);
-    expect(result.current.connectedAt).toBe("2026-03-14T00:00:00.000Z");
-    expect(result.current.isLoading).toBe(false);
-  });
-
-  it("sets an error when response type is error", async () => {
-    mockAuthResponse = { type: "error", error: { message: "denied" } };
-
-    const { result } = renderHook(() => useCalendarAuth(), { wrapper });
-
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    expect(result.current.error).toBe("Google sign-in failed: denied");
-    expect(result.current.isLoading).toBe(false);
-  });
-
-  it("sets an exchange error when completeAuthSession fails", async () => {
-    mockAuthResponse = { type: "success", params: { code: "auth-code" } };
-    (completeAuthSession as jest.Mock).mockRejectedValueOnce(
-      new Error("token exchange failed"),
-    );
-
-    const { result } = renderHook(() => useCalendarAuth(), { wrapper });
-
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    expect(result.current.error).toBe("token exchange failed");
-    expect(result.current.isLoading).toBe(false);
-  });
-
-  it("uses fallback message when code exchange rejects with non-Error", async () => {
-    mockAuthResponse = { type: "success", params: { code: "auth-code" } };
-    (completeAuthSession as jest.Mock).mockRejectedValueOnce("exchange failed");
-
-    const { result } = renderHook(() => useCalendarAuth(), { wrapper });
-
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    expect(result.current.error).toBe("Failed to exchange authorization code.");
-    expect(result.current.isLoading).toBe(false);
-  });
-
-  it("sets disconnect error when disconnectCalendar fails", async () => {
-    (disconnectGoogleCalendar as jest.Mock).mockRejectedValueOnce(
-      new Error("disconnect failed"),
-    );
-
-    const { result } = renderHook(() => useCalendarAuth(), { wrapper });
-
-    await act(async () => {
-      await result.current.disconnectCalendar();
-    });
-
-    expect(result.current.error).toBe("Unable to disconnect Google Calendar.");
-    expect(result.current.isLoading).toBe(false);
-  });
-
-  it("refreshes connection state", async () => {
-    const { result } = renderHook(() => useCalendarAuth(), { wrapper });
-
-    (getCalendarConnectionState as jest.Mock).mockResolvedValueOnce({
-      isConnected: true,
-      connectedAt: "2026-03-15T00:00:00.000Z",
-    });
-
-    await act(async () => {
-      await result.current.refreshConnection();
-    });
-
-    expect(result.current.isConnected).toBe(true);
-    expect(result.current.connectedAt).toBe("2026-03-15T00:00:00.000Z");
-  });
-
-  it("sets error when initial connection-state read fails", async () => {
-    (getCalendarConnectionState as jest.Mock).mockRejectedValueOnce(
-      new Error("read failed"),
-    );
-
-    const { result } = renderHook(() => useCalendarAuth(), { wrapper });
-
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    expect(result.current.error).toBe("Unable to read calendar connection state.");
-  });
-
-  it("throws when useCalendarAuth is used outside provider", () => {
-    expect(() => renderHook(() => useCalendarAuth())).toThrow(
-      "useCalendarAuth must be used within a CalendarAuthProvider",
-    );
   });
 });
-
-

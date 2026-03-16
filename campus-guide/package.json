@@ -19,9 +19,10 @@
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
     "@googlemaps/polyline-codec": "^1.0.28",
+    "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/native": "^7.1.8",
     "expo": "~54.0.33",
-    "expo-auth-session": "~7.0.8",
+    "expo-auth-session": "~7.0.10",
     "expo-build-properties": "~1.0.10",
     "expo-constants": "~18.0.13",
     "expo-font": "~14.0.11",
@@ -62,7 +63,13 @@
       "<rootDir>/jest.setup.js"
     ],
     "coverageDirectory": "coverage",
-    "coverageReporters": ["lcov", "text", "clover", "json-summary", "json"],
+    "coverageReporters": [
+      "lcov",
+      "text",
+      "clover",
+      "json-summary",
+      "json"
+    ],
     "collectCoverageFrom": [
       "app/**/*.{ts,tsx}",
       "components/**/*.{ts,tsx}",

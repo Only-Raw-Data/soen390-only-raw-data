@@ -45,10 +45,11 @@ export default function CalendarAuthProvider({
     process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID?.trim() ||
     "";
 
+  const redirectUri = getRedirectUri();
+
   const [request, response, promptAsync] = Google.useAuthRequest({
     clientId: googleClientId,
-    expoClientId: googleClientId,
-    redirectUri: getRedirectUri(),
+    redirectUri,
     scopes: [
       "https://www.googleapis.com/auth/calendar.readonly",
       "openid",
@@ -85,7 +86,7 @@ export default function CalendarAuthProvider({
     if (response?.type === "success" && request?.codeVerifier) {
       const { code } = response.params;
       setIsLoading(true);
-      completeAuthSession(code, request.codeVerifier, request.redirectUri)
+      completeAuthSession(code, request.codeVerifier, redirectUri)
         .then((state) => {
           setIsConnected(state.isConnected);
           setConnectedAt(state.connectedAt);
@@ -117,8 +118,7 @@ export default function CalendarAuthProvider({
     }
 
     try {
-      await promptAsync({ useProxy: true });
-      // The actual connection completion happens in the useEffect when response changes
+      await promptAsync();
     } catch (connectionError) {
       const message =
         connectionError instanceof Error

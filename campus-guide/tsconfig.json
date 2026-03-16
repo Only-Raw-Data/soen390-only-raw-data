@@ -30,7 +30,7 @@
         "./app/screens/*"
       ],
       "@services/*": [
-        "./services/*"
+        "./app/services/*"
       ],
       "@types/*": [
         "./types/*"
