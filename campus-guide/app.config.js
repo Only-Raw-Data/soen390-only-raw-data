@@ -44,7 +44,13 @@ export default {
     },
 
     plugins: [
-      "expo-router",
+      [
+        "expo-router",
+        {
+          "origin": "https://campus-guide.com",
+          "asyncRoutes": "development"
+        }
+      ],
       [
         "expo-location",
         {

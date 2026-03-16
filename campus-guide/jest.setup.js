@@ -69,3 +69,19 @@ jest.mock("@expo/vector-icons", () => ({
   Ionicons: "Ionicons",
   FontAwesome: "FontAwesome",
 }));
+
+// Mock expo-file-system/next
+jest.mock('expo-file-system/next', () => ({
+  Directory: jest.fn().mockImplementation(() => ({
+    exists: true,
+    create: jest.fn(),
+  })),
+  File: jest.fn().mockImplementation(() => ({
+    exists: false,
+    text: jest.fn().mockResolvedValue('{}'),
+    write: jest.fn(),
+  })),
+  Paths: {
+    cache: 'cache_dir',
+  },
+}));
