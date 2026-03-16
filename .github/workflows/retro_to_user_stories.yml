@@ -122,6 +122,7 @@ jobs:
               body: commentBody,
             });
 
+
             // Add label to prevent duplicates
             await github.rest.issues.addLabels({
               owner, repo,
