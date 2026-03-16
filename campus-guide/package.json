@@ -75,6 +75,7 @@
       "components/**/*.{ts,tsx}",
       "constants/**/*.{ts,tsx}",
       "!**/_layout.tsx",
+      "!**/schedule.tsx",
       "!app/(tabs)/schedule.tsx",
       "!**/__tests__/**",
       "!**/node_modules/**",
