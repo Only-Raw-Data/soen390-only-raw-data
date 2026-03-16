@@ -23,7 +23,9 @@ import { IndoorStep, NavigationStep, OutdoorStep } from "@app/types/navigation";
 import { planCrossBuildingRoute } from "@app/services/crossBuildingRouteService";
 import StoryOutdoorMap from "./StoryOutdoorMap";
 
-const shouldLogIndoorMapDebug = process.env.NODE_ENV !== "test";
+function shouldLogIndoorMapDebug() {
+  return process.env.NODE_ENV !== "test" || process.env.INDOOR_MAP_DEBUG === "1";
+}
 
 const BUILDING_LAT_DELTA = 0.002;
 const BUILDING_LNG_DELTA = 0.002;
@@ -419,7 +421,7 @@ export default function IndoorMapView() {
       longitudeDelta: DEFAULT_LNG_DELTA,
     };
 
-  if (shouldLogIndoorMapDebug) {
+  if (shouldLogIndoorMapDebug()) {
     console.log("[IndoorMapView] RENDER", {
       floorTransitioning,
       pathCoordinatesLength: pathCoordinates.length,
@@ -691,7 +693,7 @@ export default function IndoorMapView() {
           initialRegion={initialRegion}
           testID="indoor-map"
           onMapReady={() => {
-            if (shouldLogIndoorMapDebug) {
+            if (shouldLogIndoorMapDebug()) {
               console.log("[IndoorMapView] MAP READY");
             }
           }}
@@ -847,7 +849,7 @@ export default function IndoorMapView() {
           {/* Room number labels */}
           {(() => {
             const labelFeatures = polygonFeatures.filter((f) => !!f.properties?.ref);
-            if (shouldLogIndoorMapDebug) {
+            if (shouldLogIndoorMapDebug()) {
               console.log("[IndoorMapView] LABELS", {
                 polygonFeaturesCount: polygonFeatures.length,
                 labelFeaturesCount: labelFeatures.length,

@@ -1357,5 +1357,52 @@ describe("IndoorMapView", () => {
       });
     });
   });
+
+  describe("debug logging branches", () => {
+    it("logs render, map-ready, and labels payloads when debug flag is enabled", () => {
+      // Arrange
+      const previousDebugFlag = process.env.INDOOR_MAP_DEBUG;
+      const logSpy = jest.spyOn(console, "log").mockImplementation(() => undefined);
+
+      try {
+        process.env.INDOOR_MAP_DEBUG = "1";
+
+        setupBuildingWithFeature("H813");
+
+        // Act
+        const { getByTestId } = render(<IndoorMapView />);
+        fireEvent(getByTestId("indoor-map"), "onMapReady");
+
+        // Assert
+        expect(logSpy).toHaveBeenCalledWith(
+          "[IndoorMapView] RENDER",
+          expect.objectContaining({
+            floorTransitioning: false,
+            selectedFloor: 8,
+            pathCoordinatesLength: 0,
+            willRenderPolyline: false,
+          }),
+        );
+        expect(logSpy).toHaveBeenCalledWith("[IndoorMapView] MAP READY");
+        expect(logSpy).toHaveBeenCalledWith(
+          "[IndoorMapView] LABELS",
+          expect.objectContaining({
+            polygonFeaturesCount: 1,
+            labelFeaturesCount: 1,
+            selectedBuilding: "H",
+            selectedFloor: 8,
+            sampleRefs: ["H813"],
+          }),
+        );
+      } finally {
+        if (previousDebugFlag === undefined) {
+          delete process.env.INDOOR_MAP_DEBUG;
+        } else {
+          process.env.INDOOR_MAP_DEBUG = previousDebugFlag;
+        }
+        logSpy.mockRestore();
+      }
+    });
+  });
 });
 
