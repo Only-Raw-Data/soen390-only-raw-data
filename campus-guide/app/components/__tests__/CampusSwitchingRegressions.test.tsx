@@ -1,22 +1,22 @@
 import React from "react";
 import { render, fireEvent, act, waitFor } from "@testing-library/react-native";
-import MapViewApp from "../MapView";
-import { useDirections } from "../../context/DirectionsContext";
-import useBuildingPolygons from "../../hooks/useBuildingPolygons";
+import MapViewApp from "@/app/components/MapView";
+import { useDirections } from "@context/DirectionsContext";
+import useBuildingPolygons from "@hooks/useBuildingPolygons";
 import { useIsFocused } from "@react-navigation/native";
-import { SGW_BUILDINGS, LOYOLA_BUILDINGS } from "../../../constants/buildings";
+import { SGW_BUILDINGS, LOYOLA_BUILDINGS } from "@constants/buildings";
 
 // Mocks
-jest.mock("../../context/DirectionsContext", () => ({
+jest.mock("@context/DirectionsContext", () => ({
   useDirections: jest.fn(),
 }));
 
-jest.mock("../../hooks/useBuildingPolygons", () => ({
+jest.mock("@hooks/useBuildingPolygons", () => ({
   __esModule: true,
   default: jest.fn(),
 }));
 
-jest.mock("../../hooks/useUserLocation", () => ({
+jest.mock("@hooks/useUserLocation", () => ({
   __esModule: true,
   default: jest.fn(() => ({
     location: null,

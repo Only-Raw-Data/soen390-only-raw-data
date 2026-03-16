@@ -1,9 +1,9 @@
 import { renderHook, act, waitFor } from '@testing-library/react-native';
-import usePOIs from '../usePOIs';
-import { fetchPOIs } from '../../services/poiService';
+import usePOIs from '@hooks/usePOIs';
+import { fetchPOIs } from '@services/poiService';
 
 // Mock the POI service
-jest.mock('../../services/poiService', () => ({
+jest.mock('@services/poiService', () => ({
   fetchPOIs: jest.fn()
 }));
 

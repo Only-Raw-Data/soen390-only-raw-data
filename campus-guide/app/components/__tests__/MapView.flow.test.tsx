@@ -1,21 +1,21 @@
 import React from "react";
 import { render, act } from "@testing-library/react-native";
-import MapViewApp from "../MapView";
-import { useDirections } from "../../context/DirectionsContext";
-import useBuildingPolygons from "../../hooks/useBuildingPolygons";
+import MapViewApp from "@/app/components/MapView";
+import { useDirections } from "@context/DirectionsContext";
+import useBuildingPolygons from "@hooks/useBuildingPolygons";
 import { useIsFocused } from "@react-navigation/native";
 
 // Mocks
-jest.mock("../../context/DirectionsContext", () => ({
+jest.mock("@context/DirectionsContext", () => ({
   useDirections: jest.fn(),
 }));
 
-jest.mock("../../hooks/useBuildingPolygons", () => ({
+jest.mock("@hooks/useBuildingPolygons", () => ({
   __esModule: true,
   default: jest.fn(),
 }));
 
-jest.mock("../../hooks/useUserLocation", () => ({
+jest.mock("@hooks/useUserLocation", () => ({
   __esModule: true,
   default: jest.fn(() => ({
     location: null,
