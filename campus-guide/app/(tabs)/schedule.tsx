@@ -10,12 +10,17 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import Header from "@app/components/Header";
 import { useCalendarAuth } from "@context/CalendarAuthContext";
+import { formatHourLabel } from "@utils/timeFormat";
+import { buildHourSlots } from "@utils/timeSlots";
 
 type WeekDay = {
   label: string;
   dayNumber: string;
   isActive?: boolean;
 };
+
+const SCHEDULE_START_HOUR_24 = 8;
+const SCHEDULE_HOUR_SLOTS = 12;
 
 const WEEK_DAYS: WeekDay[] = [
   { label: "MON", dayNumber: "16" },
@@ -25,13 +30,7 @@ const WEEK_DAYS: WeekDay[] = [
   { label: "FRI", dayNumber: "20" },
 ];
 
-const HOURS = Array.from({ length: 12 }, (_, i) => i + 8);
-
-function formatHourLabel(hour24: number): string {
-  const suffix = hour24 >= 12 ? "PM" : "AM";
-  const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
-  return `${hour12}:00 ${suffix}`;
-}
+const HOURS = buildHourSlots(SCHEDULE_START_HOUR_24, SCHEDULE_HOUR_SLOTS);
 
 export default function ScheduleScreen() {
   const { connectCalendar, isLoading, isConnected, error } = useCalendarAuth();
@@ -241,4 +240,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 });
+
 

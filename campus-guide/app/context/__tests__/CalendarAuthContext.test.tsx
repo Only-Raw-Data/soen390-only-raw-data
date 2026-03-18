@@ -51,7 +51,9 @@ describe('CalendarAuthContext', () => {
 
   describe('initial state', () => {
     it('initializes with default values', async () => {
-      // Arrange + Act
+      // Arrange
+
+      // Act
       const { result } = renderHook(() => useCalendarAuth(), { wrapper });
 
       // Assert
@@ -67,7 +69,9 @@ describe('CalendarAuthContext', () => {
       // Arrange
       const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-      // Act + Assert
+      // Act
+
+      // Assert
       expect(() => renderHook(() => useCalendarAuth())).toThrow(
         'useCalendarAuth must be used within a CalendarAuthProvider'
       );
@@ -290,7 +294,9 @@ describe('CalendarAuthContext', () => {
 
   describe('web browser lifecycle', () => {
     it('warms up on mount and cools down on unmount', () => {
-      // Arrange + Act
+      // Arrange
+
+      // Act
       const { unmount } = renderHook(() => useCalendarAuth(), { wrapper });
 
       // Assert

@@ -15,6 +15,7 @@ import {
   getCalendarConnectionState,
   getRedirectUri,
 } from "@services/calendarAuthService";
+import { GOOGLE_CALENDAR_SCOPES } from "@constants/calendarAuth";
 
 interface CalendarAuthContextType {
   isConnected: boolean;
@@ -50,12 +51,7 @@ export default function CalendarAuthProvider({
   const [request, response, promptAsync] = Google.useAuthRequest({
     clientId: googleClientId,
     redirectUri,
-    scopes: [
-      "https://www.googleapis.com/auth/calendar.readonly",
-      "openid",
-      "email",
-      "profile",
-    ],
+    scopes: GOOGLE_CALENDAR_SCOPES,
     responseType: ResponseType.Code,
     extraParams: {
       access_type: "offline",
@@ -84,23 +80,30 @@ export default function CalendarAuthProvider({
 
   useEffect(() => {
     if (response?.type === "success" && request?.codeVerifier) {
-      const { code } = response.params;
-      setIsLoading(true);
-      completeAuthSession(code, request.codeVerifier, redirectUri)
-        .then((state) => {
+      const exchangeAuthorizationCode = async () => {
+        const { code } = response.params;
+        setIsLoading(true);
+
+        try {
+          const state = await completeAuthSession(
+            code,
+            request.codeVerifier,
+            redirectUri,
+          );
           setIsConnected(state.isConnected);
           setConnectedAt(state.connectedAt);
-        })
-        .catch((err) => {
+        } catch (err) {
           setError(
             err instanceof Error
               ? err.message
               : "Failed to exchange authorization code.",
           );
-        })
-        .finally(() => {
+        } finally {
           setIsLoading(false);
-        });
+        }
+      };
+
+      void exchangeAuthorizationCode();
     } else if (response?.type === "error") {
       setError("Google sign-in failed: " + response.error?.message);
       setIsLoading(false);
