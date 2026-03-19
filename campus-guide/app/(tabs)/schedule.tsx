@@ -16,18 +16,18 @@ import { buildHourSlots } from "@utils/timeSlots";
 type WeekDay = {
   label: string;
   dayNumber: string;
-  isActive?: boolean;
+  isActive: boolean;
 };
 
 const SCHEDULE_START_HOUR_24 = 8;
 const SCHEDULE_HOUR_SLOTS = 12;
 
 const WEEK_DAYS: WeekDay[] = [
-  { label: "MON", dayNumber: "16" },
+  { label: "MON", dayNumber: "16", isActive: false },
   { label: "TUE", dayNumber: "17", isActive: true },
-  { label: "WED", dayNumber: "18" },
-  { label: "THU", dayNumber: "19" },
-  { label: "FRI", dayNumber: "20" },
+  { label: "WED", dayNumber: "18", isActive: false },
+  { label: "THU", dayNumber: "19", isActive: false },
+  { label: "FRI", dayNumber: "20", isActive: false },
 ];
 
 const HOURS = buildHourSlots(SCHEDULE_START_HOUR_24, SCHEDULE_HOUR_SLOTS);
