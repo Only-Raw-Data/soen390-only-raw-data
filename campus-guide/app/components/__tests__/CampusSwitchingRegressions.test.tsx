@@ -97,14 +97,18 @@ describe("Campus switching route/map state regression tests", () => {
   // AC1: Campus switching preserves correct map context
   // --------------------------------------------------
   it("switchCampus updates active campus and map context correctly", () => {
+    // Arrange
     setupMocks();
     const { getByText } = render(<MapViewApp />);
 
     // Initial state is SGW (default in MapView)
     expect(useBuildingPolygons).toHaveBeenCalledWith("SGW");
 
+    // Act
     // Switch to Loyola
     fireEvent.press(getByText("Loyola Campus"));
+    
+    // Assert
     expect(useBuildingPolygons).toHaveBeenCalledWith("Loyola");
   });
 
@@ -112,6 +116,7 @@ describe("Campus switching route/map state regression tests", () => {
   // AC3: Route state resets correctly on campus change
   // --------------------------------------------------
   it("switchCampus clears existing route from previous campus", () => {
+    // Arrange
     setupMocks({
       startBuilding: sgwStart,
       destinationBuilding: sgwEnd,
@@ -119,8 +124,10 @@ describe("Campus switching route/map state regression tests", () => {
       showRoute: true,
     });
 
+    // Act
     const { getByText } = render(<MapViewApp />);
     
+    // Assert
     // AC3 is deprecated: we no longer clear the route when switching campus.
     // Switching campus should NOT clear the route.
     expect(mockClearDirections).not.toHaveBeenCalled();
@@ -130,9 +137,11 @@ describe("Campus switching route/map state regression tests", () => {
   // AC5: Repeated campus switching does not crash
   // --------------------------------------------------
   it("repeated campus switching with active route does not throw", () => {
+    // Arrange
     setupMocks();
     const { getByText } = render(<MapViewApp />);
 
+    // Act
     expect(() => {
       for (let i = 0; i < 5; i++) {
         fireEvent.press(getByText("Loyola Campus"));
@@ -145,10 +154,12 @@ describe("Campus switching route/map state regression tests", () => {
   // Cross-campus validation tests
   // --------------------------------------------------
   it("switching campus clears selections that belong to previous campus", () => {
+    // Arrange
     setupMocks({
         startBuilding: sgwStart,
     });
 
+    // Act
     const { getByText } = render(<MapViewApp />);
     
     // clearDirections is no longer called on campus switch, route should be preserved

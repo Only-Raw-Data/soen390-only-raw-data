@@ -18,37 +18,44 @@ describe('usePOIs', () => {
   });
 
   it('should not fetch POIs if enabled is false', async () => {
+    // Arrange
     const { result } = renderHook(() => 
       usePOIs({ lat: 45.5, lon: -73.5, enabled: false })
     );
 
+    // Assert
     expect(result.current.loading).toBe(false);
     expect(result.current.pois).toEqual([]);
     expect(fetchPOIs).not.toHaveBeenCalled();
   });
 
   it('should not fetch POIs if lat or lon is missing', async () => {
+    // Arrange
     const { result } = renderHook(() => 
       usePOIs({ lat: undefined, lon: undefined, enabled: true })
     );
 
+    // Assert
     expect(result.current.loading).toBe(false);
     expect(result.current.pois).toEqual([]);
     expect(fetchPOIs).not.toHaveBeenCalled();
   });
 
   it('should fetch POIs successfully when enabled with coordinates', async () => {
+    // Arrange
     (fetchPOIs as jest.Mock).mockResolvedValueOnce(mockPois);
 
     const { result } = renderHook(() => 
       usePOIs({ lat: 45.5, lon: -73.5, radius: 1000, limit: 10, enabled: true })
     );
 
+    // Assert
     expect(result.current.loading).toBe(true);
     expect(result.current.pois).toEqual([]);
 
     await waitFor(() => expect(result.current.loading).toBe(false));
 
+    // Assert
     expect(fetchPOIs).toHaveBeenCalledWith(45.5, -73.5, 1000, 10);
     expect(result.current.loading).toBe(false);
     expect(result.current.pois).toEqual(mockPois);
@@ -56,13 +63,16 @@ describe('usePOIs', () => {
   });
 
   it('should handle errors from the fetch call', async () => {
+    // Arrange
     const mockError = new Error('Network error');
     (fetchPOIs as jest.Mock).mockRejectedValueOnce(mockError);
 
+    // Act
     const { result } = renderHook(() => 
       usePOIs({ lat: 45.5, lon: -73.5, enabled: true })
     );
 
+    // Assert
     expect(result.current.loading).toBe(true);
 
     await waitFor(() => expect(result.current.loading).toBe(false));
@@ -73,6 +83,7 @@ describe('usePOIs', () => {
   });
 
   it('should not update state if unmounted before fetch completes', async () => {
+    // Arrange
     // Return a promise that doesn't resolve immediately
     let resolvePromise: any;
     const fetchPromise = new Promise(resolve => {
@@ -80,6 +91,7 @@ describe('usePOIs', () => {
     });
     (fetchPOIs as jest.Mock).mockReturnValueOnce(fetchPromise);
 
+    // Act
     const { result, unmount } = renderHook(() => 
       usePOIs({ lat: 45.5, lon: -73.5 }) // test default radius, limit, enabled
     );
@@ -91,7 +103,7 @@ describe('usePOIs', () => {
     await act(async () => {
       resolvePromise(mockPois);
     });
-
+    // Assert
     // POIs should still be empty because it was cancelled
     expect(result.current.pois).toEqual([]);
   });

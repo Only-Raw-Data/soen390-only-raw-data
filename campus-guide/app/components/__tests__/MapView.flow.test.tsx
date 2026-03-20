@@ -100,6 +100,7 @@ describe("MapViewApp - Complex Route Flow", () => {
   });
 
   it("handles complex flow: multiple mode switches, campus switch, and back", () => {
+    // Arrange
     const directionsBase = {
       startBuilding: { id: "h", campus: "SGW" },
       destinationBuilding: { id: "mb", campus: "SGW" },
@@ -108,51 +109,74 @@ describe("MapViewApp - Complex Route Flow", () => {
       setDestinationBuilding: jest.fn(),
     };
 
+    // Act
     // 1. Initial Render
     const { rerender, getAllByTestId, queryAllByTestId } = render(
       <MapViewApp />,
     );
 
+    // Assert
     expect(queryAllByTestId("route-polyline")).toHaveLength(0);
 
+    // Arrange
     // 2. Set Walk Route
     (useDirections as jest.Mock).mockReturnValue({
       ...directionsBase,
       transportationMode: "walk",
       route: mockRouteWalk,
     });
+    
+    // Act
     rerender(<MapViewApp />);
     let polylines = getAllByTestId("route-polyline");
+    
+    // Assert
     expect(polylines).toHaveLength(1);
     expect(polylines[0].props.accessibilityLabel).toBe("polyline-2-coords");
 
+    // Arrange
     // 3. Switch to Car mode
     (useDirections as jest.Mock).mockReturnValue({
       ...directionsBase,
       transportationMode: "car",
       route: mockRouteCar,
     });
+    
+    // Act
     rerender(<MapViewApp />);
     polylines = getAllByTestId("route-polyline");
+    
+    // Assert
     expect(polylines).toHaveLength(1);
     expect(polylines[0].props.accessibilityLabel).toBe("polyline-2-coords");
 
+    // Arrange
     // 4. Switch back to Walk mode
     (useDirections as jest.Mock).mockReturnValue({
       ...directionsBase,
       transportationMode: "walk",
       route: mockRouteWalk,
     });
+    
+    // Act
     rerender(<MapViewApp />);
     polylines = getAllByTestId("route-polyline");
+    
+    // Assert
     expect(polylines).toHaveLength(1);
 
+    // Arrange
     // 5. Blur the map (simulating tab switch)
     // Note: useIsFocused logic has been removed from MapView to keep routes rendering
     (useIsFocused as jest.Mock).mockReturnValue(false);
+    
+    // Act
     rerender(<MapViewApp />);
+    
+    // Assert
     expect(getAllByTestId("route-polyline")).toHaveLength(1);
 
+    // Arrange
     // 6. Focus again and switch to Transit
     (useIsFocused as jest.Mock).mockReturnValue(true);
     (useDirections as jest.Mock).mockReturnValue({
@@ -160,11 +184,16 @@ describe("MapViewApp - Complex Route Flow", () => {
       transportationMode: "transit",
       route: mockRouteTransit,
     });
+    
+    // Act
     rerender(<MapViewApp />);
     polylines = getAllByTestId("route-polyline");
+    
+    // Assert
     // Transit segments: 1 walk, 1 bus
     expect(polylines).toHaveLength(2);
 
+    // Arrange
     act(() => {
       // In a real app, this would be triggered by pressing the button
       // Here we just rerender to ensure nothing broke
@@ -177,8 +206,12 @@ describe("MapViewApp - Complex Route Flow", () => {
       transportationMode: "walk",
       route: mockRouteWalk,
     });
+    
+    // Act
     rerender(<MapViewApp />);
     polylines = getAllByTestId("route-polyline");
+    
+    // Assert
     expect(polylines).toHaveLength(1);
   });
 });
