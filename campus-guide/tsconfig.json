@@ -8,6 +8,9 @@
       "@/*": [
         "./*"
       ],
+      "@app/*": [
+        "./app/*"
+      ],
       "@constants/*": [
         "./constants/*"
       ],
@@ -30,10 +33,10 @@
         "./app/services/*"
       ],
       "@types/*": [
-        "./app/types/*"
+        "./types/*"
       ],
       "@utils/*": [
-        "./app/utils/*"
+        "./utils/*"
       ]
     }
   },
