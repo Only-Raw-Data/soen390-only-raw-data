@@ -1,10 +1,14 @@
-import React from "react";
+import * as React from "react";
 import { render, fireEvent, act, waitFor } from "@testing-library/react-native";
 import MapViewApp from "@/app/components/MapView";
 import { useDirections } from "@context/DirectionsContext";
 import useBuildingPolygons from "@hooks/useBuildingPolygons";
 import { useIsFocused } from "@react-navigation/native";
 import { SGW_BUILDINGS, LOYOLA_BUILDINGS } from "@constants/buildings";
+import { POIProvider } from "@context/POIContext";
+
+const renderWithProvider = (ui: React.ReactElement) =>
+  render(<POIProvider children={ui} />);
 
 // Mocks
 jest.mock("@context/DirectionsContext", () => ({
@@ -99,7 +103,7 @@ describe("Campus switching route/map state regression tests", () => {
   it("switchCampus updates active campus and map context correctly", () => {
     // Arrange
     setupMocks();
-    const { getByText } = render(<MapViewApp />);
+    const { getByText } = renderWithProvider(<MapViewApp />);
 
     // Initial state is SGW (default in MapView)
     expect(useBuildingPolygons).toHaveBeenCalledWith("SGW");
@@ -125,7 +129,7 @@ describe("Campus switching route/map state regression tests", () => {
     });
 
     // Act
-    const { getByText } = render(<MapViewApp />);
+    const { getByText } = renderWithProvider(<MapViewApp />);
     
     // Assert
     // AC3 is deprecated: we no longer clear the route when switching campus.
@@ -139,7 +143,7 @@ describe("Campus switching route/map state regression tests", () => {
   it("repeated campus switching with active route does not throw", () => {
     // Arrange
     setupMocks();
-    const { getByText } = render(<MapViewApp />);
+    const { getByText } = renderWithProvider(<MapViewApp />);
 
     // Act
     expect(() => {
@@ -160,7 +164,7 @@ describe("Campus switching route/map state regression tests", () => {
     });
 
     // Act
-    const { getByText } = render(<MapViewApp />);
+    const { getByText } = renderWithProvider(<MapViewApp />);
     
     // clearDirections is no longer called on campus switch, route should be preserved
     expect(mockClearDirections).not.toHaveBeenCalled();

@@ -391,9 +391,13 @@ export default function MapViewApp({
             );
           })}
 
-          {/* Existing Markers */}
-          {filteredBuildings
-            .filter((b) => b.campus === selectedCampus)
+          {/* Marker Rendering */}
+          {(selectedCampus === "SGW" ? SGW_BUILDINGS : LOYOLA_BUILDINGS)
+            .filter(
+              (b) =>
+                b.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                b.code.toLowerCase().includes(searchQuery.toLowerCase()),
+            )
             .map((building) => {
               const isCurrentLocation = highlightedBuildingId === building.id;
               return (
@@ -534,6 +538,7 @@ export default function MapViewApp({
                     const segKey = `transit-seg-${seg.mode}-${i}-${seg.coordinates[0]?.latitude ?? i}`;
                     return (
                       <Polyline
+                        // @ts-ignore - key is a React reserved prop, missing in MapPolylineProps but required in map()
                         key={segKey}
                         coordinates={seg.coordinates}
                         strokeWidth={isWalk ? 3 : 5}
@@ -598,6 +603,7 @@ export default function MapViewApp({
         {(startBuilding || destinationBuilding) && (
           <TouchableOpacity
             style={styles.clearSelectionButton}
+            testID="clear-directions-button"
             onPress={() => {
               clearDirections();
               setSelectedBuilding(null);

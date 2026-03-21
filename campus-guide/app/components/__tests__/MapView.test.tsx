@@ -1,11 +1,11 @@
-import React from "react";
+import * as React from "react";
 import { render, fireEvent, act, waitFor } from "@testing-library/react-native";
 import MapViewApp from "../MapView";
 import { useDirections } from "../../context/DirectionsContext";
 import { POIProvider } from "../../context/POIContext";
 
 const renderWithProvider = (ui: React.ReactElement) =>
-  render(<POIProvider>{ui}</POIProvider>);
+  render(<POIProvider children={ui} />);
 import useBuildingPolygons from "../../hooks/useBuildingPolygons";
 import useUserLocation from "../../hooks/useUserLocation";
 import usePOIs from "../../hooks/usePOIs";
@@ -659,11 +659,7 @@ describe("MapViewApp", () => {
       (useDirections as jest.Mock).mockReturnValue(
         createDirectionsMock({ route: mockRoute2 }),
       );
-      screen.rerender(
-        <POIProvider>
-          <MapViewApp />
-        </POIProvider>,
-      );
+      screen.rerender(<POIProvider children={<MapViewApp />} />);
 
       // Assert
       await waitFor(() => {
@@ -767,7 +763,7 @@ describe("MapViewApp", () => {
 
     it("switches campus context and animates map when a cross-campus building is somehow selected", async () => {
       // Arrange
-      const { SGW_BUILDINGS } = require("@constants/buildings");
+      const { SGW_BUILDINGS } = require("@/constants/buildings");
       const spyBuilding = {
         id: "cross-campus-spy",
         name: "Spy Building",
