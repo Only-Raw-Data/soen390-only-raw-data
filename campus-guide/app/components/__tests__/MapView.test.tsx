@@ -227,12 +227,14 @@ describe("MapViewApp", () => {
   let mockSetDestinationBuilding: jest.Mock;
   let mockGetCurrentLocation: jest.Mock;
   let mockClearDirections: jest.Mock;
+  let mockSetStartCoords: jest.Mock;
 
   const setupDefaultMocks = () => {
     (useDirections as jest.Mock).mockReturnValue(
       createDirectionsMock({
         setStartBuilding: mockSetStartBuilding,
         setDestinationBuilding: mockSetDestinationBuilding,
+        setStartCoords: mockSetStartCoords,
         clearDirections: mockClearDirections,
       }),
     );
@@ -267,6 +269,7 @@ describe("MapViewApp", () => {
     mockSetDestinationBuilding = jest.fn();
     mockClearDirections = jest.fn();
     mockGetCurrentLocation = jest.fn();
+    mockSetStartCoords = jest.fn();
     setupDefaultMocks();
   });
 
@@ -716,7 +719,14 @@ describe("MapViewApp", () => {
     });
 
     it("shows POI bottom bar and triggers Get Directions", () => {
-      // Arrange
+      // Provide a mock user location to test the auto-start-coords feature
+      (useUserLocation as jest.Mock).mockReturnValue(
+        createUserLocationMock({
+          location: { coords: { latitude: 45.4971, longitude: -73.5791 } },
+          getCurrentLocation: mockGetCurrentLocation 
+        }),
+      );
+
       const screen = render(<MapViewApp />);
       // Enable POIs
       fireEvent.press(screen.getByTestId("poi-toggle-button"));
@@ -734,8 +744,9 @@ describe("MapViewApp", () => {
       expect(mockSetDestinationBuilding).toHaveBeenCalledWith(
         expect.objectContaining({ id: "poi-999", name: "Mock Cafe POI" })
       );
-      // Start should be cleared to force Current Location
-      expect(mockSetStartBuilding).toHaveBeenCalledWith(null);
+      // Start building won't be cleared, but startCoords should be injected
+      expect(mockSetStartBuilding).not.toHaveBeenCalledWith(null);
+      expect(mockSetStartCoords).toHaveBeenCalledWith({ lat: 45.4971, lng: -73.5791 });
     });
   });
 

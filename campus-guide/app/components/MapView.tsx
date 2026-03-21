@@ -51,8 +51,10 @@ export default function MapViewApp({
   const {
     startBuilding,
     destinationBuilding,
+    startCoords,
     setStartBuilding,
     setDestinationBuilding,
+    setStartCoords,
     clearDirections,
     route,
     transportationMode,
@@ -236,7 +238,14 @@ export default function MapViewApp({
   const handleGetDirectionsForPOI = (poi: PointOfInterest) => {
     const adaptedBuilding = poiToBuildingAdapter(poi, selectedCampus);
     setDestinationBuilding(adaptedBuilding);
-    setStartBuilding(null); // Force "Current Location" as the start
+    
+    // Automatically use the user's current location as the start point if no start is explicitly set
+    if (!startBuilding && !startCoords && userLocation?.coords) {
+      setStartCoords({
+        lat: userLocation.coords.latitude,
+        lng: userLocation.coords.longitude,
+      });
+    }
     
     setSelectedPOI(null);
     router.push("/(tabs)/two");
