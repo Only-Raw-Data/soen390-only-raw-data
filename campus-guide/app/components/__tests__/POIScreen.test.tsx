@@ -4,6 +4,10 @@
 import React from "react";
 import { render, fireEvent, waitFor } from "@testing-library/react-native";
 import POIScreen from "@app/(tabs)/poi";
+import { POIProvider } from "@app/context/POIContext";
+
+const renderWithProvider = (ui: React.ReactElement) =>
+  render(<POIProvider>{ui}</POIProvider>);
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -65,8 +69,18 @@ jest.mock("@app/utils/poiUtils", () => ({
 // Mock constants
 jest.mock("@constants/buildings", () => ({
   CAMPUS_REGIONS: {
-    SGW: { latitude: 45.4972, longitude: -73.5788, latitudeDelta: 0.01, longitudeDelta: 0.01 },
-    Loyola: { latitude: 45.4582, longitude: -73.6405, latitudeDelta: 0.01, longitudeDelta: 0.01 },
+    SGW: {
+      latitude: 45.4972,
+      longitude: -73.5788,
+      latitudeDelta: 0.01,
+      longitudeDelta: 0.01,
+    },
+    Loyola: {
+      latitude: 45.4582,
+      longitude: -73.6405,
+      latitudeDelta: 0.01,
+      longitudeDelta: 0.01,
+    },
   },
 }));
 
@@ -117,30 +131,47 @@ const SAMPLE_POIS = [
 
 describe("POIScreen", () => {
   beforeEach(() => {
+    // Arrange: Reset mocks and set default return value for usePOIs
     jest.clearAllMocks();
-    mockUsePOIs.mockReturnValue({ pois: SAMPLE_POIS, loading: false, error: null });
+    mockUsePOIs.mockReturnValue({
+      pois: SAMPLE_POIS,
+      loading: false,
+      error: null,
+    });
   });
 
   describe("Rendering", () => {
     it("renders the screen with header and title", () => {
-      const { getByTestId, getByText } = render(<POIScreen />);
+      // Act: Render the screen with the provider
+      const { getByTestId, getByText } = renderWithProvider(<POIScreen />);
+
+      // Assert: Verify core elements are present
       expect(getByTestId("mock-header")).toBeTruthy();
       expect(getByText("Points of Interest")).toBeTruthy();
     });
 
     it("renders the campus selector buttons", () => {
-      const { getByTestId } = render(<POIScreen />);
+      // Act
+      const { getByTestId } = renderWithProvider(<POIScreen />);
+
+      // Assert
       expect(getByTestId("campus-btn-SGW")).toBeTruthy();
       expect(getByTestId("campus-btn-Loyola")).toBeTruthy();
     });
 
     it("renders the search input", () => {
-      const { getByTestId } = render(<POIScreen />);
+      // Act
+      const { getByTestId } = renderWithProvider(<POIScreen />);
+
+      // Assert
       expect(getByTestId("search-input")).toBeTruthy();
     });
 
     it("renders the radius selector pills", () => {
-      const { getByTestId } = render(<POIScreen />);
+      // Act
+      const { getByTestId } = renderWithProvider(<POIScreen />);
+
+      // Assert
       expect(getByTestId("radius-slider")).toBeTruthy();
       expect(getByTestId("radius-option-0.5")).toBeTruthy();
       expect(getByTestId("radius-option-1")).toBeTruthy();
@@ -148,7 +179,10 @@ describe("POIScreen", () => {
     });
 
     it("renders the category filter chips", () => {
-      const { getByTestId } = render(<POIScreen />);
+      // Act
+      const { getByTestId } = renderWithProvider(<POIScreen />);
+
+      // Assert
       expect(getByTestId("category-chips")).toBeTruthy();
       expect(getByTestId("category-chip-all")).toBeTruthy();
       expect(getByTestId("category-chip-coffee")).toBeTruthy();
@@ -158,33 +192,50 @@ describe("POIScreen", () => {
     });
 
     it("renders all POI items when pois are returned", () => {
-      const { getByTestId } = render(<POIScreen />);
+      // Act
+      const { getByTestId } = renderWithProvider(<POIScreen />);
+
+      // Assert
       expect(getByTestId("poi-item-1")).toBeTruthy();
       expect(getByTestId("poi-item-2")).toBeTruthy();
       expect(getByTestId("poi-item-3")).toBeTruthy();
     });
 
     it("renders Directions and Info buttons for each POI", () => {
-      const { getByTestId } = render(<POIScreen />);
+      // Act
+      const { getByTestId } = renderWithProvider(<POIScreen />);
+
+      // Assert
       expect(getByTestId("directions-btn-1")).toBeTruthy();
       expect(getByTestId("info-btn-1")).toBeTruthy();
     });
 
     it("displays correct result count", () => {
-      const { getByTestId } = render(<POIScreen />);
+      // Act
+      const { getByTestId } = renderWithProvider(<POIScreen />);
+
+      // Assert
       expect(getByTestId("result-count").props.children).toContain("3");
     });
 
     it("displays opening hours when available", () => {
-      const { getByText } = render(<POIScreen />);
+      // Act
+      const { getByText } = renderWithProvider(<POIScreen />);
+
+      // Assert
       expect(getByText("Mo-Fr 07:00-21:00")).toBeTruthy();
     });
   });
 
   describe("Loading State", () => {
     it("shows loading indicator when data is loading", () => {
+      // Arrange
       mockUsePOIs.mockReturnValue({ pois: [], loading: true, error: null });
-      const { getByTestId, queryByTestId } = render(<POIScreen />);
+
+      // Act
+      const { getByTestId, queryByTestId } = renderWithProvider(<POIScreen />);
+
+      // Assert
       expect(getByTestId("loading-indicator")).toBeTruthy();
       expect(queryByTestId("result-count")).toBeNull();
     });
@@ -192,77 +243,117 @@ describe("POIScreen", () => {
 
   describe("Empty State", () => {
     it("shows empty state when no pois are returned", () => {
+      // Arrange
       mockUsePOIs.mockReturnValue({ pois: [], loading: false, error: null });
-      const { getByTestId } = render(<POIScreen />);
+
+      // Act
+      const { getByTestId } = renderWithProvider(<POIScreen />);
+
+      // Assert
       expect(getByTestId("empty-state")).toBeTruthy();
     });
 
     it("shows empty state when filtered results are empty", () => {
-      const { getByTestId } = render(<POIScreen />);
-      // Switch to bar category — no bars in sample data
+      // Arrange
+      const { getByTestId } = renderWithProvider(<POIScreen />);
+
+      // Act: Switch to bar category — no bars in sample data
       fireEvent.press(getByTestId("category-chip-bar"));
+
+      // Assert
       expect(getByTestId("empty-state")).toBeTruthy();
     });
   });
 
   describe("Campus Selector", () => {
     it("SGW is selected by default", () => {
-      const { getByTestId } = render(<POIScreen />);
+      // Arrange & Act
+      const { getByTestId } = renderWithProvider(<POIScreen />);
+
+      // Assert
       const sgwBtn = getByTestId("campus-btn-SGW");
-      // The active style is applied - we just verify pressing doesn't throw
       expect(sgwBtn).toBeTruthy();
     });
 
-    it("switches to Loyola campus when tapped", () => {
+    it("switches to Loyola campus when tapped", async () => {
+      // Arrange
       mockUsePOIs.mockReturnValue({ pois: [], loading: false, error: null });
-      const { getByTestId } = render(<POIScreen />);
+      const { getByTestId } = renderWithProvider(<POIScreen />);
+
+      // Act
       fireEvent.press(getByTestId("campus-btn-Loyola"));
-      // usePOIs should be called with Loyola coordinates
-      expect(mockUsePOIs).toHaveBeenCalledWith(
-        expect.objectContaining({
-          lat: 45.4582,
-          lon: -73.6405,
-        })
-      );
+
+      // Assert: usePOIs should be called with Loyola coordinates (wait for 300ms debounce)
+      await waitFor(() => {
+        expect(mockUsePOIs).toHaveBeenCalledWith(
+          expect.objectContaining({
+            lat: 45.4582,
+            lon: -73.6405,
+          }),
+        );
+      });
     });
   });
 
   describe("Radius Selector", () => {
     it("defaults to 1 km radius", () => {
-      render(<POIScreen />);
+      // Act
+      renderWithProvider(<POIScreen />);
+
+      // Assert: Verify hook was called with default radius (1000m)
       expect(mockUsePOIs).toHaveBeenCalledWith(
-        expect.objectContaining({ radius: 1000 })
+        expect.objectContaining({ radius: 1000 }),
       );
     });
 
     it("updates radius when a pill is pressed", () => {
-      const { getByTestId } = render(<POIScreen />);
+      // Arrange
+      const { getByTestId } = renderWithProvider(<POIScreen />);
+
+      // Act
       fireEvent.press(getByTestId("radius-option-2"));
+
+      // Assert: Verify hook was updated with new radius
       expect(mockUsePOIs).toHaveBeenCalledWith(
-        expect.objectContaining({ radius: 2000 })
+        expect.objectContaining({ radius: 2000 }),
       );
     });
   });
 
   describe("Search Filter", () => {
     it("filters POIs by name when search text is entered", () => {
-      const { getByTestId, queryByTestId } = render(<POIScreen />);
+      // Arrange
+      const { getByTestId, queryByTestId } = renderWithProvider(<POIScreen />);
+
+      // Act
       fireEvent.changeText(getByTestId("search-input"), "Starbucks");
-      expect(getByTestId("poi-item-1")).toBeTruthy();     // Starbucks present
-      expect(queryByTestId("poi-item-2")).toBeNull();     // Tim Hortons hidden
-      expect(queryByTestId("poi-item-3")).toBeNull();     // Metro Grocery hidden
+
+      // Assert
+      expect(getByTestId("poi-item-1")).toBeTruthy(); // Starbucks present
+      expect(queryByTestId("poi-item-2")).toBeNull(); // Tim Hortons hidden
+      expect(queryByTestId("poi-item-3")).toBeNull(); // Metro Grocery hidden
     });
 
     it("shows clear button when search has text", () => {
-      const { getByTestId } = render(<POIScreen />);
+      // Arrange
+      const { getByTestId } = renderWithProvider(<POIScreen />);
+
+      // Act
       fireEvent.changeText(getByTestId("search-input"), "Tim");
+
+      // Assert
       expect(getByTestId("clear-search-btn")).toBeTruthy();
     });
 
     it("clears search when clear button is pressed", () => {
-      const { getByTestId } = render(<POIScreen />);
+      // Arrange
+      const { getByTestId } = renderWithProvider(<POIScreen />);
       fireEvent.changeText(getByTestId("search-input"), "Tim");
+
+      // Act
       fireEvent.press(getByTestId("clear-search-btn"));
+
+      // Assert
       expect(getByTestId("poi-item-1")).toBeTruthy();
       expect(getByTestId("poi-item-2")).toBeTruthy();
     });
@@ -270,24 +361,39 @@ describe("POIScreen", () => {
 
   describe("Category Filter", () => {
     it("shows all POIs when 'All' category is selected", () => {
-      const { getByTestId } = render(<POIScreen />);
+      // Arrange
+      const { getByTestId } = renderWithProvider(<POIScreen />);
+
+      // Act
       fireEvent.press(getByTestId("category-chip-all"));
+
+      // Assert
       expect(getByTestId("poi-item-1")).toBeTruthy();
       expect(getByTestId("poi-item-2")).toBeTruthy();
       expect(getByTestId("poi-item-3")).toBeTruthy();
     });
 
     it("filters to only cafes when 'Coffee' chip is pressed", () => {
-      const { getByTestId, queryByTestId } = render(<POIScreen />);
+      // Arrange
+      const { getByTestId, queryByTestId } = renderWithProvider(<POIScreen />);
+
+      // Act
       fireEvent.press(getByTestId("category-chip-coffee"));
-      expect(getByTestId("poi-item-1")).toBeTruthy();      // cafe
-      expect(queryByTestId("poi-item-2")).toBeNull();      // restaurant
-      expect(queryByTestId("poi-item-3")).toBeNull();      // supermarket
+
+      // Assert
+      expect(getByTestId("poi-item-1")).toBeTruthy(); // cafe
+      expect(queryByTestId("poi-item-2")).toBeNull(); // restaurant
+      expect(queryByTestId("poi-item-3")).toBeNull(); // supermarket
     });
 
     it("filters to only supermarkets when 'Shopping' chip is pressed", () => {
-      const { getByTestId, queryByTestId } = render(<POIScreen />);
+      // Arrange
+      const { getByTestId, queryByTestId } = renderWithProvider(<POIScreen />);
+
+      // Act
       fireEvent.press(getByTestId("category-chip-shopping"));
+
+      // Assert
       expect(queryByTestId("poi-item-1")).toBeNull();
       expect(queryByTestId("poi-item-2")).toBeNull();
       expect(getByTestId("poi-item-3")).toBeTruthy();
@@ -296,11 +402,19 @@ describe("POIScreen", () => {
 
   describe("Directions Button", () => {
     it("navigates to directions tab and sets building when Directions is pressed", async () => {
+      // Arrange
       const { poiToBuildingAdapter } = require("@app/utils/poiUtils");
-      const { getByTestId } = render(<POIScreen />);
+      const { getByTestId } = renderWithProvider(<POIScreen />);
+
+      // Act
       fireEvent.press(getByTestId("directions-btn-1"));
+
+      // Assert
       await waitFor(() => {
-        expect(poiToBuildingAdapter).toHaveBeenCalledWith(SAMPLE_POIS[0], "SGW");
+        expect(poiToBuildingAdapter).toHaveBeenCalledWith(
+          SAMPLE_POIS[0],
+          "SGW",
+        );
         expect(mockPush).toHaveBeenCalledWith("/(tabs)/two");
       });
     });
@@ -308,16 +422,26 @@ describe("POIScreen", () => {
 
   describe("Info Modal", () => {
     it("opens info modal when Info button is pressed", () => {
-      const { getByTestId } = render(<POIScreen />);
+      // Arrange
+      const { getByTestId } = renderWithProvider(<POIScreen />);
+
+      // Act
       fireEvent.press(getByTestId("info-btn-1"));
+
+      // Assert
       expect(getByTestId("poi-info-modal")).toBeTruthy();
     });
 
     it("closes info modal when overlay is pressed", async () => {
-      const { getByTestId, queryByTestId } = render(<POIScreen />);
+      // Arrange
+      const { getByTestId, queryByTestId } = renderWithProvider(<POIScreen />);
       fireEvent.press(getByTestId("info-btn-1"));
       expect(getByTestId("poi-info-modal")).toBeTruthy();
+
+      // Act
       fireEvent.press(getByTestId("modal-overlay"));
+
+      // Assert
       await waitFor(() => {
         // After closing, the modal is no longer visible (poi is null)
         expect(queryByTestId("poi-info-modal")).toBeNull();
@@ -325,10 +449,15 @@ describe("POIScreen", () => {
     });
 
     it("closes info modal when Close button is pressed", async () => {
-      const { getByTestId, queryByTestId } = render(<POIScreen />);
+      // Arrange
+      const { getByTestId, queryByTestId } = renderWithProvider(<POIScreen />);
       fireEvent.press(getByTestId("info-btn-2"));
       expect(getByTestId("poi-info-modal")).toBeTruthy();
+
+      // Act
       fireEvent.press(getByTestId("modal-close-btn"));
+
+      // Assert
       await waitFor(() => {
         expect(queryByTestId("poi-info-modal")).toBeNull();
       });

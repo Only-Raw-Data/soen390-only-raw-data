@@ -53,7 +53,7 @@ export function POIProvider({ children }: POIProviderProps) {
     lat: 45.4972,
     lon: -73.5792,
   }); // Default: SGW campus
-  const [searchRadius, setSearchRadius] = useState(2000); // Default: 2km
+  const [searchRadius, setSearchRadius] = useState(1000); // Default: 1km
 
   // Debounce region changes to avoid excessive API calls
   const searchCenterRef = useRef(searchCenter);

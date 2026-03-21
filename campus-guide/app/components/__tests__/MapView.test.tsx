@@ -2,6 +2,10 @@ import React from "react";
 import { render, fireEvent, act, waitFor } from "@testing-library/react-native";
 import MapViewApp from "../MapView";
 import { useDirections } from "../../context/DirectionsContext";
+import { POIProvider } from "../../context/POIContext";
+
+const renderWithProvider = (ui: React.ReactElement) =>
+  render(<POIProvider>{ui}</POIProvider>);
 import useBuildingPolygons from "../../hooks/useBuildingPolygons";
 import useUserLocation from "../../hooks/useUserLocation";
 import usePOIs from "../../hooks/usePOIs";
@@ -92,7 +96,11 @@ jest.mock("react-native-maps", () => {
   );
 
   const MockMarker = ({ title, onPress, testID, children }: any) => (
-    <TouchableOpacity accessibilityRole="button" onPress={onPress} testID={testID}>
+    <TouchableOpacity
+      accessibilityRole="button"
+      onPress={onPress}
+      testID={testID}
+    >
       <Text>{title}</Text>
       {children}
     </TouchableOpacity>
@@ -112,7 +120,7 @@ jest.mock("react-native-maps", () => {
       accessibilityLabel={`polyline-${coordinates?.length || 0}-coords`}
     />
   );
-  
+
   const MockCallout = ({ children }: any) => <View>{children}</View>;
 
   const MockCircle = () => null;
@@ -261,7 +269,7 @@ describe("MapViewApp", () => {
           type: "cafe",
           lat: 45.497,
           lon: -73.579,
-        }
+        },
       ],
       loading: false,
     });
@@ -278,18 +286,16 @@ describe("MapViewApp", () => {
   });
 
   it("renders search when showSearch=true", () => {
-    // Arrange
-    const screen = render(<MapViewApp showSearch />);
-    // Act
+    // Arrange & Act
+    const screen = renderWithProvider(<MapViewApp showSearch />);
     const input = screen.getByPlaceholderText("Search buildings...");
     // Assert
     expect(input).toBeTruthy();
   });
 
   it("renders campus toggle buttons", () => {
-    // Arrange
-    const screen = render(<MapViewApp showSearch />);
-    // Act
+    // Arrange & Act
+    const screen = renderWithProvider(<MapViewApp showSearch />);
     const sgw = screen.getByText("SGW Campus");
     const loyola = screen.getByText("Loyola Campus");
     // Assert
@@ -298,18 +304,16 @@ describe("MapViewApp", () => {
   });
 
   it("renders map container", () => {
-    // Arrange
-    const screen = render(<MapViewApp />);
-    // Act
+    // Arrange & Act
+    const screen = renderWithProvider(<MapViewApp />);
     const map = screen.getByTestId("mapView");
     // Assert
     expect(map).toBeTruthy();
   });
 
   it("defaults to SGW markers", () => {
-    // Arrange
-    const screen = render(<MapViewApp />);
-    // Act 
+    // Arrange & Act
+    const screen = renderWithProvider(<MapViewApp />);
     const hall = screen.getByText(/H - 1455 DeMaisonneuve W/);
     const molson = screen.getByText(/MB - 1450 Guy Street/);
     // Assert
@@ -319,7 +323,7 @@ describe("MapViewApp", () => {
 
   it("switches to Loyola campus", () => {
     // Arrange
-    const screen = render(<MapViewApp />);
+    const screen = renderWithProvider(<MapViewApp />);
     // Act
     fireEvent.press(screen.getByText("Loyola Campus"));
     // Assert
@@ -344,7 +348,7 @@ describe("MapViewApp", () => {
     },
   ])("$description", ({ searchTerm, expectedBuilding }) => {
     // Arrange
-    const screen = render(<MapViewApp showSearch />);
+    const screen = renderWithProvider(<MapViewApp showSearch />);
     const input = screen.getByPlaceholderText("Search buildings...");
     // Act
     fireEvent.changeText(input, searchTerm);
@@ -354,7 +358,7 @@ describe("MapViewApp", () => {
 
   it("shows building info popup", () => {
     // Arrange
-    const screen = render(<MapViewApp />);
+    const screen = renderWithProvider(<MapViewApp />);
     // Act
     fireEvent.press(screen.getByText(/H - 1455 DeMaisonneuve W/));
     // Assert
@@ -363,7 +367,7 @@ describe("MapViewApp", () => {
 
   it("sets start building when 'Set as Start' is pressed", () => {
     // Arrange
-    const screen = render(<MapViewApp />);
+    const screen = renderWithProvider(<MapViewApp />);
     // Act
     fireEvent.press(screen.getByText(/H - 1455 DeMaisonneuve W/));
     fireEvent.press(screen.getByText("Set as Start"));
@@ -383,7 +387,7 @@ describe("MapViewApp", () => {
       }),
     );
 
-    const screen = render(<MapViewApp />);
+    const screen = renderWithProvider(<MapViewApp />);
 
     // Act
     fireEvent.press(screen.getByText(/MB - 1450 Guy Street/));
@@ -407,15 +411,14 @@ describe("MapViewApp", () => {
       }),
     );
 
-    const screen = render(<MapViewApp />);
+    const screen = renderWithProvider(<MapViewApp />);
 
     // Act - Select the building that's already the start
     const polygons = screen.getAllByTestId("building-polygon");
     fireEvent.press(polygons[0]); // mockSGWPolygons[0] is 'h'
     fireEvent.press(screen.getByText("Clear"));
 
-    // Assert - Clear button likely calls clearDirections or setSelectedBuilding(null)
-    // Based on the MapView implementation, clicking Clear on bottom bar clears selection
+    // Assert
     expect(screen.queryByTestId("bottom-bar")).toBeNull();
   });
 
@@ -434,14 +437,14 @@ describe("MapViewApp", () => {
       }),
     );
 
-    const screen = render(<MapViewApp />);
+    const screen = renderWithProvider(<MapViewApp />);
 
     // Act - Select the building that's already the destination
     const polygons = screen.getAllByTestId("building-polygon");
     fireEvent.press(polygons[1]); // mockSGWPolygons[1] is 'mb'
     fireEvent.press(screen.getByText("Clear"));
 
-    // Assert - Clear button clears the bottom bar selection
+    // Assert
     expect(screen.queryByTestId("bottom-bar")).toBeNull();
   });
 
@@ -459,7 +462,7 @@ describe("MapViewApp", () => {
       }),
     );
 
-    const screen = render(<MapViewApp />);
+    const screen = renderWithProvider(<MapViewApp />);
 
     // Act
     fireEvent.press(screen.getByText(/EV - 1515 Ste-Catherine W/));
@@ -490,7 +493,7 @@ describe("MapViewApp", () => {
       }),
     );
 
-    const screen = render(<MapViewApp />);
+    const screen = renderWithProvider(<MapViewApp />);
 
     // Assert
     expect(screen.getByTestId("route-polyline")).toBeTruthy();
@@ -501,7 +504,7 @@ describe("MapViewApp", () => {
   describe("Building Polygons", () => {
     it("renders polygons for current campus buildings", () => {
       // Arrange & Act
-      const screen = render(<MapViewApp />);
+      const screen = renderWithProvider(<MapViewApp />);
       const polygons = screen.getAllByTestId("building-polygon");
       // Assert - should have 2 SGW polygons from mock
       expect(polygons.length).toBe(2);
@@ -509,7 +512,7 @@ describe("MapViewApp", () => {
 
     it("calls useBuildingPolygons with correct campus", () => {
       // Arrange & Act
-      render(<MapViewApp />);
+      renderWithProvider(<MapViewApp />);
       // Assert
       expect(useBuildingPolygons).toHaveBeenCalledWith("SGW");
     });
@@ -518,7 +521,7 @@ describe("MapViewApp", () => {
       // Arrange
       setupCampusSwitchingPolygonMock();
 
-      const screen = render(<MapViewApp />);
+      const screen = renderWithProvider(<MapViewApp />);
 
       // Act - switch to Loyola
       fireEvent.press(screen.getByText("Loyola Campus"));
@@ -529,7 +532,7 @@ describe("MapViewApp", () => {
 
     it("polygon tap triggers building selection after confirmation", () => {
       // Arrange
-      const screen = render(<MapViewApp />);
+      const screen = renderWithProvider(<MapViewApp />);
       const polygons = screen.getAllByTestId("building-polygon");
 
       // Act - tap first polygon (H building) and confirm
@@ -546,26 +549,32 @@ describe("MapViewApp", () => {
   // Location feature tests
   describe("Location Feature", () => {
     it("renders locate me button", () => {
-      const screen = render(<MapViewApp />);
+      // Arrange & Act
+      const screen = renderWithProvider(<MapViewApp />);
+      // Assert
       expect(screen.getByTestId("locate-me-button-wrapper")).toBeTruthy();
     });
 
     it("calls getCurrentLocation when locate button pressed", () => {
-      const screen = render(<MapViewApp />);
+      // Arrange
+      const screen = renderWithProvider(<MapViewApp />);
+      // Act
       fireEvent.press(screen.getByTestId("locate-me-button-wrapper"));
+      // Assert
       expect(mockGetCurrentLocation).toHaveBeenCalled();
     });
 
     it("uses location hook", () => {
-      render(<MapViewApp />);
+      // Arrange & Act
+      renderWithProvider(<MapViewApp />);
+      // Assert
       expect(useUserLocation).toHaveBeenCalled();
     });
 
     it("switches campus when onCampusDetected is called with different campus", () => {
       // Arrange
       setupCampusSwitchingPolygonMock();
-
-      const screen = render(<MapViewApp />);
+      const screen = renderWithProvider(<MapViewApp />);
 
       // Verify we start on SGW -
       expect(screen.getByText(/H - 1455 DeMaisonneuve W/)).toBeTruthy();
@@ -583,7 +592,7 @@ describe("MapViewApp", () => {
 
     it("does not switch campus when onCampusDetected is called with same campus", () => {
       // Arrange
-      render(<MapViewApp />);
+      renderWithProvider(<MapViewApp />);
 
       // Act
       act(() => {
@@ -598,7 +607,7 @@ describe("MapViewApp", () => {
 
     it("highlights building when onBuildingHighlight is called", () => {
       // Arrange
-      render(<MapViewApp />);
+      renderWithProvider(<MapViewApp />);
 
       // Act - simulate building highlight
       act(() => {
@@ -613,7 +622,7 @@ describe("MapViewApp", () => {
 
     it("clears highlight when onBuildingHighlight is called with null", () => {
       // Arrange
-      render(<MapViewApp />);
+      renderWithProvider(<MapViewApp />);
 
       // Act
       act(() => {
@@ -628,32 +637,40 @@ describe("MapViewApp", () => {
     });
 
     it("fits map to coordinates when route changes", async () => {
-      
       // Arrange
       const mockRoute1 = { coordinates: [{ latitude: 1, longitude: 2 }] };
-      const mockRoute2 = { coordinates: [{ latitude: 3, longitude: 4 }, { latitude: 5, longitude: 6 }] };
+      const mockRoute2 = {
+        coordinates: [
+          { latitude: 3, longitude: 4 },
+          { latitude: 5, longitude: 6 },
+        ],
+      };
       const mapMethods = (globalThis as any).mockMapMethods;
       mapMethods.fitToCoordinates.mockClear();
 
       // Start with first route
       (useDirections as jest.Mock).mockReturnValue(
-        createDirectionsMock({ route: mockRoute1 })
+        createDirectionsMock({ route: mockRoute1 }),
       );
 
-      const screen = render(<MapViewApp />);
-      
+      const screen = renderWithProvider(<MapViewApp />);
+
       // Act - change route to trigger useEffect
       (useDirections as jest.Mock).mockReturnValue(
-        createDirectionsMock({ route: mockRoute2 })
+        createDirectionsMock({ route: mockRoute2 }),
       );
-      screen.rerender(<MapViewApp />);
-      
+      screen.rerender(
+        <POIProvider>
+          <MapViewApp />
+        </POIProvider>,
+      );
+
       // Assert
       await waitFor(() => {
         expect(mapMethods.fitToCoordinates).toHaveBeenCalled();
         expect(mapMethods.fitToCoordinates).toHaveBeenCalledWith(
           mockRoute2.coordinates,
-          expect.any(Object)
+          expect.any(Object),
         );
       });
     });
@@ -670,7 +687,7 @@ describe("MapViewApp", () => {
         }),
       );
 
-      render(<MapViewApp />);
+      renderWithProvider(<MapViewApp />);
 
       // Act
       act(() => {
@@ -697,8 +714,8 @@ describe("MapViewApp", () => {
         }),
       );
 
-      const screen = render(<MapViewApp />);
-      
+      const screen = renderWithProvider(<MapViewApp />);
+
       // Act
       const clearBtn = screen.getByTestId("clear-directions-button");
       fireEvent.press(clearBtn);
@@ -711,11 +728,11 @@ describe("MapViewApp", () => {
   describe("Location interactions", () => {
     it("shows bottom popup with action buttons", () => {
       // Arrange
-      const screen = render(<MapViewApp />);
-      
+      const screen = renderWithProvider(<MapViewApp />);
+
       // Act
       fireEvent.press(screen.getByText(/H - 1455 DeMaisonneuve W/));
-      
+
       // Assert - Check for bottom bar and its buttons
       expect(screen.getByTestId("bottom-bar")).toBeTruthy();
       expect(screen.getByText("Clear")).toBeTruthy();
@@ -725,25 +742,25 @@ describe("MapViewApp", () => {
 
     it("opens building information when 'More Info' is pressed", () => {
       // Arrange
-      const screen = render(<MapViewApp />);
-      
+      const screen = renderWithProvider(<MapViewApp />);
+
       // Act
       fireEvent.press(screen.getByText(/H - 1455 DeMaisonneuve W/));
       fireEvent.press(screen.getByText("More Info"));
-      
+
       // Assert - BuildingInformation modal should be visible
       expect(screen.getByText("Departments")).toBeTruthy();
     });
 
     it("closes building information when 'onClose' is triggered", () => {
       // Arrange
-      const screen = render(<MapViewApp />);
+      const screen = renderWithProvider(<MapViewApp />);
       fireEvent.press(screen.getByText(/H - 1455 DeMaisonneuve W/));
       fireEvent.press(screen.getByText("More Info"));
-      
+
       // Act
       fireEvent.press(screen.getByTestId("close-button"));
-      
+
       // Assert
       expect(screen.queryByText("Departments")).toBeNull();
     });
@@ -751,20 +768,30 @@ describe("MapViewApp", () => {
     it("switches campus context and animates map when a cross-campus building is somehow selected", async () => {
       // Arrange
       const { SGW_BUILDINGS } = require("@constants/buildings");
-      const spyBuilding = { id: "cross-campus-spy", name: "Spy Building", campus: "Loyola", code: "SPY", lat: 10, lng: 10, address: "123 Spy St" };
+      const spyBuilding = {
+        id: "cross-campus-spy",
+        name: "Spy Building",
+        campus: "Loyola",
+        code: "SPY",
+        lat: 10,
+        lng: 10,
+        address: "123 Spy St",
+      };
       SGW_BUILDINGS.push(spyBuilding);
 
       const mapMethods = (globalThis as any).mockMapMethods;
       mapMethods.animateToRegion.mockClear();
-      
-      const screen = render(<MapViewApp />);
-      
+
+      const screen = renderWithProvider(<MapViewApp />);
+
       // Act
-      fireEvent.press(screen.getByTestId("building-marker-cross-campus-spy"));
-      
+      await act(async () => {
+        fireEvent.press(screen.getByTestId("building-marker-cross-campus-spy"));
+      });
+
       // Assert
       expect(mapMethods.animateToRegion).toHaveBeenCalled();
-      
+
       // Cleanup
       SGW_BUILDINGS.pop();
     });
@@ -773,57 +800,67 @@ describe("MapViewApp", () => {
   describe("POI Feature", () => {
     it("renders POI markers when toggle is pressed", () => {
       // Arrange
-      const screen = render(<MapViewApp />);
-      
+      const screen = renderWithProvider(<MapViewApp />);
+
       // Act
       fireEvent.press(screen.getByTestId("poi-toggle-button"));
-      
+
       // Assert
       expect(screen.getByTestId("poi-marker-999")).toBeTruthy();
     });
 
-    it("shows POI bottom bar and triggers Get Directions", () => {
+    it("shows POI bottom bar and triggers Get Directions", async () => {
       // Provide a mock user location to test the auto-start-coords feature
       (useUserLocation as jest.Mock).mockReturnValue(
         createUserLocationMock({
           location: { coords: { latitude: 45.4971, longitude: -73.5791 } },
-          getCurrentLocation: mockGetCurrentLocation 
+          getCurrentLocation: mockGetCurrentLocation,
         }),
       );
 
-      const screen = render(<MapViewApp />);
+      const screen = renderWithProvider(<MapViewApp />);
       // Enable POIs
       fireEvent.press(screen.getByTestId("poi-toggle-button"));
+      
       // Tap the POI
-      fireEvent.press(screen.getByTestId("poi-marker-999"));
-      
+      await act(async () => {
+        fireEvent.press(screen.getByTestId("poi-marker-999"));
+      });
+
       // POI bottom bar should appear
-      expect(screen.getByTestId("poi-bottom-bar")).toBeTruthy();
-      expect(screen.getByTestId("poi-bottom-bar-name").props.children).toBe("Mock Cafe POI");
-      
+      await waitFor(() => {
+        expect(screen.queryByTestId("poi-bottom-bar")).toBeTruthy();
+      });
+      expect(screen.getByTestId("poi-bottom-bar-name").props.children).toBe(
+        "Mock Cafe POI",
+      );
+
       // Get directions
       fireEvent.press(screen.getByTestId("poi-directions-button"));
-      
+
       // Destination should be set via context adapter
       expect(mockSetDestinationBuilding).toHaveBeenCalledWith(
-        expect.objectContaining({ id: "poi-999", name: "Mock Cafe POI" })
+        expect.objectContaining({ id: "poi-999", name: "Mock Cafe POI" }),
       );
       // Start building won't be cleared, but startCoords should be injected
       expect(mockSetStartBuilding).not.toHaveBeenCalledWith(null);
-      expect(mockSetStartCoords).toHaveBeenCalledWith({ lat: 45.4971, lng: -73.5791 });
+      expect(mockSetStartCoords).toHaveBeenCalledWith({
+        lat: 45.4971,
+        lng: -73.5791,
+      });
     });
 
     it("clears POI selection when Clear button is pressed on POI bottom bar", () => {
-      const screen = render(<MapViewApp />);
+      const screen = renderWithProvider(<MapViewApp />);
       fireEvent.press(screen.getByTestId("poi-toggle-button"));
       fireEvent.press(screen.getByTestId("poi-marker-999"));
-      
+
       // Verify POI is selected
       expect(screen.getByTestId("poi-bottom-bar")).toBeTruthy();
-      
+
       // Act
       fireEvent.press(screen.getByText("Clear"));
-      
+
       // Assert
       expect(screen.queryByTestId("poi-bottom-bar")).toBeNull();
     });
@@ -864,7 +901,7 @@ describe("MapViewApp", () => {
       );
 
       // Act
-      const screen = render(<MapViewApp />);
+      const screen = renderWithProvider(<MapViewApp />);
 
       // Assert — one polyline per segment
       const polylines = screen.getAllByTestId("route-polyline");
@@ -888,7 +925,7 @@ describe("MapViewApp", () => {
       );
 
       // Act
-      const screen = render(<MapViewApp />);
+      const screen = renderWithProvider(<MapViewApp />);
 
       // Assert — single fallback polyline
       const polylines = screen.getAllByTestId("route-polyline");
@@ -908,16 +945,25 @@ describe("MapViewApp", () => {
             duration: "20 mins",
             distance: "3.0 km",
             segments: [
-              { mode: "WALK", coordinates: [{ latitude: 45.4971, longitude: -73.5791 }] },
-              { mode: "SUBWAY", coordinates: [{ latitude: 45.4965, longitude: -73.5787 }] },
-              { mode: "WALK", coordinates: [{ latitude: 45.4953, longitude: -73.5782 }] },
+              {
+                mode: "WALK",
+                coordinates: [{ latitude: 45.4971, longitude: -73.5791 }],
+              },
+              {
+                mode: "SUBWAY",
+                coordinates: [{ latitude: 45.4965, longitude: -73.5787 }],
+              },
+              {
+                mode: "WALK",
+                coordinates: [{ latitude: 45.4953, longitude: -73.5782 }],
+              },
             ],
           },
         }),
       );
 
       // Act
-      const screen = render(<MapViewApp />);
+      const screen = renderWithProvider(<MapViewApp />);
 
       // Assert
       const polylines = screen.getAllByTestId("route-polyline");
@@ -936,7 +982,7 @@ describe("MapViewApp", () => {
           route: {
             coordinates: [
               { latitude: 45.497, longitude: -73.579 },
-              { latitude: 45.458, longitude: -73.640 },
+              { latitude: 45.458, longitude: -73.64 },
             ],
             duration: "21 mins",
             distance: "8.3 km",
@@ -952,7 +998,7 @@ describe("MapViewApp", () => {
       setupShuttleMock(false);
 
       // Act
-      const screen = render(<MapViewApp />);
+      const screen = renderWithProvider(<MapViewApp />);
 
       // Assert
       expect(screen.queryByTestId("route-polyline")).toBeNull();
@@ -964,7 +1010,7 @@ describe("MapViewApp", () => {
       setupShuttleMock(true);
 
       // Act
-      const screen = render(<MapViewApp />);
+      const screen = renderWithProvider(<MapViewApp />);
 
       // Assert
       expect(screen.getByTestId("route-polyline")).toBeTruthy();

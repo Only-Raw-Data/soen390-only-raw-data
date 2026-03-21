@@ -1,0 +1,72 @@
+﻿node.exe : FAIL 
+./MapView.test.tsx
+At C:\nvm4w\nodejs\np
+x.ps1:29 char:3
++   & $NODE_EXE 
+$NPX_CLI_JS $args
++   ~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~
+    + CategoryInfo   
+           : NotSpe  
+  cified: (FAIL ./   
+ MapView.test.tsx    
+:String) [], Rem    
+oteException
+    + FullyQualified 
+   ErrorId : Native  
+  CommandError
+ 
+  ΓùÅ Test suite 
+failed to run
+
+    Cannot find 
+module './constants/b
+uildingImages' from '
+app/components/__test
+s__/MapView.test.tsx'
+
+    [0m [90m 18 
+|[39m }))[33m;[39m
+     [90m 19 |[39m
+    [31m[1m>[22m[
+39m[90m 20 |[39m je
+st[33m.[39mmock([3
+2m"@/constants/buildi
+ngImages"[39m[33m,
+[39m () [33m=>[39m 
+({
+     [90m    |[39m 
+     
+[31m[1m^[22m[39m
+     [90m 21 |[39m 
+  [33mBUILDING_IMAGE
+S[39m[33m:[39m {
+     [90m 22 |[39m 
+    h[33m:[39m [32
+m"mock-image-h"[39m
+[33m,[39m
+     [90m 23 |[39m 
+    mb[33m:[39m [3
+2m"mock-image-mb"[39
+m[33m,[39m[0m
+
+      at Resolver._th
+rowModNotFoundError (
+node_modules/jest-res
+olve/build/resolver.j
+s:427:11)
+      at Object.mock 
+(app/components/__tes
+ts__/MapView.test.tsx
+:20:6)
+
+Test Suites: 1 
+failed, 1 total
+Tests:       0 total
+Snapshots:   0 total
+Time:        2.931 
+s, estimated 3 s
+Ran all test suites 
+matching /app\\compon
+ents\\__tests__\\MapV
+iew.test.tsx/i.
