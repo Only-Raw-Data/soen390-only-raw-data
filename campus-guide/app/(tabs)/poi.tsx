@@ -13,11 +13,11 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import Header from "@app/components/Header";
-import usePOIs from "@app/hooks/usePOIs";
 import useUserLocation from "@app/hooks/useUserLocation";
 import { getPoiInfo } from "@/constants/poi";
 import { poiToBuildingAdapter } from "@app/utils/poiUtils";
 import { useDirections } from "@app/context/DirectionsContext";
+import { usePOIContext } from "@app/context/POIContext";
 import { CAMPUS_REGIONS, Campus } from "@constants/buildings";
 import { PointOfInterest } from "@app/types/poi";
 
@@ -29,12 +29,27 @@ const RADIUS_OPTIONS = [0.5, 1, 2, 3, 5]; // km
 
 type Category = "all" | "coffee" | "dining" | "shopping" | "bar";
 
-const CATEGORIES: { id: Category; label: string; icon: string; types: string[] }[] = [
-  { id: "all",      label: "All",      icon: "apps-outline",       types: [] },
-  { id: "coffee",   label: "Coffee",   icon: "cafe-outline",       types: ["cafe"] },
-  { id: "dining",   label: "Dining",   icon: "restaurant-outline", types: ["restaurant", "fast_food"] },
-  { id: "shopping", label: "Shopping", icon: "cart-outline",       types: ["supermarket", "convenience"] },
-  { id: "bar",      label: "Bar",      icon: "beer-outline",       types: ["pub", "bar"] },
+const CATEGORIES: {
+  id: Category;
+  label: string;
+  icon: string;
+  types: string[];
+}[] = [
+  { id: "all", label: "All", icon: "apps-outline", types: [] },
+  { id: "coffee", label: "Coffee", icon: "cafe-outline", types: ["cafe"] },
+  {
+    id: "dining",
+    label: "Dining",
+    icon: "restaurant-outline",
+    types: ["restaurant", "fast_food"],
+  },
+  {
+    id: "shopping",
+    label: "Shopping",
+    icon: "cart-outline",
+    types: ["supermarket", "convenience"],
+  },
+  { id: "bar", label: "Bar", icon: "beer-outline", types: ["pub", "bar"] },
 ];
 
 // ─── Helper ──────────────────────────────────────────────────────────────────
@@ -59,23 +74,31 @@ function POIItem({ poi, campus, onDirections, onInfo }: POIItemProps) {
   return (
     <View style={styles.poiCard} testID={`poi-item-${poi.id}`}>
       {/* Icon circle */}
-      <View style={[styles.poiIconCircle, { backgroundColor: info.color + "22" }]}>
+      <View
+        style={[styles.poiIconCircle, { backgroundColor: info.color + "22" }]}
+      >
         <Ionicons name={info.icon as any} size={22} color={info.color} />
       </View>
 
       {/* Content */}
       <View style={styles.poiContent}>
-        <Text style={styles.poiName} numberOfLines={1}>{poi.name}</Text>
+        <Text style={styles.poiName} numberOfLines={1}>
+          {poi.name}
+        </Text>
 
         <View style={styles.poiMeta}>
           {poi.distance !== undefined && (
-            <Text style={styles.poiDistance}>{formatDistance(poi.distance)}</Text>
+            <Text style={styles.poiDistance}>
+              {formatDistance(poi.distance)}
+            </Text>
           )}
           {poi.address && (
             <>
               <Text style={styles.poiMetaDot}>·</Text>
               <Ionicons name="location-outline" size={12} color="#6B7280" />
-              <Text style={styles.poiAddress} numberOfLines={1}>{poi.address}</Text>
+              <Text style={styles.poiAddress} numberOfLines={1}>
+                {poi.address}
+              </Text>
             </>
           )}
         </View>
@@ -128,13 +151,22 @@ function InfoModal({ poi, onClose }: InfoModalProps) {
       onRequestClose={onClose}
       testID="poi-info-modal"
     >
-      <Pressable style={styles.modalOverlay} onPress={onClose} testID="modal-overlay">
+      <Pressable
+        style={styles.modalOverlay}
+        onPress={onClose}
+        testID="modal-overlay"
+      >
         <Pressable style={styles.modalSheet} onPress={() => {}}>
           {/* Handle bar */}
           <View style={styles.modalHandle} />
 
           <View style={styles.modalIconRow}>
-            <View style={[styles.modalIconCircle, { backgroundColor: info.color + "22" }]}>
+            <View
+              style={[
+                styles.modalIconCircle,
+                { backgroundColor: info.color + "22" },
+              ]}
+            >
               <Ionicons name={info.icon as any} size={32} color={info.color} />
             </View>
           </View>
@@ -145,7 +177,9 @@ function InfoModal({ poi, onClose }: InfoModalProps) {
           {poi.distance !== undefined && (
             <View style={styles.modalRow}>
               <Ionicons name="walk-outline" size={16} color="#6B7280" />
-              <Text style={styles.modalRowText}>{formatDistance(poi.distance)} away</Text>
+              <Text style={styles.modalRowText}>
+                {formatDistance(poi.distance)} away
+              </Text>
             </View>
           )}
 
@@ -163,7 +197,11 @@ function InfoModal({ poi, onClose }: InfoModalProps) {
             </View>
           )}
 
-          <TouchableOpacity style={styles.modalCloseBtn} onPress={onClose} testID="modal-close-btn">
+          <TouchableOpacity
+            style={styles.modalCloseBtn}
+            onPress={onClose}
+            testID="modal-close-btn"
+          >
             <Text style={styles.modalCloseBtnText}>Close</Text>
           </TouchableOpacity>
         </Pressable>
@@ -176,7 +214,17 @@ function InfoModal({ poi, onClose }: InfoModalProps) {
 
 export default function POIScreen() {
   const router = useRouter();
-  const { setDestinationBuilding, setStartBuilding, startBuilding } = useDirections();
+  const { setDestinationBuilding, setStartBuilding, startBuilding } =
+    useDirections();
+
+  // POI context (shared state across tabs)
+  const {
+    pois,
+    isLoading: loading,
+    searchRadius,
+    setSearchRadius,
+    updateSearchCenter,
+  } = usePOIContext();
 
   // Campus selector
   const [selectedCampus, setSelectedCampus] = useState<Campus>("SGW");
@@ -190,28 +238,26 @@ export default function POIScreen() {
   const fetchLat = userLocation?.coords.latitude ?? campusCenter.latitude;
   const fetchLon = userLocation?.coords.longitude ?? campusCenter.longitude;
 
+  // When campus or user location changes, update the context search center
+  React.useEffect(() => {
+    updateSearchCenter(fetchLat, fetchLon);
+  }, [fetchLat, fetchLon, updateSearchCenter]);
+
   // Search + filters
   const [searchQuery, setSearchQuery] = useState("");
-  const [radiusKm, setRadiusKm] = useState(1); // km
+  // Convert searchRadius (meters in context) to km for UI
+  const radiusKm = searchRadius / 1000;
   const [activeCategory, setActiveCategory] = useState<Category>("all");
 
   // Info modal
   const [infoPoi, setInfoPoi] = useState<PointOfInterest | null>(null);
-
-  // Fetch POIs
-  const { pois, loading } = usePOIs({
-    lat: fetchLat,
-    lon: fetchLon,
-    radius: radiusKm * 1000,
-    enabled: true,
-  });
 
   // Client-side filtering
   const filteredPois = useMemo(() => {
     const categoryTypes =
       activeCategory === "all"
         ? []
-        : CATEGORIES.find((c) => c.id === activeCategory)?.types ?? [];
+        : (CATEGORIES.find((c) => c.id === activeCategory)?.types ?? []);
 
     return pois.filter((poi) => {
       const matchesCategory =
@@ -235,7 +281,13 @@ export default function POIScreen() {
       }
       router.push("/(tabs)/two");
     },
-    [router, setStartBuilding, setDestinationBuilding, startBuilding, selectedCampus]
+    [
+      router,
+      setStartBuilding,
+      setDestinationBuilding,
+      startBuilding,
+      selectedCampus,
+    ],
   );
 
   const handleInfo = useCallback((poi: PointOfInterest) => {
@@ -287,7 +339,12 @@ export default function POIScreen() {
 
         {/* Search bar */}
         <View style={styles.searchWrapper}>
-          <Ionicons name="search-outline" size={18} color="#9CA3AF" style={styles.searchIcon} />
+          <Ionicons
+            name="search-outline"
+            size={18}
+            color="#9CA3AF"
+            style={styles.searchIcon}
+          />
           <TextInput
             style={styles.searchInput}
             placeholder="Search places..."
@@ -297,7 +354,10 @@ export default function POIScreen() {
             testID="search-input"
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery("")} testID="clear-search-btn">
+            <TouchableOpacity
+              onPress={() => setSearchQuery("")}
+              testID="clear-search-btn"
+            >
               <Ionicons name="close-circle" size={18} color="#9CA3AF" />
             </TouchableOpacity>
           )}
@@ -307,7 +367,9 @@ export default function POIScreen() {
         <View style={styles.sliderSection}>
           <View style={styles.sliderHeader}>
             <Text style={styles.sliderLabel}>Search Range</Text>
-            <Text style={styles.sliderValue}>{radiusKm % 1 === 0 ? `${radiusKm} km` : `${radiusKm} km`}</Text>
+            <Text style={styles.sliderValue}>
+              {radiusKm % 1 === 0 ? `${radiusKm} km` : `${radiusKm} km`}
+            </Text>
           </View>
           <View style={styles.radiusPills} testID="radius-slider">
             {RADIUS_OPTIONS.map((r) => (
@@ -318,12 +380,14 @@ export default function POIScreen() {
                   styles.radiusPill,
                   radiusKm === r && styles.radiusPillActive,
                 ]}
-                onPress={() => setRadiusKm(r)}
+                onPress={() => setSearchRadius(r * 1000)}
               >
-                <Text style={[
-                  styles.radiusPillText,
-                  radiusKm === r && styles.radiusPillTextActive,
-                ]}>
+                <Text
+                  style={[
+                    styles.radiusPillText,
+                    radiusKm === r && styles.radiusPillTextActive,
+                  ]}
+                >
                   {r < 1 ? `${r * 1000}m` : `${r}km`}
                 </Text>
               </TouchableOpacity>

@@ -6,6 +6,7 @@ import { Screen } from "@types/Screen";
 import DirectionsProvider from "@context/DirectionsContext";
 import IndoorMapProvider from "@context/IndoorMapContext";
 import CalendarAuthProvider from "@context/CalendarAuthContext";
+import { POIProvider } from "@context/POIContext";
 
 // TabBar component moved outside to prevent recreation on each render
 function TabBar({
@@ -61,52 +62,54 @@ export default function TabLayout() {
 
   return (
     <DirectionsProvider>
-    <IndoorMapProvider>
-      <CalendarAuthProvider>
-      <Tabs
-        screenOptions={{
-          headerShown: false,
-        }}
-        tabBar={() => (
-          <TabBar
-            currentScreen={currentScreen}
-            onScreenChange={handleScreenChange}
-          />
-        )}
-      >
-        <Tabs.Screen
-          name="index"
-          options={{
-            title: "Campus Guide",
-          }}
-        />
-        <Tabs.Screen
-          name="two"
-          options={{
-            title: "Directions",
-          }}
-        />
-        <Tabs.Screen
-          name="indoor"
-          options={{
-            title: "Indoor",
-          }}
-        />
-        <Tabs.Screen
-          name="schedule"
-          options={{
-            title: "Schedule",
-          }}
-        />
-        <Tabs.Screen
-          name="poi"
-          options={{
-            title: "Points of Interest",
-          }}
-        />
-      </Tabs>
-      </CalendarAuthProvider>
-    </IndoorMapProvider>
+      <IndoorMapProvider>
+        <CalendarAuthProvider>
+          <POIProvider>
+            <Tabs
+              screenOptions={{
+                headerShown: false,
+              }}
+              tabBar={() => (
+                <TabBar
+                  currentScreen={currentScreen}
+                  onScreenChange={handleScreenChange}
+                />
+              )}
+            >
+              <Tabs.Screen
+                name="index"
+                options={{
+                  title: "Campus Guide",
+                }}
+              />
+              <Tabs.Screen
+                name="two"
+                options={{
+                  title: "Directions",
+                }}
+              />
+              <Tabs.Screen
+                name="indoor"
+                options={{
+                  title: "Indoor",
+                }}
+              />
+              <Tabs.Screen
+                name="schedule"
+                options={{
+                  title: "Schedule",
+                }}
+              />
+              <Tabs.Screen
+                name="poi"
+                options={{
+                  title: "Points of Interest",
+                }}
+              />
+            </Tabs>
+          </POIProvider>
+        </CalendarAuthProvider>
+      </IndoorMapProvider>
     </DirectionsProvider>
   );
 }
