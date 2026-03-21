@@ -11,6 +11,7 @@ import {
   CAMPUS_REGIONS,
 } from "@/constants/buildings";
 import { MAP_CONSTANTS } from "@/constants/map";
+import { getPoiInfo } from "@/constants/poi";
 import { useDirections } from "../context/DirectionsContext";
 import MapView, {
   Callout,
@@ -162,21 +163,6 @@ export default function MapViewApp({
     return building.code + " - " + building.address;
   };
 
-  const getPoiIcon = (type: string) => {
-    if (type.includes("cafe")) return "cafe";
-    if (type.includes("restaurant") || type.includes("fast_food")) return "restaurant";
-    if (type.includes("pub") || type.includes("bar")) return "beer";
-    if (type.includes("supermarket") || type.includes("convenience")) return "cart";
-    return "location";
-  };
-
-  const getPoiColor = (type: string) => {
-    if (type.includes("cafe")) return "#D97706"; // Amber
-    if (type.includes("restaurant") || type.includes("fast_food")) return "#EF4444"; // Red
-    if (type.includes("pub") || type.includes("bar")) return "#8B5CF6"; // Purple
-    if (type.includes("supermarket") || type.includes("convenience")) return "#10B981"; // Green
-    return "#6B7280"; // Gray fallback
-  };
 
   const getStrokeColorForBuilding = (isStart: boolean, isDest: boolean) => {
     if (isStart) return "#10B981";
@@ -408,8 +394,7 @@ export default function MapViewApp({
 
           {/* POI Markers */}
           {showPOIs && pois.map((poi) => {
-            const poiColor = getPoiColor(poi.type);
-            const poiIcon = getPoiIcon(poi.type);
+            const { icon: poiIcon, color: poiColor } = getPoiInfo(poi.type);
             return (
               <Marker
                 key={`poi-${poi.id}`}
