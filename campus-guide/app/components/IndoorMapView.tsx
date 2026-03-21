@@ -11,6 +11,7 @@ import {
 import MapView, { Marker, Polygon, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 import { NodeType, GraphNode } from "@app/services/indoorGraphService";
 import { CAMPUS_MAP_STYLE } from "@/constants/mapStyle";
+import { MAP_CONSTANTS } from "@/constants/map";
 import RoomSearchBar from "./RoomSearchBar";
 import {
   useIndoorMap,
@@ -27,10 +28,6 @@ function shouldLogIndoorMapDebug() {
   return process.env.NODE_ENV !== "test" || process.env.INDOOR_MAP_DEBUG === "1";
 }
 
-const BUILDING_LAT_DELTA = 0.002;
-const BUILDING_LNG_DELTA = 0.002;
-const DEFAULT_LAT_DELTA = 0.005;
-const DEFAULT_LNG_DELTA = 0.005;
 
 export function hasNoCoordinates(coords: { latitude: number; longitude: number }[]) {
   return coords.length === 0;
@@ -206,10 +203,10 @@ export default function IndoorMapView() {
         {
           latitude: selectedBuilding.centerLat,
           longitude: selectedBuilding.centerLng,
-          latitudeDelta: BUILDING_LAT_DELTA,
-          longitudeDelta: BUILDING_LNG_DELTA,
+          latitudeDelta: MAP_CONSTANTS.INDOOR_BUILDING_DELTA,
+          longitudeDelta: MAP_CONSTANTS.INDOOR_BUILDING_DELTA,
         },
-        500,
+        MAP_CONSTANTS.INDOOR_ANIMATION_MS,
       );
     }
   }, [selectedBuilding, selectedFloor]);
@@ -411,14 +408,14 @@ export default function IndoorMapView() {
     ? {
       latitude: selectedBuilding.centerLat,
       longitude: selectedBuilding.centerLng,
-      latitudeDelta: BUILDING_LAT_DELTA,
-      longitudeDelta: BUILDING_LNG_DELTA,
+      latitudeDelta: MAP_CONSTANTS.INDOOR_BUILDING_DELTA,
+      longitudeDelta: MAP_CONSTANTS.INDOOR_BUILDING_DELTA,
     }
     : {
       latitude: 45.497092,
       longitude: -73.5788,
-      latitudeDelta: DEFAULT_LAT_DELTA,
-      longitudeDelta: DEFAULT_LNG_DELTA,
+      latitudeDelta: MAP_CONSTANTS.DEFAULT_CAMERA_DELTA,
+      longitudeDelta: MAP_CONSTANTS.DEFAULT_CAMERA_DELTA,
     };
 
   if (shouldLogIndoorMapDebug()) {

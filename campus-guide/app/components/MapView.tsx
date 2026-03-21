@@ -10,6 +10,7 @@ import {
   LOYOLA_BUILDINGS,
   CAMPUS_REGIONS,
 } from "@/constants/buildings";
+import { MAP_CONSTANTS } from "@/constants/map";
 import { useDirections } from "../context/DirectionsContext";
 import MapView, {
   Callout,
@@ -131,7 +132,7 @@ export default function MapViewApp({
 
     // Animate map to the new campus
     if (mapRef.current) {
-      mapRef.current.animateToRegion(CAMPUS_REGIONS[campus], 1000);
+      mapRef.current.animateToRegion(CAMPUS_REGIONS[campus], MAP_CONSTANTS.ANIMATION_DURATION_MS);
     }
   };
 
@@ -145,9 +146,9 @@ export default function MapViewApp({
         mapRef.current.animateToRegion({
           latitude: building.lat,
           longitude: building.lng,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        }, 1000);
+          latitudeDelta: MAP_CONSTANTS.CAMPUS_CAMERA_DELTA,
+          longitudeDelta: MAP_CONSTANTS.CAMPUS_CAMERA_DELTA,
+        }, MAP_CONSTANTS.ANIMATION_DURATION_MS);
       }
     }
 
@@ -215,10 +216,10 @@ export default function MapViewApp({
         {
           latitude: userLocation.coords.latitude,
           longitude: userLocation.coords.longitude,
-          latitudeDelta: 0.005,
-          longitudeDelta: 0.005,
+          latitudeDelta: MAP_CONSTANTS.DEFAULT_CAMERA_DELTA,
+          longitudeDelta: MAP_CONSTANTS.DEFAULT_CAMERA_DELTA,
         },
-        1000,
+        MAP_CONSTANTS.ANIMATION_DURATION_MS,
       );
     }
   };
@@ -248,7 +249,7 @@ export default function MapViewApp({
 
     if ((coords?.length ?? 0) > 0 && mapRef.current?.fitToCoordinates) {
       mapRef.current.fitToCoordinates(coords, {
-        edgePadding: { top: 150, right: 50, bottom: 50, left: 50 },
+        edgePadding: MAP_CONSTANTS.ROUTE_EDGE_PADDING,
         animated: true,
       });
     }
@@ -311,10 +312,10 @@ export default function MapViewApp({
           customMapStyle={CAMPUS_MAP_STYLE}
           onRegionChangeComplete={(region) => {
             // Track the region so POIs can fetch around where the user is looking
-            // Only update if we moved a significant distance (roughly > 500m) to avoid API spam (429 Rate Limit)
+            // Only update if we moved a significant distance to avoid API spam (429 Rate Limit)
             const latDelta = Math.abs(region.latitude - mapRegion.latitude);
             const lonDelta = Math.abs(region.longitude - mapRegion.longitude);
-            if (latDelta > 0.005 || lonDelta > 0.005) {
+            if (latDelta > MAP_CONSTANTS.REGION_UPDATE_THRESHOLD || lonDelta > MAP_CONSTANTS.REGION_UPDATE_THRESHOLD) {
               setMapRegion({
                 latitude: region.latitude,
                 longitude: region.longitude,
@@ -324,7 +325,7 @@ export default function MapViewApp({
             }
 
             // Only auto-switch if zoomed in enough to see buildings (guard against flip-flopping)
-            if (region.latitudeDelta > 0.02) return;
+            if (region.latitudeDelta > MAP_CONSTANTS.AUTO_SWITCH_MAX_DELTA) return;
 
             // Auto-switch campus markers based on the map center
             const sgwCenter = CAMPUS_REGIONS.SGW;
