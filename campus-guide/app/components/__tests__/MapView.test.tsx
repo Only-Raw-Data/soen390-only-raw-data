@@ -52,6 +52,10 @@ jest.mock("expo-router", () => ({
   usePathname: () => "/",
 }));
 
+jest.mock("@react-navigation/native", () => ({
+  useIsFocused: () => true,
+}));
+
 jest.mock("../BuildingSearchComponent", () => {
   const { TextInput } = require("react-native");
   return function MockSearch(props: any) {
@@ -678,7 +682,33 @@ describe("MapViewApp", () => {
       // Assert
       expect(useUserLocation).toHaveBeenCalled();
     });
+  });
 
+  describe("Clear Directions Floating Button", () => {
+    it("renders and clears directions when pressed", () => {
+      // Arrange - setup with a destination building so the button appears
+      (useDirections as jest.Mock).mockReturnValue(
+        createDirectionsMock({
+          destinationBuilding: { id: "h" },
+          setStartBuilding: mockSetStartBuilding,
+          setDestinationBuilding: mockSetDestinationBuilding,
+          clearDirections: mockClearDirections,
+          setStartCoords: mockSetStartCoords,
+        }),
+      );
+
+      const screen = render(<MapViewApp />);
+      
+      // Act
+      const clearBtn = screen.getByTestId("clear-directions-button");
+      fireEvent.press(clearBtn);
+
+      // Assert
+      expect(mockClearDirections).toHaveBeenCalled();
+    });
+  });
+
+  describe("Location interactions", () => {
     it("shows bottom popup with action buttons", () => {
       // Arrange
       const screen = render(<MapViewApp />);
@@ -703,6 +733,40 @@ describe("MapViewApp", () => {
       
       // Assert - BuildingInformation modal should be visible
       expect(screen.getByText("Departments")).toBeTruthy();
+    });
+
+    it("closes building information when 'onClose' is triggered", () => {
+      // Arrange
+      const screen = render(<MapViewApp />);
+      fireEvent.press(screen.getByText(/H - 1455 DeMaisonneuve W/));
+      fireEvent.press(screen.getByText("More Info"));
+      
+      // Act
+      fireEvent.press(screen.getByTestId("close-button"));
+      
+      // Assert
+      expect(screen.queryByText("Departments")).toBeNull();
+    });
+
+    it("switches campus context and animates map when a cross-campus building is somehow selected", async () => {
+      // Arrange
+      const { SGW_BUILDINGS } = require("@constants/buildings");
+      const spyBuilding = { id: "cross-campus-spy", name: "Spy Building", campus: "Loyola", code: "SPY", lat: 10, lng: 10, address: "123 Spy St" };
+      SGW_BUILDINGS.push(spyBuilding);
+
+      const mapMethods = (globalThis as any).mockMapMethods;
+      mapMethods.animateToRegion.mockClear();
+      
+      const screen = render(<MapViewApp />);
+      
+      // Act
+      fireEvent.press(screen.getByTestId("building-marker-cross-campus-spy"));
+      
+      // Assert
+      expect(mapMethods.animateToRegion).toHaveBeenCalled();
+      
+      // Cleanup
+      SGW_BUILDINGS.pop();
     });
   });
 
@@ -747,6 +811,21 @@ describe("MapViewApp", () => {
       // Start building won't be cleared, but startCoords should be injected
       expect(mockSetStartBuilding).not.toHaveBeenCalledWith(null);
       expect(mockSetStartCoords).toHaveBeenCalledWith({ lat: 45.4971, lng: -73.5791 });
+    });
+
+    it("clears POI selection when Clear button is pressed on POI bottom bar", () => {
+      const screen = render(<MapViewApp />);
+      fireEvent.press(screen.getByTestId("poi-toggle-button"));
+      fireEvent.press(screen.getByTestId("poi-marker-999"));
+      
+      // Verify POI is selected
+      expect(screen.getByTestId("poi-bottom-bar")).toBeTruthy();
+      
+      // Act
+      fireEvent.press(screen.getByText("Clear"));
+      
+      // Assert
+      expect(screen.queryByTestId("poi-bottom-bar")).toBeNull();
     });
   });
 
