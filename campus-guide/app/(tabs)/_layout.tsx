@@ -26,6 +26,7 @@ export default function TabLayout() {
 
   // Map pathname to screen type
   const getCurrentScreen = (): Screen => {
+    if (pathname.includes("poi")) return "poi";
     if (pathname.includes("index")) return "map";
     if (pathname.includes("two")) return "directions";
     if (pathname.includes("schedule")) return "schedule";
@@ -49,7 +50,7 @@ export default function TabLayout() {
           router.push("/(tabs)/indoor");
           break;
         case "poi":
-          router.push("/(tabs)");
+          router.push("/(tabs)/poi");
           break;
       }
     },
@@ -95,6 +96,12 @@ export default function TabLayout() {
           name="schedule"
           options={{
             title: "Schedule",
+          }}
+        />
+        <Tabs.Screen
+          name="poi"
+          options={{
+            title: "Points of Interest",
           }}
         />
       </Tabs>
