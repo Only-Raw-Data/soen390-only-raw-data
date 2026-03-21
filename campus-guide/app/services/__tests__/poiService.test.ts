@@ -1,6 +1,7 @@
 import { fetchPOIs } from "../poiService";
 import { haversineDistance } from "../../utils/locationUtils";
 import { File, Directory } from "expo-file-system/next";
+import { POI_LIMIT, POI_RADIUS } from "../../../constants/poi";
 
 // Mock the native modules
 jest.mock('expo-file-system/next', () => {
@@ -78,7 +79,7 @@ describe("fetchPOIs", () => {
       json: async () => mockResponse,
     });
 
-    const pois = await fetchPOIs(45.497092, -73.5788, 500, 10);
+    const pois = await fetchPOIs(45.497092, -73.5788, POI_RADIUS, POI_LIMIT);
 
     // Assert
     // Should only have 2 POIs (the one without a name should be excluded)
@@ -99,7 +100,7 @@ describe("fetchPOIs", () => {
     });
 
     // Act
-    const pois = await fetchPOIs(45.497092, -73.5788, 500, 10);
+    const pois = await fetchPOIs(45.497092, -73.5788, POI_RADIUS, POI_LIMIT);
     // Assert
     expect(pois).toEqual([]);
   });
@@ -113,7 +114,7 @@ describe("fetchPOIs", () => {
       ],
       lat: 45.497,
       lon: -73.579,
-      radius: 500
+      radius: POI_RADIUS
     };
 
     // Override File mock for this test
@@ -124,7 +125,7 @@ describe("fetchPOIs", () => {
     }));
 
     // Act
-    const pois = await fetchPOIs(45.497092, -73.5788, 500, 10);
+    const pois = await fetchPOIs(45.497092, -73.5788, POI_RADIUS, POI_LIMIT);
     
     // Assert
     expect(mockText).toHaveBeenCalled();

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { PointOfInterest } from "../types/poi";
 import { fetchPOIs } from "../services/poiService";
+import { POI_LIMIT, POI_RADIUS } from "../../constants/poi";
 
 interface UsePOIsProps {
   lat?: number;
@@ -13,8 +14,8 @@ interface UsePOIsProps {
 export default function usePOIs({
   lat,
   lon,
-  radius = 500,
-  limit = 15,
+  radius = POI_RADIUS,
+  limit = POI_LIMIT,
   enabled = true,
 }: UsePOIsProps) {
   const [pois, setPois] = useState<PointOfInterest[]>([]);

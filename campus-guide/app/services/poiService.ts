@@ -1,10 +1,9 @@
 import { PointOfInterest } from "../types/poi";
 import { haversineDistance } from "../utils/locationUtils";
 import { File, Directory, Paths } from "expo-file-system/next";
+import { POI_LIMIT, POI_RADIUS, POI_CACHE_DIR, POI_CACHE_EXPIRY } from "../../constants/poi";
 
 const OVERPASS_URL = process.env.EXPO_PUBLIC_OVERPASS_URL as string;
-const CACHE_DIR_NAME = "poi_cache";
-const CACHE_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
 interface CacheData {
   timestamp: number;
@@ -33,7 +32,7 @@ interface OverpassResponse {
 }
 
 function getCacheDir(): Directory {
-  return new Directory(Paths.cache, CACHE_DIR_NAME);
+  return new Directory(Paths.cache, POI_CACHE_DIR);
 }
 
 // Create a stable cache key based on coarse location and radius
@@ -64,7 +63,7 @@ async function getCachedPOIs(
     const cached: CacheData = JSON.parse(content);
 
     // Check if cache is still valid
-    if (Date.now() - cached.timestamp < CACHE_DURATION_MS) {
+    if (Date.now() - cached.timestamp < POI_CACHE_EXPIRY * 1000) {
       return cached.pois;
     }
 
@@ -144,8 +143,8 @@ function mapOverpassElementToPOI(element: OverpassElement, userLat: number, user
 export async function fetchPOIs(
   lat: number,
   lon: number,
-  radius: number = 500,
-  limit: number = 15
+  radius: number = POI_RADIUS,
+  limit: number = POI_LIMIT
 ): Promise<PointOfInterest[]> {
   try {
     // 1. Check Cache
