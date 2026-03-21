@@ -29,6 +29,7 @@ import { isWithinShuttleHours } from "../utils/shuttleHours";
 import { SegmentMode } from "@app/types/transportation";
 import usePOIs from "../hooks/usePOIs";
 import { PointOfInterest } from "../types/poi";
+import { poiToBuildingAdapter } from "../utils/poiUtils";
 
 const SEGMENT_COLORS: Record<SegmentMode, string> = {
   WALK: '#3B82F6',
@@ -80,6 +81,8 @@ export default function MapViewApp({
   >(null);
   // State for building info modal
   const [infoBuilding, setInfoBuilding] = useState<Building | null>(null);
+  // State for POI selection
+  const [selectedPOI, setSelectedPOI] = useState<PointOfInterest | null>(null);
 
   // Fetch building polygons for the current campus
   const { polygons: buildingPolygons } = useBuildingPolygons(selectedCampus);
@@ -130,6 +133,7 @@ export default function MapViewApp({
   const handleCampusChange = (campus: Campus) => {
     setSelectedCampus(campus);
     setSelectedBuilding(null);
+    setSelectedPOI(null);
 
     // Animate map to the new campus
     if (mapRef.current) {
@@ -152,8 +156,9 @@ export default function MapViewApp({
         }, MAP_CONSTANTS.ANIMATION_DURATION_MS);
       }
     }
-
+    
     setSelectedBuilding(building);
+    setSelectedPOI(null);
     setInfoBuilding(null);
   };
 
@@ -225,6 +230,15 @@ export default function MapViewApp({
 
     setSelectedBuilding(null); // Close the bottom bar
     setInfoBuilding(null); // Close the detail popup
+    router.push("/(tabs)/two");
+  };
+
+  const handleGetDirectionsForPOI = (poi: PointOfInterest) => {
+    const adaptedBuilding = poiToBuildingAdapter(poi, selectedCampus);
+    setDestinationBuilding(adaptedBuilding);
+    setStartBuilding(null); // Force "Current Location" as the start
+    
+    setSelectedPOI(null);
     router.push("/(tabs)/two");
   };
 
@@ -403,6 +417,11 @@ export default function MapViewApp({
                 description={poi.type}
                 tracksViewChanges={false}
                 testID={`poi-marker-${poi.id}`}
+                onPress={() => {
+                  setSelectedPOI(poi);
+                  setSelectedBuilding(null);
+                  setInfoBuilding(null);
+                }}
               >
                 <View style={[styles.poiMarkerContainer, { backgroundColor: poiColor }]}>
                   <Ionicons name={poiIcon as any} size={14} color="#FFFFFF" />
@@ -510,6 +529,7 @@ export default function MapViewApp({
             onPress={() => {
               clearDirections();
               setSelectedBuilding(null);
+              setSelectedPOI(null);
             }}
           >
             <Ionicons name="close-circle" size={24} color="#FFFFFF" />
@@ -607,6 +627,42 @@ export default function MapViewApp({
             >
               <Text style={styles.bottomBarButtonPrimaryText}>
                 {startBuilding ? "Set as Destination" : "Set as Start"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {selectedPOI && (
+        <View style={styles.bottomBar} testID="poi-bottom-bar">
+          <View style={styles.bottomBarInfo}>
+            <View style={[styles.bottomBarCodeRow, { alignItems: 'center', gap: 6 }]}>
+              <Ionicons name={getPoiInfo(selectedPOI.type).icon as any} size={16} color={getPoiInfo(selectedPOI.type).color} />
+              <Text style={[styles.bottomBarCode, { color: getPoiInfo(selectedPOI.type).color }]} testID="poi-bottom-bar-code">
+                {selectedPOI.type.replace(/_/g, " ").toUpperCase()}
+              </Text>
+            </View>
+            <Text style={styles.bottomBarName} numberOfLines={1} testID="poi-bottom-bar-name">
+              {selectedPOI.name}
+            </Text>
+            <Text style={styles.bottomBarAddress} numberOfLines={1}>
+              {selectedPOI.address || "Point of Interest"}
+            </Text>
+          </View>
+          <View style={styles.bottomBarActions}>
+            <TouchableOpacity
+              style={styles.bottomBarButtonSecondary}
+              onPress={() => setSelectedPOI(null)}
+            >
+              <Text style={styles.bottomBarButtonSecondaryText}>Clear</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.bottomBarButtonPrimary}
+              onPress={() => handleGetDirectionsForPOI(selectedPOI)}
+              testID="poi-directions-button"
+            >
+              <Text style={styles.bottomBarButtonPrimaryText}>
+                Get Directions
               </Text>
             </TouchableOpacity>
           </View>

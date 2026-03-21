@@ -4,6 +4,7 @@ import MapViewApp from "../MapView";
 import { useDirections } from "../../context/DirectionsContext";
 import useBuildingPolygons from "../../hooks/useBuildingPolygons";
 import useUserLocation from "../../hooks/useUserLocation";
+import usePOIs from "../../hooks/usePOIs";
 import { SGW_BUILDINGS, LOYOLA_BUILDINGS } from "@/constants/buildings";
 import { isWithinShuttleHours } from "../../utils/shuttleHours";
 
@@ -29,6 +30,11 @@ jest.mock("../../hooks/useBuildingPolygons", () => ({
 }));
 
 jest.mock("../../hooks/useUserLocation", () => ({
+  __esModule: true,
+  default: jest.fn(),
+}));
+
+jest.mock("../../hooks/usePOIs", () => ({
   __esModule: true,
   default: jest.fn(),
 }));
@@ -240,6 +246,19 @@ describe("MapViewApp", () => {
     (useUserLocation as jest.Mock).mockReturnValue(
       createUserLocationMock({ getCurrentLocation: mockGetCurrentLocation }),
     );
+
+    (usePOIs as jest.Mock).mockReturnValue({
+      pois: [
+        {
+          id: 999,
+          name: "Mock Cafe POI",
+          type: "cafe",
+          lat: 45.497,
+          lon: -73.579,
+        }
+      ],
+      loading: false,
+    });
   };
 
   beforeEach(() => {
@@ -681,6 +700,42 @@ describe("MapViewApp", () => {
       
       // Assert - BuildingInformation modal should be visible
       expect(screen.getByText("Departments")).toBeTruthy();
+    });
+  });
+
+  describe("POI Feature", () => {
+    it("renders POI markers when toggle is pressed", () => {
+      // Arrange
+      const screen = render(<MapViewApp />);
+      
+      // Act
+      fireEvent.press(screen.getByTestId("poi-toggle-button"));
+      
+      // Assert
+      expect(screen.getByTestId("poi-marker-999")).toBeTruthy();
+    });
+
+    it("shows POI bottom bar and triggers Get Directions", () => {
+      // Arrange
+      const screen = render(<MapViewApp />);
+      // Enable POIs
+      fireEvent.press(screen.getByTestId("poi-toggle-button"));
+      // Tap the POI
+      fireEvent.press(screen.getByTestId("poi-marker-999"));
+      
+      // POI bottom bar should appear
+      expect(screen.getByTestId("poi-bottom-bar")).toBeTruthy();
+      expect(screen.getByTestId("poi-bottom-bar-name").props.children).toBe("Mock Cafe POI");
+      
+      // Get directions
+      fireEvent.press(screen.getByTestId("poi-directions-button"));
+      
+      // Destination should be set via context adapter
+      expect(mockSetDestinationBuilding).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "poi-999", name: "Mock Cafe POI" })
+      );
+      // Start should be cleared to force Current Location
+      expect(mockSetStartBuilding).toHaveBeenCalledWith(null);
     });
   });
 
