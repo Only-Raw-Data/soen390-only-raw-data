@@ -1,0 +1,23 @@
+name: VigilFlux Security Scan
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  vigilflux-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Run VigilFlux Security Scan
+        run: |
+          curl -X POST https://api.vigilflux.com/api/scans \
+            -H "Authorization: Bearer ${{ secrets.VIGILFLUX_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "repo_url": "${{ github.server_url }}/${{ github.repository }}",
+              "branch": "${{ github.ref_name }}",
+              "commit_sha": "${{ github.sha }}"
+            }'
