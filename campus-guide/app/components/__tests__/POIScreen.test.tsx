@@ -1,13 +1,13 @@
 /**
  * Tests for the POI Tab screen (app/(tabs)/poi.tsx)
  */
-import React from "react";
+import * as React from "react";
 import { render, fireEvent, waitFor } from "@testing-library/react-native";
 import POIScreen from "@app/(tabs)/poi";
 import { POIProvider } from "@app/context/POIContext";
 
 const renderWithProvider = (ui: React.ReactElement) =>
-  render(<POIProvider>{ui}</POIProvider>);
+  render(<POIProvider children={ui} />);
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -54,6 +54,8 @@ jest.mock("@app/context/DirectionsContext", () => ({
     startBuilding: null,
     setStartBuilding: mockSetDestinationBuilding,
     setDestinationBuilding: mockSetDestinationBuilding,
+    route: null,
+    isLoadingRoute: false,
   }),
 }));
 

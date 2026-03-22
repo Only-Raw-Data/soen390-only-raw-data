@@ -20,6 +20,7 @@ import { useDirections } from "@app/context/DirectionsContext";
 import { usePOIContext } from "@app/context/POIContext";
 import { CAMPUS_REGIONS, Campus } from "@constants/buildings";
 import { PointOfInterest } from "@app/types/poi";
+import InfoModal from "@app/components/InfoModal";
 
 // ─── Radius options ──────────────────────────────────────────────────────────
 
@@ -130,83 +131,6 @@ function POIItem({ poi, onDirections, onInfo }: POIItemProps) {
         </View>
       </View>
     </View>
-  );
-}
-
-// ─── Info Modal ───────────────────────────────────────────────────────────────
-
-interface InfoModalProps {
-  poi: PointOfInterest | null;
-  onClose: () => void;
-}
-
-function InfoModal({ poi, onClose }: InfoModalProps) {
-  if (!poi) return null;
-  const info = getPoiInfo(poi.type);
-  return (
-    <Modal
-      visible={!!poi}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-      testID="poi-info-modal"
-    >
-      <Pressable
-        style={styles.modalOverlay}
-        onPress={onClose}
-        testID="modal-overlay"
-      >
-        <Pressable style={styles.modalSheet} onPress={() => {}}>
-          {/* Handle bar */}
-          <View style={styles.modalHandle} />
-
-          <View style={styles.modalIconRow}>
-            <View
-              style={[
-                styles.modalIconCircle,
-                { backgroundColor: info.color + "22" },
-              ]}
-            >
-              <Ionicons name={info.icon as any} size={32} color={info.color} />
-            </View>
-          </View>
-
-          <Text style={styles.modalName}>{poi.name}</Text>
-          <Text style={styles.modalType}>{poi.type.replace(/_/g, " ")}</Text>
-
-          {poi.distance !== undefined && (
-            <View style={styles.modalRow}>
-              <Ionicons name="walk-outline" size={16} color="#6B7280" />
-              <Text style={styles.modalRowText}>
-                {formatDistance(poi.distance)} away
-              </Text>
-            </View>
-          )}
-
-          {poi.address && (
-            <View style={styles.modalRow}>
-              <Ionicons name="location-outline" size={16} color="#6B7280" />
-              <Text style={styles.modalRowText}>{poi.address}</Text>
-            </View>
-          )}
-
-          {poi.openingHours && (
-            <View style={styles.modalRow}>
-              <Ionicons name="time-outline" size={16} color="#6B7280" />
-              <Text style={styles.modalRowText}>{poi.openingHours}</Text>
-            </View>
-          )}
-
-          <TouchableOpacity
-            style={styles.modalCloseBtn}
-            onPress={onClose}
-            testID="modal-close-btn"
-          >
-            <Text style={styles.modalCloseBtnText}>Close</Text>
-          </TouchableOpacity>
-        </Pressable>
-      </Pressable>
-    </Modal>
   );
 }
 
@@ -364,7 +288,7 @@ export default function POIScreen() {
         </View>
 
         {/* Radius selector */}
-        <view style={styles.slidersection}>
+        <View style={styles.sliderSection}>
           <View style={styles.sliderHeader}>
             <Text style={styles.sliderLabel}>Search Range</Text>
             <Text style={styles.sliderValue}>

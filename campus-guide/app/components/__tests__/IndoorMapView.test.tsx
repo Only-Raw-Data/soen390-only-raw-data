@@ -1,4 +1,4 @@
-import React from "react";
+import * as React from "react";
 import { render, fireEvent, waitFor, act } from "@testing-library/react-native";
 import IndoorMapView from "@app/components/IndoorMapView";
 import { AMENITY_CONFIG } from "@app/components/IndoorMapView";
@@ -9,10 +9,15 @@ import {
   getFeaturesForFloor,
 } from "@app/context/IndoorMapContext";
 import { POIProvider } from "@app/context/POIContext";
+import { useDirections } from "@app/context/DirectionsContext";
 
 // Mock the cross-building route service
 jest.mock("@app/services/crossBuildingRouteService", () => ({
   planCrossBuildingRoute: jest.fn(),
+}));
+
+jest.mock("@app/context/DirectionsContext", () => ({
+  useDirections: jest.fn(),
 }));
 
 import { planCrossBuildingRoute } from "@app/services/crossBuildingRouteService";
@@ -155,9 +160,7 @@ const defaultContextValue = {
 
 const renderWithProvider = (ui: React.ReactElement) =>
   render(
-    <POIProvider>
-      {ui}
-    </POIProvider>
+    <POIProvider children={ui} />
   );
 
 describe("IndoorMapView", () => {
@@ -166,6 +169,7 @@ describe("IndoorMapView", () => {
     mockUseIndoorMap.mockReturnValue({ ...defaultContextValue });
     mockGetGeoJson.mockReturnValue(null);
     mockGetFeatures.mockReturnValue([]);
+    (useDirections as jest.Mock).mockReturnValue({ route: null });
   });
 
   it("renders start and destination search bars", () => {

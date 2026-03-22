@@ -10,6 +10,7 @@ import React, {
 import { PointOfInterest } from "../types/poi";
 import usePOIs from "../hooks/usePOIs";
 import { MAP_CONSTANTS } from "@/constants/map";
+import { useDirections } from "./DirectionsContext";
 
 interface POIContextType {
   // Visibility & selection
@@ -61,7 +62,11 @@ export function POIProvider({ children }: POIProviderProps) {
   const searchCenterRef = useRef(searchCenter);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Access directions context to detect active route
+  const { route } = useDirections();
+
   // Fetch POIs through the hook using context's search parameters
+  // Pause updates if a route is active to avoid distracting fetches during navigation
   const {
     pois,
     loading: isLoading,
@@ -71,7 +76,7 @@ export function POIProvider({ children }: POIProviderProps) {
     lon: searchCenter.lon,
     radius: searchRadius,
     limit: 50,
-    enabled: showPOIs,
+    enabled: showPOIs && !route,
   });
 
   /**
