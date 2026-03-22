@@ -15,7 +15,7 @@ jobs:
       - name: Start Scan
         id: start
         run: |
-          response=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST https://api.vigilflux.com/api/scans \
+          response=$(curl -sL -w "\nHTTP_STATUS:%{http_code}" -X POST https://api.vigilflux.com/api/scans \
             -H "Authorization: Bearer ${{ secrets.VIGILFLUX_API_KEY }}" \
             -H "Content-Type: application/json" \
             -d '{
@@ -39,7 +39,7 @@ jobs:
         run: |
           scan_id="${{ steps.start.outputs.scan_id }}"
           for i in $(seq 1 30); do
-            result=$(curl -s "https://api.vigilflux.com/api/scans/$scan_id" \
+            result=$(curl -sL "https://api.vigilflux.com/api/scans/$scan_id" \
               -H "Authorization: Bearer ${{ secrets.VIGILFLUX_API_KEY }}")
             scan_status=$(echo "$result" | jq -r '.scan.status')
             echo "[$i/30] status: $scan_status"
@@ -60,7 +60,7 @@ jobs:
       - name: Check Results
         run: |
           scan_id="${{ steps.start.outputs.scan_id }}"
-          result=$(curl -s "https://api.vigilflux.com/api/scans/$scan_id" \
+          result=$(curl -sL "https://api.vigilflux.com/api/scans/$scan_id" \
             -H "Authorization: Bearer ${{ secrets.VIGILFLUX_API_KEY }}")
 
           critical=$(echo "$result" | jq -r '.report.critical_count // 0')
