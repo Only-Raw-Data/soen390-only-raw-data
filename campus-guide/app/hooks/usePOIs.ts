@@ -26,8 +26,13 @@ export default function usePOIs({
     let cancelled = false;
 
     async function loadPOIs() {
-      // Don't fetch if not enabled or missing coordinates
-      if (!enabled || lat === undefined || lon === undefined) {
+      // Don't fetch if not enabled
+      if (!enabled) {
+        return;
+      }
+
+      // Clear list only if coordinates are missing
+      if (lat === undefined || lon === undefined) {
         if (!cancelled) setPois([]);
         return;
       }

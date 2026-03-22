@@ -1,5 +1,11 @@
 import React, { useState, useRef } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+} from "react-native";
 import BuildingSearchHeader from "./BuildingSearchComponent";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -13,6 +19,7 @@ import {
 import { MAP_CONSTANTS } from "@/constants/map";
 import { getPoiInfo } from "@/constants/poi";
 import { useDirections } from "../context/DirectionsContext";
+import { usePOIContext } from "../context/POIContext";
 import MapView, {
   Callout,
   Marker,
@@ -27,15 +34,15 @@ import LocateMeButton from "./LocateMeButton";
 import useUserLocation from "../hooks/useUserLocation";
 import { isWithinShuttleHours } from "../utils/shuttleHours";
 import { SegmentMode } from "@app/types/transportation";
-import usePOIs from "../hooks/usePOIs";
 import { PointOfInterest } from "../types/poi";
+import { poiToBuildingAdapter } from "../utils/poiUtils";
 
 const SEGMENT_COLORS: Record<SegmentMode, string> = {
-  WALK: '#3B82F6',
-  BUS: '#16A34A',
-  SUBWAY: '#F97316',
-  TRAM: '#DC2626',
-  RAIL: '#DC2626',
+  WALK: "#3B82F6",
+  BUS: "#16A34A",
+  SUBWAY: "#F97316",
+  TRAM: "#DC2626",
+  RAIL: "#DC2626",
 };
 
 interface MapViewAppProps {
@@ -50,8 +57,10 @@ export default function MapViewApp({
   const {
     startBuilding,
     destinationBuilding,
+    startCoords,
     setStartBuilding,
     setDestinationBuilding,
+    setStartCoords,
     clearDirections,
     route,
     transportationMode,
@@ -62,9 +71,7 @@ export default function MapViewApp({
     startBuilding &&
     destinationBuilding &&
     startBuilding.campus !== destinationBuilding.campus;
-  const showRoute =
-    route &&
-    (!isShuttleCrossCampus || isWithinShuttleHours());
+  const showRoute = route && (!isShuttleCrossCampus || isWithinShuttleHours());
 
   const router = useRouter();
   const mapRef = useRef<MapView>(null);
@@ -95,74 +102,70 @@ export default function MapViewApp({
     getCurrentLocation,
   } = useUserLocation();
 
-  // Track current map region for dynamic POI fetching
-  const [mapRegion, setMapRegion] = useState({
-    latitude: userLocation?.coords.latitude || CAMPUS_REGIONS[selectedCampus].latitude,
-    longitude: userLocation?.coords.longitude || CAMPUS_REGIONS[selectedCampus].longitude,
-  });
+  // POI context (centralized state across tabs)
+  const {
+    showPOIs,
+    setShowPOIs,
+    pois,
+    isLoading: poisLoading,
+    selectedPOI,
+    setSelectedPOI,
+    updateSearchCenter,
+  } = usePOIContext();
 
-  // Update map region when campus changes explicitly
-  React.useEffect(() => {
-    setMapRegion({
-      latitude: CAMPUS_REGIONS[selectedCampus].latitude,
-      longitude: CAMPUS_REGIONS[selectedCampus].longitude,
-    });
-  }, [selectedCampus]);
 
-  // POIs fetching
-  const [showPOIs, setShowPOIs] = useState(false);
-  const { pois, loading: poisLoading } = usePOIs({
-    // Prioritize map center over static user location so we can explore
-    lat: mapRegion.latitude,
-    lon: mapRegion.longitude,
-    radius: 2000, // 2 km radius based on where the user is looking
-    limit: 50,
-    enabled: showPOIs,
-  });
+
 
   const allBuildingsList = [...SGW_BUILDINGS, ...LOYOLA_BUILDINGS];
-  const filteredBuildings = allBuildingsList.filter(
-    (b) =>
-      b.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      b.code.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
 
   const handleCampusChange = (campus: Campus) => {
     setSelectedCampus(campus);
     setSelectedBuilding(null);
+    setSelectedPOI(null);
 
     // Animate map to the new campus
     if (mapRef.current) {
-      mapRef.current.animateToRegion(CAMPUS_REGIONS[campus], MAP_CONSTANTS.ANIMATION_DURATION_MS);
+      mapRef.current.animateToRegion(
+        CAMPUS_REGIONS[campus],
+        MAP_CONSTANTS.ANIMATION_DURATION_MS,
+      );
     }
   };
 
   const handleBuildingPress = (building: Building) => {
     // Switch campus context (markers/polygons) if the building is on the other campus
-    if (building.id !== selectedBuilding?.id && building.campus !== selectedCampus) {
+    if (
+      building.id !== selectedBuilding?.id &&
+      building.campus !== selectedCampus
+    ) {
       setSelectedCampus(building.campus);
 
       // Animate to the new campus to avoid disorientation
       if (mapRef.current) {
-        mapRef.current.animateToRegion({
-          latitude: building.lat,
-          longitude: building.lng,
-          latitudeDelta: MAP_CONSTANTS.CAMPUS_CAMERA_DELTA,
-          longitudeDelta: MAP_CONSTANTS.CAMPUS_CAMERA_DELTA,
-        }, MAP_CONSTANTS.ANIMATION_DURATION_MS);
+        mapRef.current.animateToRegion(
+          {
+            latitude: building.lat,
+            longitude: building.lng,
+            latitudeDelta: MAP_CONSTANTS.CAMPUS_CAMERA_DELTA,
+            longitudeDelta: MAP_CONSTANTS.CAMPUS_CAMERA_DELTA,
+          },
+          MAP_CONSTANTS.ANIMATION_DURATION_MS,
+        );
       }
     }
 
     setSelectedBuilding(building);
+    setSelectedPOI(null);
     setInfoBuilding(null);
   };
 
   const getMarkerTitle = (building: Building) => {
-    if (startBuilding?.id === building.id) return "START - " + building.code + " - " + building.address;
-    if (destinationBuilding?.id === building.id) return "DESTINATION - " + building.code + " - " + building.address;
+    if (startBuilding?.id === building.id)
+      return "START - " + building.code + " - " + building.address;
+    if (destinationBuilding?.id === building.id)
+      return "DESTINATION - " + building.code + " - " + building.address;
     return building.code + " - " + building.address;
   };
-
 
   const getStrokeColorForBuilding = (isStart: boolean, isDest: boolean) => {
     if (isStart) return "#10B981";
@@ -225,6 +228,22 @@ export default function MapViewApp({
 
     setSelectedBuilding(null); // Close the bottom bar
     setInfoBuilding(null); // Close the detail popup
+    router.push("/(tabs)/two");
+  };
+
+  const handleGetDirectionsForPOI = (poi: PointOfInterest) => {
+    const adaptedBuilding = poiToBuildingAdapter(poi, selectedCampus);
+    setDestinationBuilding(adaptedBuilding);
+
+    // Automatically use the user's current location as the start point if no start is explicitly set
+    if (!startBuilding && !startCoords && userLocation?.coords) {
+      setStartCoords({
+        lat: userLocation.coords.latitude,
+        lng: userLocation.coords.longitude,
+      });
+    }
+
+    setSelectedPOI(null);
     router.push("/(tabs)/two");
   };
 
@@ -297,21 +316,15 @@ export default function MapViewApp({
           showsMyLocationButton={false}
           customMapStyle={CAMPUS_MAP_STYLE}
           onRegionChangeComplete={(region) => {
-            // Track the region so POIs can fetch around where the user is looking
-            // Only update if we moved a significant distance to avoid API spam (429 Rate Limit)
-            const latDelta = Math.abs(region.latitude - mapRegion.latitude);
-            const lonDelta = Math.abs(region.longitude - mapRegion.longitude);
-            if (latDelta > MAP_CONSTANTS.REGION_UPDATE_THRESHOLD || lonDelta > MAP_CONSTANTS.REGION_UPDATE_THRESHOLD) {
-              setMapRegion({
-                latitude: region.latitude,
-                longitude: region.longitude,
-              });
-              // Deactivate POI toggle when moving beyond threshold
-              setShowPOIs(false);
-            }
+
+
+            // Smart POI center update: debounced, only on meaningful movement
+            // If POIs are enabled, auto-fetches new data instead of clearing toggle
+            updateSearchCenter(region.latitude, region.longitude);
 
             // Only auto-switch if zoomed in enough to see buildings (guard against flip-flopping)
-            if (region.latitudeDelta > MAP_CONSTANTS.AUTO_SWITCH_MAX_DELTA) return;
+            if (region.latitudeDelta > MAP_CONSTANTS.AUTO_SWITCH_MAX_DELTA)
+              return;
 
             // Auto-switch campus markers based on the map center
             const sgwCenter = CAMPUS_REGIONS.SGW;
@@ -319,16 +332,19 @@ export default function MapViewApp({
 
             const distToSGW = Math.sqrt(
               Math.pow(region.latitude - sgwCenter.latitude, 2) +
-              Math.pow(region.longitude - sgwCenter.longitude, 2)
+                Math.pow(region.longitude - sgwCenter.longitude, 2),
             );
             const distToLoyola = Math.sqrt(
               Math.pow(region.latitude - loyolaCenter.latitude, 2) +
-              Math.pow(region.longitude - loyolaCenter.longitude, 2)
+                Math.pow(region.longitude - loyolaCenter.longitude, 2),
             );
 
             if (distToSGW < distToLoyola && selectedCampus !== "SGW") {
               setSelectedCampus("SGW");
-            } else if (distToLoyola < distToSGW && selectedCampus !== "Loyola") {
+            } else if (
+              distToLoyola < distToSGW &&
+              selectedCampus !== "Loyola"
+            ) {
               setSelectedCampus("Loyola");
             }
           }}
@@ -336,7 +352,9 @@ export default function MapViewApp({
           {/* Render Building Polygons */}
           {buildingPolygons.map((polygon) => {
             const colors = getPolygonColors(polygon.buildingId);
-            const building = allBuildingsList.find((b) => b.id === polygon.buildingId);
+            const building = allBuildingsList.find(
+              (b: Building) => b.id === polygon.buildingId,
+            );
             return (
               <Polygon
                 key={`polygon-${polygon.buildingId}`}
@@ -350,32 +368,48 @@ export default function MapViewApp({
             );
           })}
 
-          {/* Existing Markers */}
-          {filteredBuildings
-            .filter((b) => b.campus === selectedCampus)
+          {/* Marker Rendering */}
+          {(selectedCampus === "SGW" ? SGW_BUILDINGS : LOYOLA_BUILDINGS)
+            .filter(
+              (b) =>
+                b.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                b.code.toLowerCase().includes(searchQuery.toLowerCase()),
+            )
             .map((building) => {
               const isCurrentLocation = highlightedBuildingId === building.id;
               return (
                 <Marker
                   key={building.id}
                   testID={`building-marker-${building.id}`}
-                  coordinate={{ latitude: building.lat, longitude: building.lng }}
+                  coordinate={{
+                    latitude: building.lat,
+                    longitude: building.lng,
+                  }}
                   title={getMarkerTitle(building)}
                   onPress={() => handleBuildingPress(building)}
                   anchor={{ x: 0.5, y: 0.5 }}
                   tracksViewChanges={false}
                 >
-                  <View style={[
-                    styles.labelMarker,
-                    isCurrentLocation && styles.labelMarkerCurrent,
-                    startBuilding?.id === building.id && styles.labelMarkerStart,
-                    destinationBuilding?.id === building.id && styles.labelMarkerDest,
-                  ]}>
-                    <Text style={[
-                      styles.labelMarkerText,
-                      isCurrentLocation && styles.labelMarkerTextCurrent,
-                      (startBuilding?.id === building.id || destinationBuilding?.id === building.id) && styles.labelMarkerTextAlt,
-                    ]} numberOfLines={1}>
+                  <View
+                    style={[
+                      styles.labelMarker,
+                      isCurrentLocation && styles.labelMarkerCurrent,
+                      startBuilding?.id === building.id &&
+                        styles.labelMarkerStart,
+                      destinationBuilding?.id === building.id &&
+                        styles.labelMarkerDest,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.labelMarkerText,
+                        isCurrentLocation && styles.labelMarkerTextCurrent,
+                        (startBuilding?.id === building.id ||
+                          destinationBuilding?.id === building.id) &&
+                          styles.labelMarkerTextAlt,
+                      ]}
+                      numberOfLines={1}
+                    >
                       {building.code}
                     </Text>
                   </View>
@@ -393,37 +427,65 @@ export default function MapViewApp({
             })}
 
           {/* POI Markers */}
-          {showPOIs && pois.map((poi) => {
-            const { icon: poiIcon, color: poiColor } = getPoiInfo(poi.type);
-            return (
-              <Marker
-                key={`poi-${poi.id}`}
-                coordinate={{ latitude: poi.lat, longitude: poi.lon }}
-                title={poi.name}
-                description={poi.type}
-                tracksViewChanges={false}
-                testID={`poi-marker-${poi.id}`}
-              >
-                <View style={[styles.poiMarkerContainer, { backgroundColor: poiColor }]}>
-                  <Ionicons name={poiIcon as any} size={14} color="#FFFFFF" />
-                </View>
-                <Callout tooltip>
-                  <View style={[styles.youAreHereCallout, { borderColor: poiColor, width: 140 }]}>
-                    <Text style={[styles.youAreHereText, { color: poiColor }]} numberOfLines={1}>{poi.name}</Text>
-                    <Text style={{ fontSize: 10, color: "#6B7280", textTransform: "capitalize" }} numberOfLines={1}>
-                      {poi.type.replace('_', ' ')}
-                    </Text>
+          {showPOIs &&
+            pois.map((poi) => {
+              const { icon: poiIcon, color: poiColor } = getPoiInfo(poi.type);
+              return (
+                <Marker
+                  key={`poi-${poi.id}`}
+                  coordinate={{ latitude: poi.lat, longitude: poi.lon }}
+                  title={poi.name}
+                  description={poi.type}
+                  tracksViewChanges={false}
+                  testID={`poi-marker-${poi.id}`}
+                  onPress={() => {
+                    setSelectedPOI(poi);
+                    setSelectedBuilding(null);
+                    setInfoBuilding(null);
+                  }}
+                >
+                  <View
+                    style={[
+                      styles.poiMarkerContainer,
+                      { backgroundColor: poiColor },
+                    ]}
+                  >
+                    <Ionicons name={poiIcon as any} size={14} color="#FFFFFF" />
                   </View>
-                </Callout>
-              </Marker>
-            );
-          })}
+                  <Callout tooltip>
+                    <View
+                      style={[
+                        styles.youAreHereCallout,
+                        { borderColor: poiColor, width: 140 },
+                      ]}
+                    >
+                      <Text
+                        style={[styles.youAreHereText, { color: poiColor }]}
+                        numberOfLines={1}
+                      >
+                        {poi.name}
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 10,
+                          color: "#6B7280",
+                          textTransform: "capitalize",
+                        }}
+                        numberOfLines={1}
+                      >
+                        {poi.type.replace("_", " ")}
+                      </Text>
+                    </View>
+                  </Callout>
+                </Marker>
+              );
+            })}
 
           {/* Render Directions Polyline */}
           {showRoute && (
             <>
               {/* Walking — dashed */}
-              {transportationMode === 'walk' && (
+              {transportationMode === "walk" && (
                 <Polyline
                   coordinates={route.coordinates}
                   strokeWidth={4}
@@ -434,7 +496,7 @@ export default function MapViewApp({
               )}
 
               {/* Driving — solid */}
-              {transportationMode === 'car' && (
+              {transportationMode === "car" && (
                 <Polyline
                   coordinates={route.coordinates}
                   strokeWidth={5}
@@ -444,35 +506,37 @@ export default function MapViewApp({
               )}
 
               {/* Transit — per-segment polylines (walk/bus/metro/tram/rail) */}
-              {transportationMode === 'transit' && route.segments && route.segments.length > 0
+              {transportationMode === "transit" &&
+              route.segments &&
+              route.segments.length > 0
                 ? route.segments.map((seg, i) => {
-                  const isWalk = seg.mode === 'WALK';
-                  const color = SEGMENT_COLORS[seg.mode];
-                  const segKey = `transit-seg-${seg.mode}-${i}-${seg.coordinates[0]?.latitude ?? i}`;
-                  return (
+                    const isWalk = seg.mode === "WALK";
+                    const color = SEGMENT_COLORS[seg.mode];
+                    const segKey = `transit-seg-${seg.mode}-${i}-${seg.coordinates[0]?.latitude ?? i}`;
+                    return (
+                      <Polyline
+                        // @ts-ignore - key is a React reserved prop, missing in MapPolylineProps but required in map()
+                        key={segKey}
+                        coordinates={seg.coordinates}
+                        strokeWidth={isWalk ? 3 : 5}
+                        strokeColor={color}
+                        lineDashPattern={isWalk ? [6, 5] : undefined}
+                        zIndex={10}
+                      />
+                    );
+                  })
+                : transportationMode === "transit" && (
                     <Polyline
-                      key={segKey}
-                      coordinates={seg.coordinates}
-                      strokeWidth={isWalk ? 3 : 5}
-                      strokeColor={color}
-                      lineDashPattern={isWalk ? [6, 5] : undefined}
+                      coordinates={route.coordinates}
+                      strokeWidth={4}
+                      strokeColor="#8B5CF6"
+                      lineDashPattern={[16, 8]}
                       zIndex={10}
                     />
-                  );
-                })
-                : transportationMode === 'transit' && (
-                  <Polyline
-                    coordinates={route.coordinates}
-                    strokeWidth={4}
-                    strokeColor="#8B5CF6"
-                    lineDashPattern={[16, 8]}
-                    zIndex={10}
-                  />
-                )
-              }
+                  )}
 
               {/* Shuttle — dotted */}
-              {transportationMode === 'shuttle' && (
+              {transportationMode === "shuttle" && (
                 <Polyline
                   coordinates={route.coordinates}
                   strokeWidth={4}
@@ -485,31 +549,42 @@ export default function MapViewApp({
           )}
 
           {/* Add markers for start and destination if they are from different campuses */}
-          {showRoute && startBuilding && destinationBuilding && startBuilding.campus !== destinationBuilding.campus && (
-            <>
-              <Marker
-                key={`start-marker-${startBuilding.id}`}
-                coordinate={{ latitude: startBuilding.lat, longitude: startBuilding.lng }}
-                pinColor="#10B981"
-                title="Start"
-              />
-              <Marker
-                key={`dest-marker-${destinationBuilding.id}`}
-                coordinate={{ latitude: destinationBuilding.lat, longitude: destinationBuilding.lng }}
-                pinColor="#FFEA00"
-                title="Destination"
-              />
-            </>
-          )}
+          {showRoute &&
+            startBuilding &&
+            destinationBuilding &&
+            startBuilding.campus !== destinationBuilding.campus && (
+              <>
+                <Marker
+                  key={`start-marker-${startBuilding.id}`}
+                  coordinate={{
+                    latitude: startBuilding.lat,
+                    longitude: startBuilding.lng,
+                  }}
+                  pinColor="#10B981"
+                  title="Start"
+                />
+                <Marker
+                  key={`dest-marker-${destinationBuilding.id}`}
+                  coordinate={{
+                    latitude: destinationBuilding.lat,
+                    longitude: destinationBuilding.lng,
+                  }}
+                  pinColor="#FFEA00"
+                  title="Destination"
+                />
+              </>
+            )}
         </MapView>
 
         {/* Clear Selection Button */}
         {(startBuilding || destinationBuilding) && (
           <TouchableOpacity
             style={styles.clearSelectionButton}
+            testID="clear-directions-button"
             onPress={() => {
               clearDirections();
               setSelectedBuilding(null);
+              setSelectedPOI(null);
             }}
           >
             <Ionicons name="close-circle" size={24} color="#FFFFFF" />
@@ -536,11 +611,18 @@ export default function MapViewApp({
       )}
 
       <TouchableOpacity
-        style={[styles.poiToggleButton, showPOIs && styles.poiToggleButtonActive]}
+        style={[
+          styles.poiToggleButton,
+          showPOIs && styles.poiToggleButtonActive,
+        ]}
         onPress={() => setShowPOIs(!showPOIs)}
         testID="poi-toggle-button"
       >
-        <Ionicons name="restaurant" size={24} color={showPOIs ? "#FFFFFF" : "#8B5CF6"} />
+        <Ionicons
+          name="restaurant"
+          size={24}
+          color={showPOIs ? "#FFFFFF" : "#8B5CF6"}
+        />
       </TouchableOpacity>
 
       <LocateMeButton
@@ -559,7 +641,9 @@ export default function MapViewApp({
           building={infoBuilding}
           onGetDirections={handleGetDirections}
           onClose={() => setInfoBuilding(null)}
-          getDirectionsButtonText={startBuilding ? "Set as Destination" : "Set as Start"}
+          getDirectionsButtonText={
+            startBuilding ? "Set as Destination" : "Set as Start"
+          }
         />
       )}
 
@@ -577,7 +661,11 @@ export default function MapViewApp({
                 </View>
               )}
             </View>
-            <Text style={styles.bottomBarName} numberOfLines={1} testID="bottom-bar-name">
+            <Text
+              style={styles.bottomBarName}
+              numberOfLines={1}
+              testID="bottom-bar-name"
+            >
               {selectedBuilding.name}
             </Text>
             <Text style={styles.bottomBarAddress} numberOfLines={1}>
@@ -607,6 +695,61 @@ export default function MapViewApp({
             >
               <Text style={styles.bottomBarButtonPrimaryText}>
                 {startBuilding ? "Set as Destination" : "Set as Start"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {selectedPOI && (
+        <View style={styles.bottomBar} testID="poi-bottom-bar">
+          <View style={styles.bottomBarInfo}>
+            <View
+              style={[
+                styles.bottomBarCodeRow,
+                { alignItems: "center", gap: 6 },
+              ]}
+            >
+              <Ionicons
+                name={getPoiInfo(selectedPOI.type).icon as any}
+                size={16}
+                color={getPoiInfo(selectedPOI.type).color}
+              />
+              <Text
+                style={[
+                  styles.bottomBarCode,
+                  { color: getPoiInfo(selectedPOI.type).color },
+                ]}
+                testID="poi-bottom-bar-code"
+              >
+                {selectedPOI.type.replaceAll("_", " ").toUpperCase()}
+              </Text>
+            </View>
+            <Text
+              style={styles.bottomBarName}
+              numberOfLines={1}
+              testID="poi-bottom-bar-name"
+            >
+              {selectedPOI.name}
+            </Text>
+            <Text style={styles.bottomBarAddress} numberOfLines={1}>
+              {selectedPOI.address || "Point of Interest"}
+            </Text>
+          </View>
+          <View style={styles.bottomBarActions}>
+            <TouchableOpacity
+              style={styles.bottomBarButtonSecondary}
+              onPress={() => setSelectedPOI(null)}
+            >
+              <Text style={styles.bottomBarButtonSecondaryText}>Clear</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.bottomBarButtonPrimary}
+              onPress={() => handleGetDirectionsForPOI(selectedPOI)}
+              testID="poi-directions-button"
+            >
+              <Text style={styles.bottomBarButtonPrimaryText}>
+                Get Directions
               </Text>
             </TouchableOpacity>
           </View>
@@ -1088,38 +1231,38 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   labelMarker: {
-    backgroundColor: '#912338',
+    backgroundColor: "#912338",
     paddingHorizontal: 6,
     paddingVertical: 3,
     borderRadius: 6,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.3,
     shadowRadius: 2,
     elevation: 3,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
+    borderColor: "rgba(255,255,255,0.3)",
   },
   labelMarkerCurrent: {
-    backgroundColor: '#16A34A',
-    borderColor: '#FFFFFF',
+    backgroundColor: "#16A34A",
+    borderColor: "#FFFFFF",
     borderWidth: 1.5,
   },
   labelMarkerStart: {
-    backgroundColor: '#10B981',
+    backgroundColor: "#10B981",
   },
   labelMarkerDest: {
-    backgroundColor: '#D97706',
+    backgroundColor: "#D97706",
   },
   labelMarkerText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   labelMarkerTextCurrent: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
   },
   labelMarkerTextAlt: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
   },
 });
