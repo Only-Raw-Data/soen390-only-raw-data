@@ -4,6 +4,7 @@ import React, {
   useState,
   useCallback,
   useRef,
+  useEffect,
 } from "react";
 import { PointOfInterest } from "../types/poi";
 import usePOIs from "../hooks/usePOIs";
@@ -101,6 +102,19 @@ export function POIProvider({ children }: POIProviderProps) {
 
   const clearPOIs = useCallback(() => {
     setSelectedPOI(null);
+  }, []);
+
+  useEffect(() => {
+    // Sync searchCenterRef with searchCenter state
+    searchCenterRef.current = searchCenter;
+  }, [searchCenter]);
+
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
   }, []);
 
   const value: POIContextType = {
