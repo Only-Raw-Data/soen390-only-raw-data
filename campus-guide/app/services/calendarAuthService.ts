@@ -40,4 +40,15 @@ export async function disconnectGoogleCalendar(): Promise<void> {
   await AsyncStorage.removeItem(STORAGE_KEY_CONNECTED);
   await AsyncStorage.removeItem(STORAGE_KEY_CONNECTED_AT);
   await AsyncStorage.removeItem(STORAGE_KEY_TOKENS);
+  await AsyncStorage.removeItem(STORAGE_KEY_ACCESS_TOKEN);
+}
+
+const STORAGE_KEY_ACCESS_TOKEN = 'calendar_access_token';
+
+export async function storeAccessToken(token: string): Promise<void> {
+  await AsyncStorage.setItem(STORAGE_KEY_ACCESS_TOKEN, token);
+}
+
+export async function getAccessToken(): Promise<string | null> {
+  return AsyncStorage.getItem(STORAGE_KEY_ACCESS_TOKEN);
 }

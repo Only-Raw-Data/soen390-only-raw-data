@@ -22,6 +22,7 @@ interface CalendarAuthContextType {
   connectedAt: string | null;
   isLoading: boolean;
   error: string | null;
+  accessToken: string | null;
   connectCalendar: () => Promise<void>;
   disconnectCalendar: () => Promise<void>;
   refreshConnection: () => Promise<void>;
@@ -40,6 +41,7 @@ export default function CalendarAuthProvider({
   const [connectedAt, setConnectedAt] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const accessToken: string | null = null;
 
   const googleClientId =
     process.env.EXPO_PUBLIC_GOOGLE_CALENDAR_CLIENT_ID?.trim() ||
@@ -153,6 +155,7 @@ export default function CalendarAuthProvider({
       connectedAt,
       isLoading,
       error,
+      accessToken,
       connectCalendar,
       disconnectCalendar,
       refreshConnection,
@@ -162,6 +165,7 @@ export default function CalendarAuthProvider({
       connectedAt,
       isLoading,
       error,
+      accessToken,
       connectCalendar,
       disconnectCalendar,
       refreshConnection,

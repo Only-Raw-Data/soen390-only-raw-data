@@ -4,6 +4,8 @@ import {
   getCalendarConnectionState,
   completeAuthSession,
   disconnectGoogleCalendar,
+  storeAccessToken,
+  getAccessToken,
 } from '../calendarAuthService';
 
 jest.mock('@react-native-async-storage/async-storage', () =>
@@ -108,11 +110,12 @@ describe('calendarAuthService', () => {
   });
 
   describe('disconnectGoogleCalendar', () => {
-    it('clears all calendar keys from AsyncStorage', async () => {
+    it('clears all calendar keys from AsyncStorage including access token', async () => {
       // Arrange
       await AsyncStorage.setItem('calendar_connected', 'true');
       await AsyncStorage.setItem('calendar_connected_at', '2024-01-01T00:00:00.000Z');
       await AsyncStorage.setItem('calendar_tokens', 'some-token');
+      await AsyncStorage.setItem('calendar_access_token', 'access-token');
 
       // Act
       await disconnectGoogleCalendar();
@@ -121,11 +124,44 @@ describe('calendarAuthService', () => {
       expect(await AsyncStorage.getItem('calendar_connected')).toBeNull();
       expect(await AsyncStorage.getItem('calendar_connected_at')).toBeNull();
       expect(await AsyncStorage.getItem('calendar_tokens')).toBeNull();
+      expect(await AsyncStorage.getItem('calendar_access_token')).toBeNull();
     });
 
     it('does not throw when nothing is stored', async () => {
       // Arrange + Act + Assert
       await expect(disconnectGoogleCalendar()).resolves.not.toThrow();
+    });
+  });
+
+  describe('storeAccessToken', () => {
+    it('saves access token to AsyncStorage', async () => {
+      // Arrange + Act
+      await storeAccessToken('my-access-token');
+
+      // Assert
+      const stored = await AsyncStorage.getItem('calendar_access_token');
+      expect(stored).toBe('my-access-token');
+    });
+  });
+
+  describe('getAccessToken', () => {
+    it('returns token from AsyncStorage when stored', async () => {
+      // Arrange
+      await AsyncStorage.setItem('calendar_access_token', 'stored-token');
+
+      // Act
+      const token = await getAccessToken();
+
+      // Assert
+      expect(token).toBe('stored-token');
+    });
+
+    it('returns null when no token stored', async () => {
+      // Arrange + Act
+      const token = await getAccessToken();
+
+      // Assert
+      expect(token).toBeNull();
     });
   });
 });

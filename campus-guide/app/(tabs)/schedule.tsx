@@ -9,6 +9,10 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Header from "@app/components/Header";
+import CalendarList from "@components/CalendarList";
+import CalendarSelectionProvider, {
+  useCalendarSelection,
+} from "@context/CalendarSelectionContext";
 import { useCalendarAuth } from "@context/CalendarAuthContext";
 import { formatHourLabel } from "@utils/timeFormat";
 import { buildHourSlots } from "@utils/timeSlots";
@@ -19,6 +23,7 @@ type WeekDay = {
   isActive: boolean;
 };
 
+const PRIMARY_COLOR = "#912338";
 const SCHEDULE_START_HOUR_24 = 8;
 const SCHEDULE_HOUR_SLOTS = 12;
 
@@ -32,8 +37,52 @@ const WEEK_DAYS: WeekDay[] = [
 
 const HOURS = buildHourSlots(SCHEDULE_START_HOUR_24, SCHEDULE_HOUR_SLOTS);
 
-export default function ScheduleScreen() {
-  const { connectCalendar, isLoading, isConnected, error } = useCalendarAuth();
+function CalendarSelectionSection() {
+  const { calendars, selectedCalendarId, isLoading, fetchCalendars } =
+    useCalendarSelection();
+
+  const selectedCalendar = calendars.find((c) => c.id === selectedCalendarId);
+
+  return (
+    <View style={styles.selectionSection}>
+      {selectedCalendarId && selectedCalendar ? (
+        <View style={styles.selectedSummary}>
+          <Ionicons name="checkmark-circle" size={16} color={PRIMARY_COLOR} />
+          <Text style={styles.selectedSummaryText} numberOfLines={1}>
+            {selectedCalendar.summary}
+          </Text>
+        </View>
+      ) : null}
+
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Select a Calendar</Text>
+        {calendars.length === 0 && !isLoading ? (
+          <TouchableOpacity
+            style={styles.fetchButton}
+            onPress={fetchCalendars}
+            accessibilityRole="button"
+            accessibilityLabel="Fetch calendars"
+          >
+            <Ionicons
+              name="refresh-outline"
+              size={14}
+              color={PRIMARY_COLOR}
+            />
+            <Text style={styles.fetchButtonText}>Fetch Calendars</Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
+
+      <View style={styles.calendarListContainer}>
+        <CalendarList />
+      </View>
+    </View>
+  );
+}
+
+function ScheduleContent() {
+  const { connectCalendar, disconnectCalendar, isLoading, isConnected, error } =
+    useCalendarAuth();
 
   const buttonLabel = useMemo(() => {
     if (isLoading) return "Connecting...";
@@ -83,7 +132,10 @@ export default function ScheduleScreen() {
             {WEEK_DAYS.map((day) => (
               <View
                 key={`grid-${day.label}`}
-                style={[styles.dayGridColumn, day.isActive && styles.activeGridColumn]}
+                style={[
+                  styles.dayGridColumn,
+                  day.isActive && styles.activeGridColumn,
+                ]}
               >
                 {HOURS.map((hour) => (
                   <View key={`${day.label}-${hour}`} style={styles.gridCell} />
@@ -93,27 +145,59 @@ export default function ScheduleScreen() {
           </View>
         </View>
 
+        {isConnected ? <CalendarSelectionSection /> : null}
+
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
       </ScrollView>
 
       <View style={styles.bottomBar}>
-        <TouchableOpacity
-          style={[styles.connectButton, isConnected && styles.connectedButton]}
-          activeOpacity={0.85}
-          onPress={onConnectPress}
-          disabled={isConnected || isLoading}
-        >
-          {isLoading ? (
-            <ActivityIndicator color="#FFFFFF" />
-          ) : (
-            <>
-              <Ionicons name="calendar-outline" size={18} color="#FFFFFF" />
-              <Text style={styles.connectButtonText}>{buttonLabel}</Text>
-            </>
-          )}
-        </TouchableOpacity>
+        {isConnected ? (
+          <TouchableOpacity
+            style={styles.disconnectButton}
+            activeOpacity={0.85}
+            onPress={disconnectCalendar}
+            disabled={isLoading}
+            accessibilityRole="button"
+            accessibilityLabel="Disconnect Google Calendar"
+          >
+            {isLoading ? (
+              <ActivityIndicator color={PRIMARY_COLOR} />
+            ) : (
+              <>
+                <Ionicons name="log-out-outline" size={18} color={PRIMARY_COLOR} />
+                <Text style={styles.disconnectButtonText}>Disconnect</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={[styles.connectButton, isConnected && styles.connectedButton]}
+            activeOpacity={0.85}
+            onPress={onConnectPress}
+            disabled={isLoading}
+            accessibilityRole="button"
+            accessibilityLabel="Connect Google Calendar"
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <>
+                <Ionicons name="calendar-outline" size={18} color="#FFFFFF" />
+                <Text style={styles.connectButtonText}>{buttonLabel}</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        )}
       </View>
     </View>
+  );
+}
+
+export default function ScheduleScreen() {
+  return (
+    <CalendarSelectionProvider>
+      <ScheduleContent />
+    </CalendarSelectionProvider>
   );
 }
 
@@ -155,7 +239,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: "#912338",
+    backgroundColor: PRIMARY_COLOR,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -204,6 +288,64 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#F3F4F6",
   },
+  selectionSection: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    gap: 10,
+  },
+  selectedSummary: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#FFF5F6",
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderLeftWidth: 3,
+    borderLeftColor: PRIMARY_COLOR,
+  },
+  selectedSummaryText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: PRIMARY_COLOR,
+    flex: 1,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#111827",
+  },
+  fetchButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: PRIMARY_COLOR,
+  },
+  fetchButtonText: {
+    color: PRIMARY_COLOR,
+    fontSize: 12,
+    fontWeight: "500",
+  },
+  calendarListContainer: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+    marginBottom: 8,
+  },
   errorText: {
     color: "#B91C1C",
     fontSize: 13,
@@ -225,7 +367,7 @@ const styles = StyleSheet.create({
   connectButton: {
     height: 44,
     borderRadius: 8,
-    backgroundColor: "#912338",
+    backgroundColor: PRIMARY_COLOR,
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
@@ -239,6 +381,20 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 16,
   },
+  disconnectButton: {
+    height: 44,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: PRIMARY_COLOR,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#FFFFFF",
+  },
+  disconnectButtonText: {
+    color: PRIMARY_COLOR,
+    fontWeight: "600",
+    fontSize: 15,
+  },
 });
-
-
