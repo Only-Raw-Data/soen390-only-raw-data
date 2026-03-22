@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useCallback } from "react";
+import * as React from "react";
+import { useState, useMemo, useCallback } from "react";
 import {
   View,
   Text,
@@ -7,8 +8,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Modal,
-  Pressable,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -64,10 +63,9 @@ function formatDistance(meters?: number): string {
 // ─── POI list item ────────────────────────────────────────────────────────────
 
 interface POIItemProps {
-  poi: PointOfInterest;
-  campus: Campus;
-  onDirections: (poi: PointOfInterest) => void;
-  onInfo: (poi: PointOfInterest) => void;
+  readonly poi: PointOfInterest;
+  readonly onDirections: (poi: PointOfInterest) => void;
+  readonly onInfo: (poi: PointOfInterest) => void;
 }
 
 function POIItem({ poi, onDirections, onInfo }: POIItemProps) {
@@ -194,14 +192,21 @@ export default function POIScreen() {
     });
   }, [pois, activeCategory, searchQuery]);
 
+  // Results message calculation (extracted from nested ternary)
+  const resultsMessage = useMemo(() => {
+    if (filteredPois.length === 0) return "No places found nearby";
+    const suffix = filteredPois.length === 1 ? "" : "s";
+    return `Found ${filteredPois.length} place${suffix} nearby`;
+  }, [filteredPois.length]);
+
   // Handlers
   const handleDirections = useCallback(
     (poi: PointOfInterest) => {
       const building = poiToBuildingAdapter(poi, selectedCampus);
-      if (!startBuilding) {
-        setStartBuilding(building);
-      } else {
+      if (startBuilding) {
         setDestinationBuilding(building);
+      } else {
+        setStartBuilding(building);
       }
       router.push("/(tabs)/two");
     },
@@ -291,9 +296,7 @@ export default function POIScreen() {
         <View style={styles.sliderSection}>
           <View style={styles.sliderHeader}>
             <Text style={styles.sliderLabel}>Search Range</Text>
-            <Text style={styles.sliderValue}>
-              {radiusKm % 1 === 0 ? `${radiusKm} km` : `${radiusKm} km`}
-            </Text>
+            <Text style={styles.sliderValue}>{`${radiusKm} km`}</Text>
           </View>
           <View style={styles.radiusPills} testID="radius-slider">
             {RADIUS_OPTIONS.map((r) => (
@@ -357,9 +360,7 @@ export default function POIScreen() {
         {/* Results header */}
         {!loading && (
           <Text style={styles.resultCount} testID="result-count">
-            {filteredPois.length === 0
-              ? "No places found nearby"
-              : `Found ${filteredPois.length} place${filteredPois.length === 1 ? "" : "s"} nearby`}
+            {resultsMessage}
           </Text>
         )}
 
@@ -387,7 +388,6 @@ export default function POIScreen() {
             <POIItem
               key={poi.id}
               poi={poi}
-              campus={selectedCampus}
               onDirections={handleDirections}
               onInfo={handleInfo}
             />

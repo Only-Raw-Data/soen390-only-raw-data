@@ -148,6 +148,13 @@ function mapOverpassElementToPOI(
 }
 
 /**
+ * Helper to determine if a status code warrants a retry
+ */
+function isRetryableStatus(status: number): boolean {
+  return status === 504 || status === 503 || status === 429;
+}
+
+/**
  * Fetches data from Overpass API with retry logic for temporary failures (504, 429, etc)
  */
 async function fetchWithRetry(
@@ -161,51 +168,33 @@ async function fetchWithRetry(
     try {
       const response = await fetch(url, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body,
       });
 
-      // Retry on server errors (5xx) or rate limiting (429)
-      if (
-        response.status === 504 ||
-        response.status === 503 ||
-        response.status === 429
-      ) {
-        if (attempt < maxRetries - 1) {
-          // Exponential backoff: 1s, 2s, 4s
-          const delayMs = Math.pow(2, attempt) * 1000;
-          console.log(
-            `[POI] API returned ${response.status}, retrying in ${delayMs}ms... (attempt ${attempt + 1}/${maxRetries})`,
-          );
-          await new Promise((resolve) => setTimeout(resolve, delayMs));
-          continue;
-        }
+      if (response.ok) return response;
+
+      // Check for retryable errors
+      if (isRetryableStatus(response.status) && attempt < maxRetries - 1) {
+        const delayMs = Math.pow(2, attempt) * 1000;
+        console.log(`[POI] API ${response.status}, retrying in ${delayMs}ms... (${attempt + 1}/${maxRetries})`);
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        continue;
       }
 
-      // Return successful response or fail on other status codes
-      if (!response.ok) {
-        throw new Error(`Overpass API error: ${response.status}`);
-      }
-
-      return response;
+      throw new Error(`Overpass API error: ${response.status}`);
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
-
+      
       if (attempt < maxRetries - 1) {
         const delayMs = Math.pow(2, attempt) * 1000;
-        console.log(
-          `[POI] Request failed, retrying in ${delayMs}ms... (attempt ${attempt + 1}/${maxRetries})`,
-        );
+        console.log(`[POI] Request failed, retrying in ${delayMs}ms... (${attempt + 1}/${maxRetries})`);
         await new Promise((resolve) => setTimeout(resolve, delayMs));
       }
     }
   }
 
-  throw (
-    lastError || new Error("Failed to fetch from Overpass API after retries")
-  );
+  throw lastError || new Error("Failed after retries");
 }
 
 /**

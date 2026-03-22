@@ -1,4 +1,4 @@
-import React from "react";
+import * as React from "react";
 import { Modal, Pressable, View, Text, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { PointOfInterest } from "@app/types/poi";
@@ -6,8 +6,8 @@ import { getPoiInfo } from "@/constants/poi";
 import styles from "./InfoModal.styles"; // Assuming styles are extracted
 
 interface InfoModalProps {
-  poi: PointOfInterest | null;
-  onClose: () => void;
+  readonly poi: PointOfInterest | null;
+  readonly onClose: () => void;
 }
 
 const InfoModal: React.FC<InfoModalProps> = ({ poi, onClose }) => {
@@ -42,7 +42,7 @@ const InfoModal: React.FC<InfoModalProps> = ({ poi, onClose }) => {
           </View>
 
           <Text style={styles.modalName}>{poi.name}</Text>
-          <Text style={styles.modalType}>{poi.type.replace(/_/g, " ")}</Text>
+          <Text style={styles.modalType}>{poi.type.replaceAll("_", " ")}</Text>
 
           {poi.distance !== undefined && (
             <View style={styles.modalRow}>

@@ -2,8 +2,8 @@ import { Campus, Building } from "@/constants/buildings";
 import { PointOfInterest } from "../types/poi";
 
 /**
- * Adapts a PointOfInterest to the Building interface so it can be used 
- * seamlessly with DirectionsContext for routing.
+ * Adapts a PointOfInterest to the Building interface.
+ * This allows it to be used seamlessly with DirectionsContext for routing.
  * 
  * @param poi The PointOfInterest to adapt
  * @param currentCampus The campus context to associate with this POI 
@@ -13,7 +13,7 @@ import { PointOfInterest } from "../types/poi";
  */
 export const poiToBuildingAdapter = (poi: PointOfInterest, currentCampus: Campus): Building => {
   // We upper case and replace underscores with spaces for a cleaner code/display name
-  const displayCode = poi.type ? poi.type.replace(/_/g, " ").toUpperCase() : "POI";
+  const displayCode = poi.type ? poi.type.replaceAll("_", " ").toUpperCase() : "POI";
   
   return {
     id: `poi-${poi.id}`,

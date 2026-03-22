@@ -37,7 +37,7 @@ interface POIContextType {
 const POIContext = createContext<POIContextType | undefined>(undefined);
 
 interface POIProviderProps {
-  children: React.ReactNode;
+  readonly children: React.ReactNode;
 }
 
 /**

@@ -113,29 +113,10 @@ export default function MapViewApp({
     updateSearchCenter,
   } = usePOIContext();
 
-  // Track current map region for building switching and user feedback
-  const [mapRegion, setMapRegion] = useState({
-    latitude:
-      userLocation?.coords.latitude || CAMPUS_REGIONS[selectedCampus].latitude,
-    longitude:
-      userLocation?.coords.longitude ||
-      CAMPUS_REGIONS[selectedCampus].longitude,
-  });
 
-  // Update map region when campus changes explicitly
-  React.useEffect(() => {
-    setMapRegion({
-      latitude: CAMPUS_REGIONS[selectedCampus].latitude,
-      longitude: CAMPUS_REGIONS[selectedCampus].longitude,
-    });
-  }, [selectedCampus]);
+
 
   const allBuildingsList = [...SGW_BUILDINGS, ...LOYOLA_BUILDINGS];
-  const filteredBuildings = allBuildingsList.filter(
-    (b) =>
-      b.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      b.code.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
 
   const handleCampusChange = (campus: Campus) => {
     setSelectedCampus(campus);
@@ -335,11 +316,7 @@ export default function MapViewApp({
           showsMyLocationButton={false}
           customMapStyle={CAMPUS_MAP_STYLE}
           onRegionChangeComplete={(region) => {
-            // Update local map region for UI feedback
-            setMapRegion({
-              latitude: region.latitude,
-              longitude: region.longitude,
-            });
+
 
             // Smart POI center update: debounced, only on meaningful movement
             // If POIs are enabled, auto-fetches new data instead of clearing toggle
@@ -376,7 +353,7 @@ export default function MapViewApp({
           {buildingPolygons.map((polygon) => {
             const colors = getPolygonColors(polygon.buildingId);
             const building = allBuildingsList.find(
-              (b) => b.id === polygon.buildingId,
+              (b: Building) => b.id === polygon.buildingId,
             );
             return (
               <Polygon
@@ -745,7 +722,7 @@ export default function MapViewApp({
                 ]}
                 testID="poi-bottom-bar-code"
               >
-                {selectedPOI.type.replace(/_/g, " ").toUpperCase()}
+                {selectedPOI.type.replaceAll("_", " ").toUpperCase()}
               </Text>
             </View>
             <Text
