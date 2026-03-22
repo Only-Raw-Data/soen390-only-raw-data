@@ -15,14 +15,16 @@ jobs:
       - name: Start Scan
         id: start
         run: |
-          response=$(curl -sL -w "\nHTTP_STATUS:%{http_code}" -X POST https://api.vigilflux.com/api/scans \
+          json_body=$(jq -n \
+            --arg repo_url "${{ github.server_url }}/${{ github.repository }}" \
+            --arg branch "${{ github.ref_name }}" \
+            --arg commit_sha "${{ github.sha }}" \
+            '{repo_url: $repo_url, branch: $branch, commit_sha: $commit_sha}')
+          response=$(curl -sL -w "\nHTTP_STATUS:%{http_code}" \
+            -X POST "https://api.vigilflux.com/api/scans" \
             -H "Authorization: Bearer ${{ secrets.VIGILFLUX_API_KEY }}" \
             -H "Content-Type: application/json" \
-            -d '{
-              "repo_url": "${{ github.server_url }}/${{ github.repository }}",
-              "branch": "${{ github.ref_name }}",
-              "commit_sha": "${{ github.sha }}"
-            }')
+            --data-raw "$json_body")
           body=$(echo "$response" | sed '$d')
           http_status=$(echo "$response" | tail -1 | cut -d: -f2)
           echo "HTTP $http_status: $body"
