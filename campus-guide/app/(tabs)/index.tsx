@@ -1,5 +1,5 @@
-import Header from '../components/Header';
-import MapViewApp from '../components/MapView';
+import Header from '@app/components/Header';
+import MapViewApp from '@app/components/MapView';
 import { View } from 'react-native';
 
 export default function TabOneScreen() {

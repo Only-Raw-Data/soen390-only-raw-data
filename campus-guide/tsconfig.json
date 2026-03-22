@@ -8,11 +8,14 @@
       "@/*": [
         "./*"
       ],
+      "@app/*": [
+        "./app/*"
+      ],
       "@constants/*": [
         "./constants/*"
       ],
       "@components/*": [
-        "./components/*"
+        "./app/components/*"
       ],
       "@context/*": [
         "./app/context/*"
@@ -30,10 +33,10 @@
         "./app/services/*"
       ],
       "@types/*": [
-        "./app/types/*"
+        "./types/*"
       ],
       "@utils/*": [
-        "./app/utils/*"
+        "./utils/*"
       ]
     }
   },

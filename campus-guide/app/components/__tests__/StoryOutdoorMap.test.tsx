@@ -1,6 +1,6 @@
 import React from "react";
 import { render } from "@testing-library/react-native";
-import StoryOutdoorMap from "@/app/components/StoryOutdoorMap";
+import StoryOutdoorMap from "@app/components/StoryOutdoorMap";
 
 // Mock mapStyle constant
 jest.mock("@/constants/mapStyle", () => ({

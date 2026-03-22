@@ -1,10 +1,11 @@
 import React, { useCallback } from "react";
 import { Tabs, useRouter, usePathname } from "expo-router";
-import BottomNav from "@/app/components/BottomNav";
-import { Screen } from "@/app/types/Screen";
+import BottomNav from "@components/BottomNav";
+import { Screen } from "@types/Screen";
 
-import DirectionsProvider from "@/app/context/DirectionsContext";
-import IndoorMapProvider from "@/app/context/IndoorMapContext";
+import DirectionsProvider from "@context/DirectionsContext";
+import IndoorMapProvider from "@context/IndoorMapContext";
+import CalendarAuthProvider from "@context/CalendarAuthContext";
 
 // TabBar component moved outside to prevent recreation on each render
 function TabBar({
@@ -27,6 +28,7 @@ export default function TabLayout() {
   const getCurrentScreen = (): Screen => {
     if (pathname.includes("index")) return "map";
     if (pathname.includes("two")) return "directions";
+    if (pathname.includes("schedule")) return "schedule";
     if (pathname.includes("indoor")) return "indoor";
     return "map";
   };
@@ -40,10 +42,12 @@ export default function TabLayout() {
         case "directions":
           router.push("/(tabs)/two");
           break;
+        case "schedule":
+          router.push("/(tabs)/schedule");
+          break;
         case "indoor":
           router.push("/(tabs)/indoor");
           break;
-        case "schedule":
         case "poi":
           router.push("/(tabs)");
           break;
@@ -57,6 +61,7 @@ export default function TabLayout() {
   return (
     <DirectionsProvider>
     <IndoorMapProvider>
+      <CalendarAuthProvider>
       <Tabs
         screenOptions={{
           headerShown: false,
@@ -86,7 +91,14 @@ export default function TabLayout() {
             title: "Indoor",
           }}
         />
+        <Tabs.Screen
+          name="schedule"
+          options={{
+            title: "Schedule",
+          }}
+        />
       </Tabs>
+      </CalendarAuthProvider>
     </IndoorMapProvider>
     </DirectionsProvider>
   );

@@ -18,7 +18,8 @@ export default {
     },
 
     ios: {
-      supportsTablet: true
+      supportsTablet: true,
+      bundleIdentifier: "com.soen390.campusguide"
     },
 
     android: {
@@ -44,15 +45,17 @@ export default {
     },
 
     plugins: [
-      "expo-router",
-      [
-        "expo-location",
-        {
-          locationWhenInUsePermission:
-            "Allow Campus Guide to use your location to find the nearest building."
-        }
-      ]
-    ],
+  "expo-router",
+  "expo-secure-store",
+  "expo-web-browser",
+  [
+    "expo-location",
+    {
+      locationWhenInUsePermission:
+        "Allow Campus Guide to use your location to find the nearest building."
+    }
+  ]
+],
 
     experiments: {
       typedRoutes: true

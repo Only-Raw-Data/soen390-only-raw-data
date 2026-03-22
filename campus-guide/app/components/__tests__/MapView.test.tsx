@@ -33,7 +33,7 @@ jest.mock("../../hooks/useUserLocation", () => ({
   default: jest.fn(),
 }));
 
-jest.mock("../../../constants/mapStyle", () => ({
+jest.mock("@/constants/mapStyle", () => ({
   CAMPUS_MAP_STYLE: [],
 }));
 
