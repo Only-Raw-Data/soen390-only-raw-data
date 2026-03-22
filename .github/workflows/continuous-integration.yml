@@ -74,3 +74,10 @@ jobs:
     secrets:
       SONARCLOUD_TOKEN: ${{ secrets.SONARCLOUD_TOKEN }}
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  vigilflux-scan:
+    name: VigilFlux Security Scan
+    needs: mobile-test
+    uses: ./.github/workflows/vigilflux-security-scan.yml
+    secrets:
+      VIGILFLUX_API_KEY: ${{ secrets.VIGILFLUX_API_KEY }}
