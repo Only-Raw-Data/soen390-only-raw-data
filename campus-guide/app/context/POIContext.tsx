@@ -5,6 +5,7 @@ import React, {
   useCallback,
   useRef,
   useEffect,
+  useMemo,
 } from "react";
 import { PointOfInterest } from "../types/poi";
 import usePOIs from "../hooks/usePOIs";
@@ -117,20 +118,33 @@ export function POIProvider({ children }: POIProviderProps) {
     };
   }, []);
 
-  const value: POIContextType = {
-    showPOIs,
-    selectedPOI,
-    pois,
-    isLoading,
-    error,
-    searchCenter,
-    searchRadius,
-    setShowPOIs,
-    setSelectedPOI,
-    updateSearchCenter,
-    setSearchRadius,
-    clearPOIs,
-  };
+  const value: POIContextType = useMemo<POIContextType>(
+    () => ({
+      showPOIs,
+      selectedPOI,
+      pois,
+      isLoading,
+      error,
+      searchCenter,
+      searchRadius,
+      setShowPOIs,
+      setSelectedPOI,
+      updateSearchCenter,
+      setSearchRadius,
+      clearPOIs,
+    }),
+    [
+      showPOIs,
+      selectedPOI,
+      pois,
+      isLoading,
+      error,
+      searchCenter,
+      searchRadius,
+      updateSearchCenter,
+      clearPOIs,
+    ],
+  );
 
   return <POIContext.Provider value={value}>{children}</POIContext.Provider>;
 }

@@ -69,7 +69,7 @@ interface POIItemProps {
   onInfo: (poi: PointOfInterest) => void;
 }
 
-function POIItem({ poi, campus, onDirections, onInfo }: POIItemProps) {
+function POIItem({ poi, onDirections, onInfo }: POIItemProps) {
   const info = getPoiInfo(poi.type);
   return (
     <View style={styles.poiCard} testID={`poi-item-${poi.id}`}>
@@ -364,7 +364,7 @@ export default function POIScreen() {
         </View>
 
         {/* Radius selector */}
-        <View style={styles.sliderSection}>
+        <view style={styles.slidersection}>
           <View style={styles.sliderHeader}>
             <Text style={styles.sliderLabel}>Search Range</Text>
             <Text style={styles.sliderValue}>
