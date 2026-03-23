@@ -66,7 +66,7 @@ export function haversineDistance(
 
 function polygonCentroid(ring: number[][]): [number, number] {
   // Exclude the closing duplicate vertex
-  const pts = ring.length > 1 && ring[0][0] === ring[ring.length - 1][0] && ring[0][1] === ring[ring.length - 1][1]
+  const pts = ring.length > 1 && ring[0][0] === ring.at(-1)![0] && ring[0][1] === ring.at(-1)![1]
     ? ring.slice(0, -1)
     : ring;
   let lngSum = 0;

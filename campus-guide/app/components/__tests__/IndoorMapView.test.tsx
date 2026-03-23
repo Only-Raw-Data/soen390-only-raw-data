@@ -1,7 +1,7 @@
 import * as React from "react";
 import { render, fireEvent, waitFor, act } from "@testing-library/react-native";
 import IndoorMapView from "@app/components/IndoorMapView";
-import { AMENITY_CONFIG } from "@app/components/IndoorMapView";
+import { AMENITY_CONFIG } from "@app/utils/indoorMapUtils";
 import {
   useIndoorMap,
   INDOOR_BUILDINGS,

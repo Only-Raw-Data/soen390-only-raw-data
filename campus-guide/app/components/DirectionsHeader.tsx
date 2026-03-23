@@ -6,7 +6,7 @@ import { TransportationMode } from '@app/types/transportation';
 import { SGW_BUILDINGS, LOYOLA_BUILDINGS, Building } from '@/constants/buildings';
 import useUserLocation from '@hooks/useUserLocation';
 import ShuttleSchedule from './ShuttleSchedule';
-import { getScheduleForDay } from '@/constants/shuttleSchedule';
+import { getNextShuttleTimeLabel } from '@app/utils/shuttleHours';
 
 export default function DirectionsHeader() {
   const {
@@ -31,32 +31,6 @@ export default function DirectionsHeader() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [nextShuttleTime, setNextShuttleTime] = useState<string | null>(null);
-
-  function getNextShuttleTimeLabel(
-    startBuilding: Building,
-    destinationBuilding: Building,
-  ): string {
-    const now = new Date();
-    const schedule = getScheduleForDay(now.getDay());
-    if (!schedule) return "No shuttle on weekends";
-
-    const currentCampus = startBuilding.campus;
-    const currentTimeStr =
-      now.getHours().toString().padStart(2, '0') + ":" +
-      now.getMinutes().toString().padStart(2, '0');
-
-    const nextBus = schedule.find((time) => {
-      const busTime = currentCampus === 'Loyola' ? time.loyola : time.sgw;
-      return !!busTime && busTime.replace('*', '') > currentTimeStr;
-    });
-
-    const directionLabel = currentCampus === 'SGW' ? 'To Loyola' : 'To SGW';
-    if (nextBus) {
-      const time = currentCampus === 'Loyola' ? nextBus.loyola : nextBus.sgw;
-      return `Next shuttle ${directionLabel}: ${time}`;
-    }
-    return "No more shuttles today";
-  }
 
   useEffect(() => {
     if (transportationMode === 'shuttle' && startBuilding && destinationBuilding && startBuilding.campus !== destinationBuilding.campus) {
@@ -122,9 +96,14 @@ export default function DirectionsHeader() {
     }
   };
 
-  const startDisplayValue = isSearchingStart ? searchQuery
-    : startCoords ? 'Current Location'
-      : startBuilding?.name || '';
+  let startDisplayValue = '';
+  if (isSearchingStart) {
+    startDisplayValue = searchQuery;
+  } else if (startCoords) {
+    startDisplayValue = 'Current Location';
+  } else {
+    startDisplayValue = startBuilding?.name || '';
+  }
 
   return (
     <>

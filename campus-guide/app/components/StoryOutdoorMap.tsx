@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 import { RouteData } from "@app/services/directionsService";
-import { hasNoCoordinates } from "./IndoorMapView";
+import { hasNoCoordinates } from "@app/utils/indoorMapUtils";
 
 interface StoryOutdoorMapProps {
   readonly route: RouteData;
@@ -43,7 +43,7 @@ export default function StoryOutdoorMap({
   if (!coords || !region) return null;
 
   const startCoord = coords[0];
-  const endCoord = coords[coords.length - 1];
+  const endCoord = coords.at(-1);
 
   return (
     <View style={styles.container}>
