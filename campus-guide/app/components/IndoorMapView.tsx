@@ -1042,8 +1042,8 @@ export default function IndoorMapView() {
             );
           })}
           {/* Elevator polygons — always visible */}
-          {elevatorFeatures.map((feature, index) => (
-            <React.Fragment key={`elevator-${index}`}>
+          {elevatorFeatures.map((feature) => (
+            <React.Fragment key={`elevator-${(feature.geometry.coordinates as number[][][])[0]?.[0]?.[0]}-${(feature.geometry.coordinates as number[][][])[0]?.[0]?.[1]}`}>
               <FacilityPolygon
                 feature={feature}
                 fillColor="#7C3AED"
@@ -1056,8 +1056,8 @@ export default function IndoorMapView() {
           ))}
 
           {/* Staircase polygons — always visible */}
-          {staircaseFeatures.map((feature, index) => (
-            <React.Fragment key={`staircase-${index}`}>
+          {staircaseFeatures.map((feature) => (
+            <React.Fragment key={`staircase-${(feature.geometry.coordinates as number[][][])[0]?.[0]?.[0]}-${(feature.geometry.coordinates as number[][][])[0]?.[0]?.[1]}`}>
               <FacilityPolygon
                 feature={feature}
                 fillColor="rgba(245, 158, 11, 0.35)"
