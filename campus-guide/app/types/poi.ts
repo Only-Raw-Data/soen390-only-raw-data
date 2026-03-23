@@ -6,4 +6,5 @@ export interface PointOfInterest {
   lon: number;
   distance?: number; // Distance from user in meters
   address?: string; // Optional address information if available
+  openingHours?: string; // Optional opening hours if returned by Overpass API
 }

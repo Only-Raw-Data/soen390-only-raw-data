@@ -1,4 +1,4 @@
-import React from "react";
+import * as React from "react";
 import { render, fireEvent, waitFor, act } from "@testing-library/react-native";
 import IndoorMapView from "@app/components/IndoorMapView";
 import { AMENITY_CONFIG } from "@app/components/IndoorMapView";
@@ -8,10 +8,16 @@ import {
   getGeoJsonForBuilding,
   getFeaturesForFloor,
 } from "@app/context/IndoorMapContext";
+import { POIProvider } from "@app/context/POIContext";
+import { useDirections } from "@app/context/DirectionsContext";
 
 // Mock the cross-building route service
 jest.mock("@app/services/crossBuildingRouteService", () => ({
   planCrossBuildingRoute: jest.fn(),
+}));
+
+jest.mock("@app/context/DirectionsContext", () => ({
+  useDirections: jest.fn(),
 }));
 
 import { planCrossBuildingRoute } from "@app/services/crossBuildingRouteService";
@@ -152,17 +158,23 @@ const defaultContextValue = {
   togglePOIs: jest.fn(),
 };
 
+const renderWithProvider = (ui: React.ReactElement) =>
+  render(
+    <POIProvider children={ui} />
+  );
+
 describe("IndoorMapView", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseIndoorMap.mockReturnValue({ ...defaultContextValue });
     mockGetGeoJson.mockReturnValue(null);
     mockGetFeatures.mockReturnValue([]);
+    (useDirections as jest.Mock).mockReturnValue({ route: null });
   });
 
   it("renders start and destination search bars", () => {
     // Arrange + Act
-    const { getByTestId } = render(<IndoorMapView />);
+    const { getByTestId } = renderWithProvider(<IndoorMapView />);
 
     // Assert
     expect(getByTestId("room-search-start-input")).toBeTruthy();
@@ -171,7 +183,7 @@ describe("IndoorMapView", () => {
 
   it("renders accessibility toggle", () => {
     // Arrange + Act
-    const { getByTestId, getByText } = render(<IndoorMapView />);
+    const { getByTestId, getByText } = renderWithProvider(<IndoorMapView />);
 
     // Assert
     expect(getByTestId("accessible-toggle")).toBeTruthy();
@@ -184,7 +196,7 @@ describe("IndoorMapView", () => {
     mockUseIndoorMap.mockReturnValue({ ...defaultContextValue, accessible: true });
 
     // Act
-    const { getByTestId } = render(<IndoorMapView />);
+    const { getByTestId } = renderWithProvider(<IndoorMapView />);
 
     // Assert — accessible toggle should contain ON text
     const accessibleToggle = getByTestId("accessible-toggle");
@@ -197,7 +209,7 @@ describe("IndoorMapView", () => {
     mockUseIndoorMap.mockReturnValue({ ...defaultContextValue, toggleAccessible });
 
     // Act
-    const { getByTestId } = render(<IndoorMapView />);
+    const { getByTestId } = renderWithProvider(<IndoorMapView />);
     fireEvent.press(getByTestId("accessible-toggle"));
 
     // Assert
@@ -206,7 +218,7 @@ describe("IndoorMapView", () => {
 
   it("renders all building pills", () => {
     // Arrange + Act
-    const { getByText } = render(<IndoorMapView />);
+    const { getByText } = renderWithProvider(<IndoorMapView />);
 
     // Assert
     expect(getByText("H")).toBeTruthy();
@@ -217,7 +229,7 @@ describe("IndoorMapView", () => {
 
   it("renders map view", () => {
     // Arrange + Act
-    const { getByTestId } = render(<IndoorMapView />);
+    const { getByTestId } = renderWithProvider(<IndoorMapView />);
 
     // Assert
     expect(getByTestId("indoor-map")).toBeTruthy();
@@ -225,7 +237,7 @@ describe("IndoorMapView", () => {
 
   it("does not render floor selector when no building selected", () => {
     // Arrange + Act
-    const { queryByTestId } = render(<IndoorMapView />);
+    const { queryByTestId } = renderWithProvider(<IndoorMapView />);
 
     // Assert
     expect(queryByTestId("floor-button-1")).toBeNull();
@@ -241,7 +253,7 @@ describe("IndoorMapView", () => {
     });
 
     // Act
-    const { getByText } = render(<IndoorMapView />);
+    const { getByText } = renderWithProvider(<IndoorMapView />);
 
     // Assert — H building has floors [1, 2, 3, 8, 9]
     expect(getByText("1")).toBeTruthy();
@@ -261,7 +273,7 @@ describe("IndoorMapView", () => {
     });
 
     // Act
-    const { getByText } = render(<IndoorMapView />);
+    const { getByText } = renderWithProvider(<IndoorMapView />);
 
     // Assert
     expect(getByText("B2")).toBeTruthy();
@@ -280,7 +292,7 @@ describe("IndoorMapView", () => {
     });
 
     // Act
-    const { getByTestId } = render(<IndoorMapView />);
+    const { getByTestId } = renderWithProvider(<IndoorMapView />);
     fireEvent.press(getByTestId("building-pill-H"));
 
     // Assert
@@ -305,7 +317,7 @@ describe("IndoorMapView", () => {
     });
 
     // Act
-    const { getByTestId } = render(<IndoorMapView />);
+    const { getByTestId } = renderWithProvider(<IndoorMapView />);
     fireEvent.press(getByTestId("floor-button-8"));
 
     // Assert
@@ -319,7 +331,7 @@ describe("IndoorMapView", () => {
     mockUseIndoorMap.mockReturnValue({ ...defaultContextValue, searchStartRoom });
 
     // Act
-    const { getByTestId } = render(<IndoorMapView />);
+    const { getByTestId } = renderWithProvider(<IndoorMapView />);
     fireEvent(getByTestId("room-search-start-input"), "submitEditing", {
       nativeEvent: { text: "H-851" },
     });
@@ -334,7 +346,7 @@ describe("IndoorMapView", () => {
     mockUseIndoorMap.mockReturnValue({ ...defaultContextValue, searchDestinationRoom });
 
     // Act
-    const { getByTestId } = render(<IndoorMapView />);
+    const { getByTestId } = renderWithProvider(<IndoorMapView />);
     fireEvent(getByTestId("room-search-destination-input"), "submitEditing", {
       nativeEvent: { text: "MB1.210" },
     });
@@ -355,7 +367,7 @@ describe("IndoorMapView", () => {
     });
 
     // Act
-    const { getByTestId } = render(<IndoorMapView />);
+    const { getByTestId } = renderWithProvider(<IndoorMapView />);
     fireEvent.press(getByTestId("room-search-start-clear"));
 
     // Assert
@@ -375,7 +387,7 @@ describe("IndoorMapView", () => {
     });
 
     // Act
-    const { getByTestId } = render(<IndoorMapView />);
+    const { getByTestId } = renderWithProvider(<IndoorMapView />);
     fireEvent.press(getByTestId("room-search-destination-clear"));
 
     // Assert
@@ -391,7 +403,7 @@ describe("IndoorMapView", () => {
     });
 
     // Act
-    const { getAllByText } = render(<IndoorMapView />);
+    const { getAllByText } = renderWithProvider(<IndoorMapView />);
 
     // Assert
     expect(getAllByText("Room not found").length).toBeGreaterThan(0);
@@ -405,7 +417,7 @@ describe("IndoorMapView", () => {
     });
 
     // Act
-    const { getAllByText } = render(<IndoorMapView />);
+    const { getAllByText } = renderWithProvider(<IndoorMapView />);
 
     // Assert
     expect(getAllByText("Room not found").length).toBeGreaterThan(0);
@@ -419,7 +431,7 @@ describe("IndoorMapView", () => {
     });
 
     // Act
-    const { getByTestId } = render(<IndoorMapView />);
+    const { getByTestId } = renderWithProvider(<IndoorMapView />);
 
     // Assert
     expect(getByTestId("start-room-label").props.children).toBe("H851.02");
@@ -433,7 +445,7 @@ describe("IndoorMapView", () => {
     });
 
     // Act
-    const { getByTestId } = render(<IndoorMapView />);
+    const { getByTestId } = renderWithProvider(<IndoorMapView />);
 
     // Assert
     expect(getByTestId("destination-room-label").props.children).toBe("MB1.210");
@@ -441,7 +453,7 @@ describe("IndoorMapView", () => {
 
   it("does not render info bar when no room is highlighted", () => {
     // Arrange + Act
-    const { queryByText } = render(<IndoorMapView />);
+    const { queryByText } = renderWithProvider(<IndoorMapView />);
 
     // Assert
     expect(queryByText("Floor:")).toBeNull();
@@ -486,7 +498,7 @@ describe("IndoorMapView", () => {
     });
 
     // Act
-    const { getByTestId, getByText } = render(<IndoorMapView />);
+    const { getByTestId, getByText } = renderWithProvider(<IndoorMapView />);
 
     // Assert — both labels rendered, destination row has marginTop when start is present
     expect(getByTestId("start-room-label").props.children).toBe("H851.02");
@@ -498,13 +510,13 @@ describe("IndoorMapView", () => {
   it("renders path polyline when currentPath has nodes on current floor", () => {
     // Arrange
     setupPathContext([
-      { id: "room:H851.02:8", lat: 45.497, lng: -73.578, floor: 8, type: "room", ref: "H851.02" },
-      { id: "wp:1",           lat: 45.497, lng: -73.579, floor: 8, type: "waypoint" },
-      { id: "room:H857:8",   lat: 45.498, lng: -73.579, floor: 8, type: "room", ref: "H857" },
+      { id: "room:H851.02:8", lat: 45.497, lng: -73.578, floor: 8, type: "room" as any, ref: "H851.02" },
+      { id: "wp:1",           lat: 45.497, lng: -73.579, floor: 8, type: "waypoint" as any },
+      { id: "room:H857:8",   lat: 45.498, lng: -73.579, floor: 8, type: "room" as any, ref: "H857" },
     ]);
 
     // Act
-    const { getByTestId } = render(<IndoorMapView />);
+    const { getByTestId } = renderWithProvider(<IndoorMapView />);
 
     // Assert — polyline rendered with correct number of coordinates
     const polyline = getByTestId("path-polyline");
@@ -513,7 +525,7 @@ describe("IndoorMapView", () => {
 
   it("does not render polyline when currentPath is null", () => {
     // Arrange + Act
-    const { queryByTestId } = render(<IndoorMapView />);
+    const { queryByTestId } = renderWithProvider(<IndoorMapView />);
 
     // Assert
     expect(queryByTestId("path-polyline")).toBeNull();
@@ -527,7 +539,7 @@ describe("IndoorMapView", () => {
     });
 
     // Act
-    const { getByTestId, getByText } = render(<IndoorMapView />);
+    const { getByTestId, getByText } = renderWithProvider(<IndoorMapView />);
 
     // Assert
     expect(getByTestId("path-error-banner")).toBeTruthy();
@@ -536,7 +548,7 @@ describe("IndoorMapView", () => {
 
   it("does not show path error banner when pathError is null", () => {
     // Arrange + Act
-    const { queryByTestId } = render(<IndoorMapView />);
+    const { queryByTestId } = renderWithProvider(<IndoorMapView />);
 
     // Assert
     expect(queryByTestId("path-error-banner")).toBeNull();
@@ -546,13 +558,13 @@ describe("IndoorMapView", () => {
     it("renders staircase transition marker with up arrow and target floor", () => {
       // Arrange — path goes from floor 8 room → staircase on floor 8 → room on floor 9
       setupPathContext([
-        { id: "room:H851.02:8", lat: 45.497, lng: -73.578, floor: 8, type: "room", ref: "H851.02" },
-        { id: "stair:1",        lat: 45.497, lng: -73.579, floor: 8, type: "staircase" },
-        { id: "room:H961:9",    lat: 45.498, lng: -73.579, floor: 9, type: "room", ref: "H961" },
+        { id: "room:H851.02:8", lat: 45.497, lng: -73.578, floor: 8, type: "room" as any, ref: "H851.02" },
+        { id: "stair:1",        lat: 45.497, lng: -73.579, floor: 8, type: "staircase" as any },
+        { id: "room:H961:9",    lat: 45.498, lng: -73.579, floor: 9, type: "room" as any, ref: "H961" },
       ], { destinationRoomRef: "H961" });
 
       // Act
-      const { getByText } = render(<IndoorMapView />);
+      const { getByText } = renderWithProvider(<IndoorMapView />);
 
       // Assert — staircase marker shows "ST" label and "▲9" for going up to floor 9
       expect(getByText("ST")).toBeTruthy();
@@ -562,14 +574,14 @@ describe("IndoorMapView", () => {
     it("renders elevator transition marker with down arrow and target floor", () => {
       // Arrange — path goes from room on floor 1 → elevator on floor 1 → room on floor -2
       setupPathContext([
-        { id: "room:start:1",   lat: 45.497, lng: -73.578, floor: 1, type: "room", ref: "H110" },
-        { id: "room:prev:1",    lat: 45.497, lng: -73.578, floor: 1, type: "waypoint" },
-        { id: "elev:1",         lat: 45.497, lng: -73.579, floor: 1, type: "elevator" },
-        { id: "room:dest:-2",   lat: 45.498, lng: -73.579, floor: -2, type: "room", ref: "MBS2.437" },
+        { id: "room:start:1",   lat: 45.497, lng: -73.578, floor: 1, type: "room" as any, ref: "H110" },
+        { id: "room:prev:1",    lat: 45.497, lng: -73.578, floor: 1, type: "waypoint" as any },
+        { id: "elev:1",         lat: 45.497, lng: -73.579, floor: 1, type: "elevator" as any },
+        { id: "room:dest:-2",   lat: 45.498, lng: -73.579, floor: -2, type: "room" as any, ref: "MBS2.437" },
       ], { selectedFloor: 1, startRoomRef: "H110", destinationRoomRef: "MBS2.437" });
 
       // Act
-      const { getByText } = render(<IndoorMapView />);
+      const { getByText } = renderWithProvider(<IndoorMapView />);
 
       // Assert — elevator marker shows "EL" label and "▼B2" for going down to basement 2
       expect(getByText("EL")).toBeTruthy();
@@ -579,13 +591,13 @@ describe("IndoorMapView", () => {
     it("skips transition nodes with non-finite coordinates", () => {
       // Arrange — staircase node has NaN coordinates
       setupPathContext([
-        { id: "room:H851.02:8", lat: 45.497, lng: -73.578, floor: 8, type: "room", ref: "H851.02" },
-        { id: "stair:bad",      lat: Number.NaN, lng: Number.NaN, floor: 8, type: "staircase" },
-        { id: "room:H961:9",    lat: 45.498, lng: -73.579, floor: 9, type: "room", ref: "H961" },
+        { id: "room:H851.02:8", lat: 45.497, lng: -73.578, floor: 8, type: "room" as any, ref: "H851.02" },
+        { id: "stair:bad",      lat: Number.NaN, lng: Number.NaN, floor: 8, type: "staircase" as any },
+        { id: "room:H961:9",    lat: 45.498, lng: -73.579, floor: 9, type: "room" as any, ref: "H961" },
       ], { destinationRoomRef: "H961" });
 
       // Act
-      const { queryByText } = render(<IndoorMapView />);
+      const { queryByText } = renderWithProvider(<IndoorMapView />);
 
       // Assert — no transition marker rendered due to NaN coords
       expect(queryByText("ST")).toBeNull();
@@ -595,9 +607,9 @@ describe("IndoorMapView", () => {
     it("renders transition marker without floor label when neighbor is on same floor", () => {
       // Arrange — staircase with both neighbors on the same floor (no floor change detected)
       setupPathContext([
-        { id: "room:A:8",  lat: 45.497, lng: -73.578, floor: 8, type: "room", ref: "H851.02" },
-        { id: "stair:mid", lat: 45.497, lng: -73.579, floor: 8, type: "staircase" },
-        { id: "room:B:8",  lat: 45.498, lng: -73.579, floor: 8, type: "room", ref: "H857" },
+        { id: "room:A:8",  lat: 45.497, lng: -73.578, floor: 8, type: "room" as any, ref: "H851.02" },
+        { id: "stair:mid", lat: 45.497, lng: -73.579, floor: 8, type: "staircase" as any },
+        { id: "room:B:8",  lat: 45.498, lng: -73.579, floor: 8, type: "room" as any, ref: "H857" },
       ]);
 
       // Act
@@ -611,13 +623,13 @@ describe("IndoorMapView", () => {
     it("uses previous node floor when next node is on the same floor", () => {
       // Arrange — staircase at floor 8 has previous node on floor 7 and next node on floor 8
       setupPathContext([
-        { id: "room:prev:7", lat: 45.496, lng: -73.579, floor: 7, type: "room", ref: "H751" },
-        { id: "stair:8",    lat: 45.497, lng: -73.579, floor: 8, type: "staircase" },
-        { id: "room:next:8", lat: 45.498, lng: -73.579, floor: 8, type: "room", ref: "H851" },
+        { id: "room:prev:7", lat: 45.496, lng: -73.579, floor: 7, type: "room" as any, ref: "H751" },
+        { id: "stair:8",    lat: 45.497, lng: -73.579, floor: 8, type: "staircase" as any },
+        { id: "room:next:8", lat: 45.498, lng: -73.579, floor: 8, type: "room" as any, ref: "H851" },
       ]);
 
       // Act
-      const { getByText } = render(<IndoorMapView />);
+      const { getByText } = renderWithProvider(<IndoorMapView />);
 
       // Assert — previous floor (7) is used, producing down arrow from floor 8
       expect(getByText("ST")).toBeTruthy();
@@ -639,7 +651,7 @@ describe("IndoorMapView", () => {
       });
 
       // Act
-      const { getByText } = render(<IndoorMapView />);
+      const { getByText } = renderWithProvider(<IndoorMapView />);
 
       // Assert
       expect(getByText("EL")).toBeTruthy();
@@ -658,7 +670,7 @@ describe("IndoorMapView", () => {
       });
 
       // Act
-      const { getByText } = render(<IndoorMapView />);
+      const { getByText } = renderWithProvider(<IndoorMapView />);
 
       // Assert
       expect(getByText("ST")).toBeTruthy();
@@ -681,7 +693,7 @@ describe("IndoorMapView", () => {
       });
 
       // Act
-      const { queryByText } = render(<IndoorMapView />);
+      const { queryByText } = renderWithProvider(<IndoorMapView />);
 
       // Assert — no EL marker because coords are empty
       expect(queryByText("EL")).toBeNull();
@@ -704,7 +716,7 @@ describe("IndoorMapView", () => {
       });
 
       // Act
-      const { queryByText } = render(<IndoorMapView />);
+      const { queryByText } = renderWithProvider(<IndoorMapView />);
 
       // Assert — no ST marker because coords are empty
       expect(queryByText("ST")).toBeNull();
@@ -759,7 +771,7 @@ describe("IndoorMapView", () => {
 
     it("renders POI toggle button", () => {
       // Arrange + Act
-      const { getByTestId, getByText } = render(<IndoorMapView />);
+      const { getByTestId, getByText } = renderWithProvider(<IndoorMapView />);
 
       // Assert
       expect(getByTestId("poi-toggle")).toBeTruthy();
@@ -771,7 +783,7 @@ describe("IndoorMapView", () => {
       mockUseIndoorMap.mockReturnValue({ ...defaultContextValue, showPOIs: true });
 
       // Act
-      const { getByTestId } = render(<IndoorMapView />);
+      const { getByTestId } = renderWithProvider(<IndoorMapView />);
 
       // Assert
       expect(getByTestId("poi-toggle")).toBeTruthy();
@@ -783,7 +795,7 @@ describe("IndoorMapView", () => {
       mockUseIndoorMap.mockReturnValue({ ...defaultContextValue, togglePOIs });
 
       // Act
-      const { getByTestId } = render(<IndoorMapView />);
+      const { getByTestId } = renderWithProvider(<IndoorMapView />);
       fireEvent.press(getByTestId("poi-toggle"));
 
       // Assert
@@ -796,7 +808,7 @@ describe("IndoorMapView", () => {
       setupWithAmenities([toilet], { showPOIs: true });
 
       // Act
-      const { getByText } = render(<IndoorMapView />);
+      const { getByText } = renderWithProvider(<IndoorMapView />);
 
       // Assert — washroom icon should be rendered
       expect(getByText(AMENITY_CONFIG.toilets.label)).toBeTruthy();
@@ -821,7 +833,7 @@ describe("IndoorMapView", () => {
       setupWithAmenities([fountain], { showPOIs: true });
 
       // Act
-      const { getByText } = render(<IndoorMapView />);
+      const { getByText } = renderWithProvider(<IndoorMapView />);
 
       // Assert
       expect(getByText(AMENITY_CONFIG.fountain.label)).toBeTruthy();
@@ -833,7 +845,7 @@ describe("IndoorMapView", () => {
       setupWithAmenities([fountain], { showPOIs: false });
 
       // Act
-      const { queryByText } = render(<IndoorMapView />);
+      const { queryByText } = renderWithProvider(<IndoorMapView />);
 
       // Assert
       expect(queryByText(AMENITY_CONFIG.fountain.label)).toBeNull();
@@ -876,7 +888,7 @@ describe("IndoorMapView", () => {
       setupWithAmenities([toilet, fountain], { showPOIs: true });
 
       // Act
-      const { getByText } = render(<IndoorMapView />);
+      const { getByText } = renderWithProvider(<IndoorMapView />);
 
       // Assert — both amenity icons should be visible
       expect(getByText(AMENITY_CONFIG.toilets.label)).toBeTruthy();
@@ -893,7 +905,7 @@ describe("IndoorMapView", () => {
       setupWithAmenities([badFountain], { showPOIs: true });
 
       // Act
-      const { queryByText } = render(<IndoorMapView />);
+      const { queryByText } = renderWithProvider(<IndoorMapView />);
 
       // Assert — no marker rendered due to empty coordinates
       expect(queryByText(AMENITY_CONFIG.fountain.label)).toBeNull();
@@ -909,7 +921,7 @@ describe("IndoorMapView", () => {
       setupWithAmenities([emptyToilet], { showPOIs: true });
 
       // Act
-      const { queryByText } = render(<IndoorMapView />);
+      const { queryByText } = renderWithProvider(<IndoorMapView />);
 
       // Assert — no marker rendered due to empty coords
       expect(queryByText(AMENITY_CONFIG.toilets.label)).toBeNull();
@@ -951,7 +963,7 @@ describe("IndoorMapView", () => {
       setupWithAmenities([unknownAmenity], { showPOIs: true });
 
       // Act
-      const { queryByTestId } = render(<IndoorMapView />);
+      const { queryByTestId } = renderWithProvider(<IndoorMapView />);
 
       // Assert — unknown amenity is not rendered as a POI
       expect(queryByTestId(/amenity-/)).toBeNull();
@@ -963,7 +975,7 @@ describe("IndoorMapView", () => {
       setupWithAmenities([fountain], { showPOIs: true });
 
       // Act — press the fountain icon text (marker mock doesn't forward testID)
-      const { getByTestId, getByText } = render(<IndoorMapView />);
+      const { getByTestId, getByText } = renderWithProvider(<IndoorMapView />);
       fireEvent.press(getByText(AMENITY_CONFIG.fountain.label));
 
       // Assert
@@ -985,7 +997,7 @@ describe("IndoorMapView", () => {
       });
 
       // Act
-      const { getByTestId, getByText } = render(<IndoorMapView />);
+      const { getByTestId, getByText } = renderWithProvider(<IndoorMapView />);
 
       // Assert
       expect(getByTestId("cross-building-banner")).toBeTruthy();
@@ -1001,7 +1013,7 @@ describe("IndoorMapView", () => {
       });
 
       // Act
-      const { queryByTestId } = render(<IndoorMapView />);
+      const { queryByTestId } = renderWithProvider(<IndoorMapView />);
 
       // Assert
       expect(queryByTestId("cross-building-banner")).toBeNull();
@@ -1029,13 +1041,13 @@ describe("IndoorMapView", () => {
           kind: "indoor" as const,
           buildingCode: "H",
           buildingName: "Hall Building",
-          path: [{ id: "room:H820:8", lat: 45.497, lng: -73.578, floor: 8, type: "room", ref: "H820" }],
+          path: [{ id: "room:H820:8", lat: 45.497, lng: -73.578, floor: 8, type: "room" as any, ref: "H820" }],
           startLabel: "H820",
           endLabel: "Exit",
         },
         {
           kind: "outdoor" as const,
-          route: { distance: "500m", duration: "6 min", polyline: "", steps: [] },
+          route: { distance: "500m", duration: "6 min", polyline: "", coordinates: [], steps: [] } as any,
           startLabel: "Hall Building",
           endLabel: "MB Building",
         },
@@ -1051,7 +1063,7 @@ describe("IndoorMapView", () => {
       });
 
       // Act
-      const { getByTestId } = render(<IndoorMapView />);
+      const { getByTestId } = renderWithProvider(<IndoorMapView />);
       fireEvent.press(getByTestId("cross-building-directions-button"));
 
       // Assert — wait for async route planning to complete
@@ -1074,7 +1086,7 @@ describe("IndoorMapView", () => {
       });
 
       // Act
-      const { getByTestId, findByText } = render(<IndoorMapView />);
+      const { getByTestId, findByText } = renderWithProvider(<IndoorMapView />);
       fireEvent.press(getByTestId("cross-building-directions-button"));
 
       // Assert
@@ -1094,7 +1106,7 @@ describe("IndoorMapView", () => {
       });
 
       // Act
-      const { getByTestId, findByText } = render(<IndoorMapView />);
+      const { getByTestId, findByText } = renderWithProvider(<IndoorMapView />);
       fireEvent.press(getByTestId("cross-building-directions-button"));
 
       // Assert
@@ -1108,7 +1120,7 @@ describe("IndoorMapView", () => {
           kind: "indoor" as const,
           buildingCode: "H",
           buildingName: "Hall Building",
-          path: [{ id: "room:H820:8", lat: 45.497, lng: -73.578, floor: 8, type: "room", ref: "H820" }],
+          path: [{ id: "room:H820:8", lat: 45.497, lng: -73.578, floor: 8, type: "room" as any, ref: "H820" }],
           startLabel: "H820",
           endLabel: "Exit",
         },
@@ -1124,7 +1136,7 @@ describe("IndoorMapView", () => {
       });
 
       // Act — enter story mode, then exit
-      const { getByTestId, queryByTestId } = render(<IndoorMapView />);
+      const { getByTestId, queryByTestId } = renderWithProvider(<IndoorMapView />);
       fireEvent.press(getByTestId("cross-building-directions-button"));
       await waitFor(() => expect(getByTestId("story-exit-button")).toBeTruthy());
       fireEvent.press(getByTestId("story-exit-button"));
@@ -1150,7 +1162,7 @@ describe("IndoorMapView", () => {
       });
 
       // Act
-      const { getByTestId } = render(<IndoorMapView />);
+      const { getByTestId } = renderWithProvider(<IndoorMapView />);
       fireEvent.press(getByTestId("cross-building-directions-button"));
 
       // Assert — loading indicator should appear
@@ -1168,7 +1180,7 @@ describe("IndoorMapView", () => {
           buildingCode: "H",
           buildingName: "Hall Building",
           path: [
-            { id: "room:H820:8", lat: 45.497, lng: -73.578, floor: 8, type: "room", ref: "H820" },
+            { id: "room:H820:8", lat: 45.497, lng: -73.578, floor: 8, type: "room" as any, ref: "H820" },
           ],
           startLabel: "H820",
           endLabel: "Hall Exit",
@@ -1199,7 +1211,7 @@ describe("IndoorMapView", () => {
       });
 
       // Act — start story mode and navigate next/prev
-      const { getByTestId, queryByTestId } = render(<IndoorMapView />);
+      const { getByTestId, queryByTestId } = renderWithProvider(<IndoorMapView />);
       fireEvent.press(getByTestId("cross-building-directions-button"));
       await waitFor(() => expect(getByTestId("story-step-indicator").props.children.join("")).toContain("Step 1 of 2"));
       fireEvent.press(getByTestId("story-next-button"));
@@ -1237,7 +1249,7 @@ describe("IndoorMapView", () => {
       });
 
       // Act
-      const { getByTestId } = render(<IndoorMapView />);
+      const { getByTestId } = renderWithProvider(<IndoorMapView />);
 
       // Assert — map renders without error and features were consumed
       await waitFor(() => {
@@ -1267,7 +1279,7 @@ describe("IndoorMapView", () => {
       });
 
       // Act
-      render(<IndoorMapView />);
+      renderWithProvider(<IndoorMapView />);
       act(() => {
         jest.advanceTimersByTime(350);
       });
@@ -1294,7 +1306,7 @@ describe("IndoorMapView", () => {
           kind: "indoor" as const,
           buildingCode: "H",
           buildingName: "Hall Building",
-          path: [{ id: "room:H820:8", lat: 45.497, lng: -73.578, floor: 8, type: "room", ref: "H820" }],
+          path: [{ id: "room:H820:8", lat: 45.497, lng: -73.578, floor: 8, type: "room" as any, ref: "H820" }],
           startLabel: "H820",
           endLabel: "Exit",
         },
@@ -1310,7 +1322,7 @@ describe("IndoorMapView", () => {
       });
 
       // Act — enter story mode so StoryIndoorMap renders
-      const { getByTestId } = render(<IndoorMapView />);
+      const { getByTestId } = renderWithProvider(<IndoorMapView />);
       fireEvent.press(getByTestId("cross-building-directions-button"));
 
       // Assert — story map renders with polygon features (no duplicate key warning)
@@ -1331,9 +1343,9 @@ describe("IndoorMapView", () => {
           buildingCode: "H",
           buildingName: "Hall Building",
           path: [
-            { id: "wp:1", lat: 45.497, lng: -73.578, floor: 8, type: "waypoint" },
-            { id: "wp:2", lat: 45.4975, lng: -73.5785, floor: 8, type: "waypoint" },
-            { id: "room:end", lat: 45.498, lng: -73.579, floor: 8, type: "room", ref: "H829" },
+            { id: "wp:1", lat: 45.497, lng: -73.578, floor: 8, type: "waypoint" as any },
+            { id: "wp:2", lat: 45.4975, lng: -73.5785, floor: 8, type: "waypoint" as any },
+            { id: "room:end", lat: 45.498, lng: -73.579, floor: 8, type: "room" as any, ref: "H829" },
           ],
           startLabel: "Hall Start",
           endLabel: "Hall End",
@@ -1348,7 +1360,7 @@ describe("IndoorMapView", () => {
       });
 
       // Act
-      const { getByTestId } = render(<IndoorMapView />);
+      const { getByTestId } = renderWithProvider(<IndoorMapView />);
       fireEvent.press(getByTestId("cross-building-directions-button"));
 
       // Assert — polyline uses the 2 non-room waypoints
@@ -1370,7 +1382,7 @@ describe("IndoorMapView", () => {
         setupBuildingWithFeature("H813");
 
         // Act
-        const { getByTestId } = render(<IndoorMapView />);
+        const { getByTestId } = renderWithProvider(<IndoorMapView />);
         fireEvent(getByTestId("indoor-map"), "onMapReady");
 
         // Assert

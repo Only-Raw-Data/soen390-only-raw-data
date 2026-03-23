@@ -4,6 +4,7 @@ import MapViewApp from "@/app/components/MapView";
 import { useDirections } from "@context/DirectionsContext";
 import useBuildingPolygons from "@hooks/useBuildingPolygons";
 import { useIsFocused } from "@react-navigation/native";
+import { POIProvider } from "@app/context/POIContext";
 
 // Mocks
 jest.mock("@context/DirectionsContext", () => ({
@@ -112,7 +113,9 @@ describe("MapViewApp - Complex Route Flow", () => {
     // Act
     // 1. Initial Render
     const { rerender, getAllByTestId, queryAllByTestId } = render(
-      <MapViewApp />,
+      <POIProvider>
+        <MapViewApp />
+      </POIProvider>,
     );
 
     // Assert
@@ -127,7 +130,11 @@ describe("MapViewApp - Complex Route Flow", () => {
     });
     
     // Act
-    rerender(<MapViewApp />);
+    rerender(
+      <POIProvider>
+        <MapViewApp />
+      </POIProvider>,
+    );
     let polylines = getAllByTestId("route-polyline");
     
     // Assert
@@ -143,7 +150,11 @@ describe("MapViewApp - Complex Route Flow", () => {
     });
     
     // Act
-    rerender(<MapViewApp />);
+    rerender(
+      <POIProvider>
+        <MapViewApp />
+      </POIProvider>,
+    );
     polylines = getAllByTestId("route-polyline");
     
     // Assert
@@ -159,7 +170,11 @@ describe("MapViewApp - Complex Route Flow", () => {
     });
     
     // Act
-    rerender(<MapViewApp />);
+    rerender(
+      <POIProvider>
+        <MapViewApp />
+      </POIProvider>,
+    );
     polylines = getAllByTestId("route-polyline");
     
     // Assert
@@ -171,7 +186,11 @@ describe("MapViewApp - Complex Route Flow", () => {
     (useIsFocused as jest.Mock).mockReturnValue(false);
     
     // Act
-    rerender(<MapViewApp />);
+    rerender(
+      <POIProvider>
+        <MapViewApp />
+      </POIProvider>,
+    );
     
     // Assert
     expect(getAllByTestId("route-polyline")).toHaveLength(1);
@@ -186,7 +205,11 @@ describe("MapViewApp - Complex Route Flow", () => {
     });
     
     // Act
-    rerender(<MapViewApp />);
+    rerender(
+      <POIProvider>
+        <MapViewApp />
+      </POIProvider>,
+    );
     polylines = getAllByTestId("route-polyline");
     
     // Assert
@@ -198,7 +221,11 @@ describe("MapViewApp - Complex Route Flow", () => {
       // In a real app, this would be triggered by pressing the button
       // Here we just rerender to ensure nothing broke
     });
-    rerender(<MapViewApp />);
+    rerender(
+      <POIProvider>
+        <MapViewApp />
+      </POIProvider>,
+    );
 
     // 8. Final Mode Switch: back to Walk
     (useDirections as jest.Mock).mockReturnValue({
@@ -208,7 +235,11 @@ describe("MapViewApp - Complex Route Flow", () => {
     });
     
     // Act
-    rerender(<MapViewApp />);
+    rerender(
+      <POIProvider>
+        <MapViewApp />
+      </POIProvider>,
+    );
     polylines = getAllByTestId("route-polyline");
     
     // Assert

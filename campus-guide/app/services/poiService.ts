@@ -1,7 +1,12 @@
 import { PointOfInterest } from "../types/poi";
 import { haversineDistance } from "../utils/locationUtils";
 import { File, Directory, Paths } from "expo-file-system/next";
-import { POI_LIMIT, POI_RADIUS, POI_CACHE_DIR, POI_CACHE_EXPIRY } from "../../constants/poi";
+import {
+  POI_LIMIT,
+  POI_RADIUS,
+  POI_CACHE_DIR,
+  POI_CACHE_EXPIRY,
+} from "../../constants/poi";
 
 const OVERPASS_URL = process.env.EXPO_PUBLIC_OVERPASS_URL as string;
 
@@ -99,7 +104,11 @@ async function cachePOIs(
   }
 }
 
-function mapOverpassElementToPOI(element: OverpassElement, userLat: number, userLon: number): PointOfInterest | null {
+function mapOverpassElementToPOI(
+  element: OverpassElement,
+  userLat: number,
+  userLon: number,
+): PointOfInterest | null {
   const lat = element.lat || element.center?.lat;
   const lon = element.lon || element.center?.lon;
 
@@ -111,15 +120,20 @@ function mapOverpassElementToPOI(element: OverpassElement, userLat: number, user
   if (!name) return null; // We only want named POIs
 
   const type = element.tags.amenity || element.tags.shop || "unknown";
-  
+
   // Calculate distance from user
   const distance = haversineDistance(userLat, userLon, lat, lon);
 
   // Construct a basic address if parts are available
   const addressParts = [];
-  if (element.tags['addr:housenumber']) addressParts.push(element.tags['addr:housenumber']);
-  if (element.tags['addr:street']) addressParts.push(element.tags['addr:street']);
-  const address = addressParts.length > 0 ? addressParts.join(' ') : undefined;
+  if (element.tags["addr:housenumber"])
+    addressParts.push(element.tags["addr:housenumber"]);
+  if (element.tags["addr:street"])
+    addressParts.push(element.tags["addr:street"]);
+  const address = addressParts.length > 0 ? addressParts.join(" ") : undefined;
+
+  // Map opening_hours if present
+  const openingHours = element.tags["opening_hours"] ?? undefined;
 
   return {
     id: element.id,
@@ -129,7 +143,58 @@ function mapOverpassElementToPOI(element: OverpassElement, userLat: number, user
     lon,
     distance,
     address,
+    openingHours,
   };
+}
+
+/**
+ * Helper to determine if a status code warrants a retry
+ */
+function isRetryableStatus(status: number): boolean {
+  return status === 504 || status === 503 || status === 429;
+}
+
+/**
+ * Fetches data from Overpass API with retry logic for temporary failures (504, 429, etc)
+ */
+async function fetchWithRetry(
+  url: string,
+  body: string,
+  maxRetries: number = 3,
+): Promise<Response> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body,
+      });
+
+      if (response.ok) return response;
+
+      // Check for retryable errors
+      if (isRetryableStatus(response.status) && attempt < maxRetries - 1) {
+        const delayMs = Math.pow(2, attempt) * 1000;
+        console.log(`[POI] API ${response.status}, retrying in ${delayMs}ms... (${attempt + 1}/${maxRetries})`);
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        continue;
+      }
+
+      throw new Error(`Overpass API error: ${response.status}`);
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      
+      if (attempt < maxRetries - 1) {
+        const delayMs = Math.pow(2, attempt) * 1000;
+        console.log(`[POI] Request failed, retrying in ${delayMs}ms... (${attempt + 1}/${maxRetries})`);
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+    }
+  }
+
+  throw lastError || new Error("Failed after retries");
 }
 
 /**
@@ -144,7 +209,7 @@ export async function fetchPOIs(
   lat: number,
   lon: number,
   radius: number = POI_RADIUS,
-  limit: number = POI_LIMIT
+  limit: number = POI_LIMIT,
 ): Promise<PointOfInterest[]> {
   try {
     // 1. Check Cache
@@ -152,7 +217,10 @@ export async function fetchPOIs(
     if (cached) {
       // Re-sort and slice to be safe, though cache should be correct
       return cached
-        .map(poi => ({ ...poi, distance: haversineDistance(lat, lon, poi.lat, poi.lon) }))
+        .map((poi) => ({
+          ...poi,
+          distance: haversineDistance(lat, lon, poi.lat, poi.lon),
+        }))
         .sort((a, b) => (a.distance || 0) - (b.distance || 0))
         .slice(0, limit);
     }
@@ -162,7 +230,7 @@ export async function fetchPOIs(
       throw new Error("Overpass URL is not configured");
     }
 
-    // 2. Fetch from Overpass API
+    // 2. Fetch from Overpass API with retry logic
     // We look for amenities like cafe, restaurant, fast_food, pub, bar
     // and shops like supermarket, convenience
     const query = `
@@ -176,27 +244,23 @@ export async function fetchPOIs(
       out center;
     `;
 
-    const response = await fetch(overpassUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: `data=${encodeURIComponent(query)}`,
-    });
-
-    if (!response.ok) {
-      throw new Error(`Overpass API error: ${response.status}`);
-    }
+    const response = await fetchWithRetry(
+      overpassUrl,
+      `data=${encodeURIComponent(query)}`,
+      3, // Retry up to 3 times
+    );
 
     const data: OverpassResponse = await response.json();
 
     // 3. Process and filter results
     const pois: PointOfInterest[] = data.elements
-      .map(element => mapOverpassElementToPOI(element, lat, lon))
+      .map((element) => mapOverpassElementToPOI(element, lat, lon))
       .filter((poi): poi is PointOfInterest => poi !== null); // Remove nulls (unnamed or missing coords)
 
     // Ensure uniqueness based on ID (sometimes node and way might overlap or just distinct IDs)
-    const uniquePois = Array.from(new Map(pois.map(poi => [poi.id, poi])).values());
+    const uniquePois = Array.from(
+      new Map(pois.map((poi) => [poi.id, poi])).values(),
+    );
 
     // 4. Sort by distance
     uniquePois.sort((a, b) => (a.distance || 0) - (b.distance || 0));

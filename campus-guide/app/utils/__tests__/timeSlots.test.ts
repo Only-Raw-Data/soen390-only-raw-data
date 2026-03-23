@@ -1,22 +1,42 @@
-import { buildHourSlots } from '../timeSlots';
+import { buildHourSlots } from "../timeSlots";
 
-describe('buildHourSlots', () => {
-  it('builds slots starting from given hour', () => {
-    expect(buildHourSlots(8, 4)).toEqual([8, 9, 10, 11]);
-  });
+describe("timeSlots", () => {
+  describe("buildHourSlots", () => {
+    it("creates consecutive hour values from the start hour", () => {
+      // Arrange
+      const startHour = 8;
+      const slotCount = 5;
 
-  it('builds 12 slots starting from hour 8', () => {
-    const slots = buildHourSlots(8, 12);
-    expect(slots).toHaveLength(12);
-    expect(slots[0]).toBe(8);
-    expect(slots[11]).toBe(19);
-  });
+      // Act
+      const result = buildHourSlots(startHour, slotCount);
 
-  it('returns empty array for count 0', () => {
-    expect(buildHourSlots(8, 0)).toEqual([]);
-  });
+      // Assert
+      expect(result).toEqual([8, 9, 10, 11, 12]);
+    });
 
-  it('builds slots starting from hour 0', () => {
-    expect(buildHourSlots(0, 3)).toEqual([0, 1, 2]);
+    it("returns an empty array when slot count is zero", () => {
+      // Arrange
+      const startHour = 8;
+      const slotCount = 0;
+
+      // Act
+      const result = buildHourSlots(startHour, slotCount);
+
+      // Assert
+      expect(result).toEqual([]);
+    });
+
+    it("returns an empty array when slot count is negative", () => {
+      // Arrange
+      const startHour = 8;
+      const slotCount = -2;
+
+      // Act
+      const result = buildHourSlots(startHour, slotCount);
+
+      // Assert
+      expect(result).toEqual([]);
+    });
   });
 });
+
