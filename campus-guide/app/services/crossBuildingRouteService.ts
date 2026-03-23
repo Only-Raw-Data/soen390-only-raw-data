@@ -27,7 +27,7 @@ function getEntranceCoords(
   useEnd: boolean,
 ): { lat: number; lng: number } {
   if (path && path.length > 0) {
-    const node = useEnd ? path[path.length - 1] : path[0];
+    const node = useEnd ? path.at(-1)! : path[0];
     return { lat: node.lat, lng: node.lng };
   }
   // Fallback: building centroid

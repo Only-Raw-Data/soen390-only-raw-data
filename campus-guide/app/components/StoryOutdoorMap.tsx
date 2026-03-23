@@ -43,7 +43,7 @@ export default function StoryOutdoorMap({
   if (!coords || !region) return null;
 
   const startCoord = coords[0];
-  const endCoord = coords[coords.length - 1];
+  const endCoord = coords.at(-1);
 
   return (
     <View style={styles.container}>

@@ -358,7 +358,7 @@ function RoomLabelsOverlay({
                 ]}
                 numberOfLines={1}
               >
-                {shortLabel(feature.properties!.ref!)}
+                {shortLabel(feature.properties?.ref ?? "")}
               </Text>
             </View>
           </Marker>
