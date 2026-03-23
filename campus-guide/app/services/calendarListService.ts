@@ -1,8 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const STORAGE_KEY_SELECTED_CALENDAR = 'selected_calendar_id';
-const CALENDAR_LIST_URL =
-  'https://www.googleapis.com/calendar/v3/users/me/calendarList';
+const GOOGLE_CALENDAR_BASE_URL = 'https://www.googleapis.com/calendar/v3';
+const CALENDAR_LIST_ENDPOINT = '/users/me/calendarList';
+const CALENDAR_LIST_URL = `${GOOGLE_CALENDAR_BASE_URL}${CALENDAR_LIST_ENDPOINT}`;
 
 export interface GoogleCalendar {
   id: string;

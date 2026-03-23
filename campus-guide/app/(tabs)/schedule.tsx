@@ -15,6 +15,7 @@ import CalendarSelectionProvider, {
 } from "@context/CalendarSelectionContext";
 import { useCalendarAuth } from "@context/CalendarAuthContext";
 import { formatHourLabel } from "@utils/timeFormat";
+import { PRIMARY_COLOR } from "@constants/ColorPalette";
 import { buildHourSlots } from "@utils/timeSlots";
 
 type WeekDay = {
@@ -23,7 +24,6 @@ type WeekDay = {
   isActive: boolean;
 };
 
-const PRIMARY_COLOR = "#912338";
 const SCHEDULE_START_HOUR_24 = 8;
 const SCHEDULE_HOUR_SLOTS = 12;
 
@@ -45,7 +45,7 @@ function CalendarSelectionSection() {
 
   return (
     <View style={styles.selectionSection}>
-      {selectedCalendarId && selectedCalendar ? (
+      {selectedCalendar ? (
         <View style={styles.selectedSummary}>
           <Ionicons name="checkmark-circle" size={16} color={PRIMARY_COLOR} />
           <Text style={styles.selectedSummaryText} numberOfLines={1}>

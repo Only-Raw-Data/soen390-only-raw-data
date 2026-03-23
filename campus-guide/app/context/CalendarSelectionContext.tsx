@@ -43,11 +43,14 @@ export default function CalendarSelectionProvider({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    getSelectedCalendarId()
-      .then((id) => setSelectedCalendarId(id))
-      .catch(() => {
+    (async () => {
+      try {
+        const id = await getSelectedCalendarId();
+        setSelectedCalendarId(id);
+      } catch {
         setError('Unable to restore selected calendar.');
-      });
+      }
+    })();
   }, []);
 
   const fetchCalendars = useCallback(async () => {

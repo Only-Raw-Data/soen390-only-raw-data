@@ -6,6 +6,6 @@ export function formatHourLabel(hour24: number): string {
   const hour12 =
     hour24 % NOON_HOUR_24 === 0 ? NOON_HOUR_24 : hour24 % NOON_HOUR_24;
 
-  return `${hour12}:00 ${suffix}`;
+  return `${hour12} ${suffix}`;
 }
 
