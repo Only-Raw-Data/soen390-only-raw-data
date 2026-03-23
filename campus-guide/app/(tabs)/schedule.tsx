@@ -44,33 +44,43 @@ const TIME_COLUMN_WIDTH = 54;
 
 const HOURS = buildHourSlots(SCHEDULE_START_HOUR_24, SCHEDULE_HOUR_SLOTS);
 
-function getCurrentWorkWeek(): WeekDay[] {
-  const today = new Date();
-  const currentDay = today.getDay();
+function startOfDay(date: Date) {
+  const result = new Date(date);
+  result.setHours(0, 0, 0, 0);
+  return result;
+}
 
-  const monday = new Date(today);
+function addDays(date: Date, days: number) {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
+}
+
+function getWeekDays(baseDate: Date): WeekDay[] {
+  const today = new Date();
+  const normalizedBase = startOfDay(baseDate);
+  const currentDay = normalizedBase.getDay();
+
+  const monday = new Date(normalizedBase);
   const diffToMonday = currentDay === 0 ? -6 : 1 - currentDay;
-  monday.setDate(today.getDate() + diffToMonday);
-  monday.setHours(0, 0, 0, 0);
+  monday.setDate(normalizedBase.getDate() + diffToMonday);
 
   const labels = ["MON", "TUE", "WED", "THU", "FRI"];
 
   return labels.map((label, index) => {
-    const date = new Date(monday);
-    date.setDate(monday.getDate() + index);
+    const date = addDays(monday, index);
 
     return {
       label,
       dayNumber: String(date.getDate()),
-      isActive: date.toDateString() === today.toDateString(),
+      isActive: startOfDay(date).getTime() === startOfDay(today).getTime(),
       date,
     };
   });
 }
 
 function getWeekBounds(weekDays: WeekDay[]) {
-  const start = new Date(weekDays[0].date);
-  start.setHours(0, 0, 0, 0);
+  const start = startOfDay(weekDays[0].date);
 
   const end = new Date(weekDays[weekDays.length - 1].date);
   end.setHours(23, 59, 59, 999);
@@ -115,6 +125,31 @@ function getEventLayout(start: Date, end: Date) {
   );
 
   return { top, height };
+}
+
+function formatWeekRangeLabel(weekDays: WeekDay[]) {
+  const first = weekDays[0].date;
+  const last = weekDays[weekDays.length - 1].date;
+
+  const sameMonth = first.getMonth() === last.getMonth();
+  const sameYear = first.getFullYear() === last.getFullYear();
+
+  const firstLabel = first.toLocaleDateString([], {
+    month: "short",
+    day: "numeric",
+  });
+
+  const lastLabel = last.toLocaleDateString([], {
+    month: sameMonth ? undefined : "short",
+    day: "numeric",
+    year: sameYear ? undefined : "numeric",
+  });
+
+  const yearLabel = sameYear
+    ? first.getFullYear()
+    : `${first.getFullYear()}–${last.getFullYear()}`;
+
+  return `${firstLabel} - ${lastLabel}, ${yearLabel}`;
 }
 
 async function fetchCalendarList(token: string): Promise<string[]> {
@@ -207,11 +242,13 @@ export default function ScheduleScreen() {
 
   const scrollRef = useRef<ScrollView>(null);
 
+  const [currentDate, setCurrentDate] = useState(() => new Date());
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
   const [eventsError, setEventsError] = useState<string | null>(null);
 
-  const weekDays = useMemo(() => getCurrentWorkWeek(), []);
+  const weekDays = useMemo(() => getWeekDays(currentDate), [currentDate]);
+  const weekRangeLabel = useMemo(() => formatWeekRangeLabel(weekDays), [weekDays]);
 
   const buttonLabel = useMemo(() => {
     if (isLoading) return "Loading...";
@@ -253,11 +290,11 @@ export default function ScheduleScreen() {
     const y = Math.max((minutesFromStart / 60) * HOUR_ROW_HEIGHT - 120, 0);
 
     const timeout = setTimeout(() => {
-      scrollRef.current?.scrollTo({ y, animated: true });
-    }, 300);
+      scrollRef.current?.scrollTo({ y, animated: false });
+    }, 250);
 
     return () => clearTimeout(timeout);
-  }, []);
+  }, [currentDate]);
 
   const onConnectPress = async () => {
     if (isLoading) return;
@@ -270,6 +307,18 @@ export default function ScheduleScreen() {
     await connectCalendar();
   };
 
+  const goToPreviousWeek = () => {
+    setCurrentDate((prev) => addDays(prev, -7));
+  };
+
+  const goToNextWeek = () => {
+    setCurrentDate((prev) => addDays(prev, 7));
+  };
+
+  const goToCurrentWeek = () => {
+    setCurrentDate(new Date());
+  };
+
   const allDayEvents = useMemo(
     () => events.filter((event) => event.isAllDay),
     [events],
@@ -279,9 +328,38 @@ export default function ScheduleScreen() {
     <View style={styles.screen}>
       <Header />
 
+      <View style={styles.navigationBar}>
+        <TouchableOpacity
+          style={styles.navButton}
+          activeOpacity={0.8}
+          onPress={goToPreviousWeek}
+        >
+          <Ionicons name="chevron-back" size={18} color="#912338" />
+        </TouchableOpacity>
+
+        <View style={styles.navigationCenter}>
+          <Text style={styles.navigationTitle}>{weekRangeLabel}</Text>
+
+          <TouchableOpacity
+            style={styles.todayButton}
+            activeOpacity={0.8}
+            onPress={goToCurrentWeek}
+          >
+            <Text style={styles.todayButtonText}>Today</Text>
+          </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity
+          style={styles.navButton}
+          activeOpacity={0.8}
+          onPress={goToNextWeek}
+        >
+          <Ionicons name="chevron-forward" size={18} color="#912338" />
+        </TouchableOpacity>
+      </View>
+
       <View style={styles.weekHeader}>
         <View style={styles.weekHeaderTimeSpacer} />
-
         <View style={styles.weekHeaderDays}>
           {weekDays.map((day) => (
             <View key={day.label} style={styles.weekDayColumn}>
@@ -298,106 +376,109 @@ export default function ScheduleScreen() {
         </View>
       </View>
 
-      <ScrollView
-        ref={scrollRef}
-        style={styles.content}
-        contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={false}
-      >
-        {allDayEvents.length > 0 ? (
-          <View style={styles.allDaySection}>
-            <Text style={styles.allDayTitle}>All-day events</Text>
-            {allDayEvents.map((event) => (
-              <View key={event.id} style={styles.allDayEvent}>
-                <Text style={styles.allDayEventText}>{event.title}</Text>
-              </View>
-            ))}
-          </View>
-        ) : null}
-
-        <View style={styles.gridWrapper}>
-          <View style={styles.timeColumn}>
-            {HOURS.map((hour) => (
-              <View key={hour} style={styles.timeCell}>
-                <Text style={styles.timeLabel}>{formatHourLabel(hour)}</Text>
-              </View>
-            ))}
-          </View>
-
-          <View style={styles.gridColumns}>
-            {weekDays.map((day) => {
-              const dayEvents = events.filter(
-                (event) => !event.isAllDay && isSameDay(event.start, day.date),
-              );
-
-              return (
-                <View
-                  key={`grid-${day.label}`}
-                  style={[
-                    styles.dayGridColumn,
-                    day.isActive && styles.activeGridColumn,
-                  ]}
-                >
-                  {HOURS.map((hour) => (
-                    <View key={`${day.label}-${hour}`} style={styles.gridCell} />
-                  ))}
-
-                  {dayEvents.map((event) => {
-                    const { clampedStart, clampedEnd } = clampEventToSchedule(
-                      event.start,
-                      event.end,
-                    );
-
-                    if (clampedEnd <= clampedStart) {
-                      return null;
-                    }
-
-                    const { top, height } = getEventLayout(
-                      clampedStart,
-                      clampedEnd,
-                    );
-
-                    return (
-                      <View
-                        key={event.id}
-                        style={[
-                          styles.eventBlock,
-                          {
-                            top,
-                            height,
-                          },
-                        ]}
-                      >
-                        <Text style={styles.eventTitle} numberOfLines={2}>
-                          {event.title}
-                        </Text>
-                        <Text style={styles.eventTime} numberOfLines={1}>
-                          {clampedStart.toLocaleTimeString([], {
-                            hour: "numeric",
-                            minute: "2-digit",
-                          })}{" "}
-                          -{" "}
-                          {clampedEnd.toLocaleTimeString([], {
-                            hour: "numeric",
-                            minute: "2-digit",
-                          })}
-                        </Text>
-                      </View>
-                    );
-                  })}
-                </View>
-              );
-            })}
-          </View>
+      {allDayEvents.length > 0 ? (
+        <View style={styles.allDaySection}>
+          <Text style={styles.allDayTitle}>All-day events</Text>
+          {allDayEvents.map((event) => (
+            <View key={event.id} style={styles.allDayEvent}>
+              <Text style={styles.allDayEventText}>{event.title}</Text>
+            </View>
+          ))}
         </View>
+      ) : null}
 
-        {eventsLoading ? (
-          <Text style={styles.infoText}>Loading calendar events...</Text>
-        ) : null}
+      <View style={styles.calendarBody}>
+        <ScrollView
+          ref={scrollRef}
+          style={styles.calendarScroll}
+          contentContainerStyle={styles.calendarScrollContent}
+          showsVerticalScrollIndicator
+          nestedScrollEnabled
+        >
+          <View style={styles.gridWrapper}>
+            <View style={styles.timeColumn}>
+              {HOURS.map((hour) => (
+                <View key={hour} style={styles.timeCell}>
+                  <Text style={styles.timeLabel}>{formatHourLabel(hour)}</Text>
+                </View>
+              ))}
+            </View>
 
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
-        {eventsError ? <Text style={styles.errorText}>{eventsError}</Text> : null}
-      </ScrollView>
+            <View style={styles.gridColumns}>
+              {weekDays.map((day) => {
+                const dayEvents = events.filter(
+                  (event) => !event.isAllDay && isSameDay(event.start, day.date),
+                );
+
+                return (
+                  <View
+                    key={`grid-${day.label}`}
+                    style={[
+                      styles.dayGridColumn,
+                      day.isActive && styles.activeGridColumn,
+                    ]}
+                  >
+                    {HOURS.map((hour) => (
+                      <View key={`${day.label}-${hour}`} style={styles.gridCell} />
+                    ))}
+
+                    {dayEvents.map((event) => {
+                      const { clampedStart, clampedEnd } = clampEventToSchedule(
+                        event.start,
+                        event.end,
+                      );
+
+                      if (clampedEnd <= clampedStart) {
+                        return null;
+                      }
+
+                      const { top, height } = getEventLayout(
+                        clampedStart,
+                        clampedEnd,
+                      );
+
+                      return (
+                        <View
+                          key={event.id}
+                          style={[
+                            styles.eventBlock,
+                            {
+                              top,
+                              height,
+                            },
+                          ]}
+                        >
+                          <Text style={styles.eventTitle} numberOfLines={2}>
+                            {event.title}
+                          </Text>
+                          <Text style={styles.eventTime} numberOfLines={1}>
+                            {clampedStart.toLocaleTimeString([], {
+                              hour: "numeric",
+                              minute: "2-digit",
+                            })}{" "}
+                            -{" "}
+                            {clampedEnd.toLocaleTimeString([], {
+                              hour: "numeric",
+                              minute: "2-digit",
+                            })}
+                          </Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+
+          {eventsLoading ? (
+            <Text style={styles.infoText}>Loading calendar events...</Text>
+          ) : null}
+
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+          {eventsError ? <Text style={styles.errorText}>{eventsError}</Text> : null}
+        </ScrollView>
+      </View>
 
       <View style={styles.bottomBar}>
         <TouchableOpacity
@@ -425,11 +506,45 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F3F4F6",
   },
-  content: {
-    flex: 1,
+  navigationBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
   },
-  contentContainer: {
-    paddingBottom: 110,
+  navButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#FDECEF",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  navigationCenter: {
+    flex: 1,
+    alignItems: "center",
+    paddingHorizontal: 12,
+  },
+  navigationTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#111827",
+  },
+  todayButton: {
+    marginTop: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: "#912338",
+  },
+  todayButtonText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "700",
   },
   weekHeader: {
     flexDirection: "row",
@@ -500,9 +615,18 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
   },
+  calendarBody: {
+    flex: 1,
+  },
+  calendarScroll: {
+    flex: 1,
+  },
+  calendarScrollContent: {
+    paddingBottom: 110,
+  },
   gridWrapper: {
     flexDirection: "row",
-    minHeight: HOUR_ROW_HEIGHT * SCHEDULE_HOUR_SLOTS,
+    height: HOUR_ROW_HEIGHT * SCHEDULE_HOUR_SLOTS,
     backgroundColor: "#FFFFFF",
   },
   timeColumn: {
