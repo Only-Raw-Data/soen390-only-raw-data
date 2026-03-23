@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   StyleSheet,
   FlatList,
+  ListRenderItem,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useCalendarSelection } from '@context/CalendarSelectionContext';
@@ -16,8 +17,8 @@ export default function CalendarList() {
   const { calendars, selectedCalendarId, isLoading, error, selectCalendar } =
     useCalendarSelection();
 
-  const renderItem = useCallback(
-    ({ item }: { item: GoogleCalendar }) => (
+  const renderItem: ListRenderItem<GoogleCalendar> = useCallback(
+    ({ item }) => (
       <CalendarItem
         calendar={item}
         isSelected={selectedCalendarId === item.id}
