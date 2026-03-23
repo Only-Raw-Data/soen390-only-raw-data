@@ -134,6 +134,432 @@ function FacilityPolygon({
   );
 }
 
+function formatFloorLabel(floor: number | null): string {
+  if (floor === null) return "";
+  return floor < 0 ? `B${Math.abs(floor)}` : String(floor);
+}
+
+function logIndoorMapRender(info: object) {
+  if (shouldLogIndoorMapDebug()) {
+    console.log("[IndoorMapView] RENDER", info);
+  }
+}
+
+function handleMapReady() {
+  if (shouldLogIndoorMapDebug()) {
+    console.log("[IndoorMapView] MAP READY");
+  }
+}
+
+function CrossBuildingBanner({
+  storyError,
+  storyLoading,
+  onStartStoryMode,
+}: {
+  readonly storyError: string | null;
+  readonly storyLoading: boolean;
+  readonly onStartStoryMode: () => void;
+}) {
+  return (
+    <View style={styles.crossBuildingBanner} testID="cross-building-banner">
+      <Text style={styles.crossBuildingText}>
+        These rooms are in different buildings.
+      </Text>
+      {storyError && (
+        <Text style={styles.crossBuildingError}>{storyError}</Text>
+      )}
+      <TouchableOpacity
+        style={styles.crossBuildingButton}
+        onPress={onStartStoryMode}
+        disabled={storyLoading}
+        testID="cross-building-directions-button"
+      >
+        {storyLoading ? (
+          <ActivityIndicator size="small" color="#FFFFFF" testID="story-loading" />
+        ) : (
+          <Text style={styles.crossBuildingButtonText}>
+            Get Step-by-Step Directions
+          </Text>
+        )}
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+function StoryModeSection({
+  storySteps,
+  storyIndex,
+  setStoryIndex,
+  onExit,
+}: {
+  readonly storySteps: NavigationStep[];
+  readonly storyIndex: number;
+  readonly setStoryIndex: React.Dispatch<React.SetStateAction<number>>;
+  readonly onExit: () => void;
+}) {
+  const currentStep = storySteps[storyIndex];
+  const isFirst = storyIndex === 0;
+  const isLast = storyIndex === storySteps.length - 1;
+  const stepLabel = currentStep.kind === "indoor"
+    ? `Indoor — ${(currentStep as IndoorStep).buildingName}`
+    : "Outdoor — Walking";
+
+  return (
+    <View style={styles.storyContainer} testID="story-mode-container">
+      <View style={styles.storyHeader}>
+        <Text style={styles.storyHeaderText} testID="story-step-indicator">
+          Step {storyIndex + 1} of {storySteps.length}
+          {" · "}
+          {stepLabel}
+        </Text>
+        <View style={styles.storyDots}>
+          {storySteps.map((step, i) => (
+            <View
+              key={`dot-${step.kind}-${step.startLabel}-${step.endLabel}`}
+              style={[
+                styles.storyDot,
+                i === storyIndex && styles.storyDotActive,
+              ]}
+            />
+          ))}
+        </View>
+      </View>
+
+      <View style={styles.storyLabelBar}>
+        <Text style={styles.storyLabel} testID="story-step-label">
+          {currentStep.startLabel} → {currentStep.endLabel}
+        </Text>
+      </View>
+
+      <View style={styles.storyMapContainer}>
+        {currentStep.kind === "outdoor" ? (
+          <StoryOutdoorMap
+            route={(currentStep as OutdoorStep).route}
+            startLabel={currentStep.startLabel}
+            endLabel={currentStep.endLabel}
+          />
+        ) : (
+          <StoryIndoorMap
+            step={currentStep as IndoorStep}
+          />
+        )}
+      </View>
+
+      <View style={styles.storyNavBar}>
+        <TouchableOpacity
+          style={[styles.storyNavButton, isFirst && styles.storyNavButtonDisabled]}
+          onPress={() => setStoryIndex((i) => Math.max(0, i - 1))}
+          disabled={isFirst}
+          testID="story-prev-button"
+        >
+          <Text style={[styles.storyNavButtonText, isFirst && styles.storyNavButtonTextDisabled]}>
+            ← Previous
+          </Text>
+        </TouchableOpacity>
+        <Text style={styles.storyNavStep}>
+          {storyIndex + 1} / {storySteps.length}
+        </Text>
+        <TouchableOpacity
+          style={[styles.storyNavButton, isLast && styles.storyNavButtonDisabled]}
+          onPress={() => setStoryIndex((i) => Math.min(storySteps.length - 1, i + 1))}
+          disabled={isLast}
+          testID="story-next-button"
+        >
+          <Text style={[styles.storyNavButtonText, isLast && styles.storyNavButtonTextDisabled]}>
+            Next →
+          </Text>
+        </TouchableOpacity>
+      </View>
+      <TouchableOpacity
+        style={styles.storyExitButton}
+        onPress={onExit}
+        testID="story-exit-button"
+      >
+        <Text style={styles.storyExitText}>Exit Story Mode</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+function TransitionMarkerItem({
+  node,
+  toFloor,
+  direction,
+}: {
+  readonly node: GraphNode;
+  readonly toFloor: number | null;
+  readonly direction: "up" | "down" | null;
+}) {
+  const isElevator = node.type === NodeType.Elevator;
+  const floorStr = formatFloorLabel(toFloor);
+  const arrow = direction === "up" ? "▲" : direction === "down" ? "▼" : "";
+
+  return (
+    <Marker
+      coordinate={{ latitude: node.lat, longitude: node.lng }}
+      anchor={{ x: 0.5, y: 0.5 }}
+      tracksViewChanges={false}
+    >
+      <View style={[
+        styles.transitionMarker,
+        isElevator ? styles.elevatorMarker : styles.staircaseMarker,
+      ]}>
+        <Text style={styles.transitionIcon}>
+          {isElevator ? ELEVATOR_LABEL : STAIRCASE_LABEL}
+        </Text>
+        {floorStr !== "" && (
+          <Text style={styles.transitionFloor}>{arrow}{floorStr}</Text>
+        )}
+      </View>
+    </Marker>
+  );
+}
+
+function RoomLabelsOverlay({
+  polygonFeatures,
+  selectedBuildingCode,
+  selectedFloor,
+  isHighlighted,
+}: {
+  readonly polygonFeatures: IndoorFeature[];
+  readonly selectedBuildingCode: string | null;
+  readonly selectedFloor: number | null;
+  readonly isHighlighted: (feature: IndoorFeature) => boolean;
+}) {
+  const labelFeatures = polygonFeatures.filter((f) => !!f.properties?.ref);
+  if (shouldLogIndoorMapDebug()) {
+    console.log("[IndoorMapView] LABELS", {
+      polygonFeaturesCount: polygonFeatures.length,
+      labelFeaturesCount: labelFeatures.length,
+      selectedBuilding: selectedBuildingCode,
+      selectedFloor,
+      sampleRefs: labelFeatures.slice(0, 5).map((f) => f.properties?.ref),
+    });
+  }
+  return (
+    <>
+      {labelFeatures.map((feature, index) => {
+        const coords = convertCoordinates(feature);
+        if (hasNoCoordinates(coords)) return null;
+        const centroid = getPolygonCentroid(coords);
+        const highlighted = isHighlighted(feature);
+        return (
+          <Marker
+            key={`label-${feature.properties?.ref}-${index}`}
+            coordinate={centroid}
+            anchor={{ x: 0.5, y: 0.5 }}
+            tracksViewChanges
+          >
+            <View style={styles.roomLabelContainer}>
+              <Text
+                style={[
+                  styles.roomLabelText,
+                  highlighted && styles.roomLabelTextHighlighted,
+                ]}
+                numberOfLines={1}
+              >
+                {shortLabel(feature.properties!.ref!)}
+              </Text>
+            </View>
+          </Marker>
+        );
+      })}
+    </>
+  );
+}
+
+function AmenityPointMarker({
+  feature,
+  index,
+  onPress,
+}: {
+  readonly feature: IndoorFeature;
+  readonly index: number;
+  readonly onPress: () => void;
+}) {
+  const amenity = feature.properties?.amenity ?? "";
+  const config = AMENITY_CONFIG[amenity];
+  if (!config) return null;
+  const coord = getPointCoordinate(feature);
+  if (!coord) return null;
+  return (
+    <Marker
+      coordinate={coord}
+      anchor={{ x: 0.5, y: 0.5 }}
+      tracksViewChanges={Platform.OS === "android"}
+      onPress={onPress}
+      testID={`amenity-point-${amenity}-${index}`}
+    >
+      <View style={styles.facilityMarker}>
+        <View style={[styles.amenityMarkerCircle, { backgroundColor: config.bgColor }]}>
+          <Text style={styles.amenityMarkerText}>{config.label}</Text>
+        </View>
+      </View>
+    </Marker>
+  );
+}
+
+function RouteInfo({
+  currentPath,
+  accessible,
+  pathCoordinates,
+}: {
+  readonly currentPath: GraphNode[] | null;
+  readonly accessible: boolean;
+  readonly pathCoordinates: { latitude: number; longitude: number }[];
+}) {
+  if (!currentPath) {
+    return (
+      <View style={styles.infoRow}>
+        <View style={[styles.infoDot, { backgroundColor: "#9CA3AF" }]} />
+        <Text style={styles.infoLabel} testID="path-status">Computing route…</Text>
+      </View>
+    );
+  }
+  const floors = [...new Set(currentPath.map((n) => n.floor))].sort((a, b) => a - b);
+  const isMultiFloor = floors.length > 1;
+  const floorLabels = floors.map((f) => formatFloorLabel(f)).join("→");
+  return (
+    <>
+      <View style={styles.infoRow}>
+        <View style={[styles.infoDot, { backgroundColor: accessible ? "#16A34A" : "#007AFF" }]} />
+        <Text style={styles.infoLabel} testID="path-status">
+          {accessible ? "♿ " : ""}{`Route: ${currentPath.length} steps`}
+          {isMultiFloor && ` · floors ${floorLabels}`}
+        </Text>
+      </View>
+      {isMultiFloor && pathCoordinates.length === 0 && (
+        <Text style={[styles.infoLabel, { marginTop: 2, color: "#F59E0B" }]}>
+          Switch floor to see this segment
+        </Text>
+      )}
+    </>
+  );
+}
+
+function HighlightedRoomInfo({
+  highlightedFeature,
+  selectedFloor,
+}: {
+  readonly highlightedFeature: IndoorFeature;
+  readonly selectedFloor: number | null;
+}) {
+  const floorDisplay = selectedFloor !== null && selectedFloor < 0
+    ? `B${Math.abs(selectedFloor)}`
+    : selectedFloor;
+  return (
+    <>
+      <Text style={styles.infoTitle}>{highlightedFeature.properties?.ref}</Text>
+      <View style={styles.infoRow}>
+        <Text style={styles.infoLabel}>Floor: </Text>
+        <Text style={styles.infoValue}>{floorDisplay}</Text>
+        {highlightedFeature.properties?.indoor && (
+          <>
+            <Text style={[styles.infoLabel, { marginLeft: 16 }]}>
+              Type:{" "}
+            </Text>
+            <Text style={styles.infoValue}>
+              {highlightedFeature.properties.indoor}
+            </Text>
+          </>
+        )}
+      </View>
+    </>
+  );
+}
+
+function BottomInfoSection({
+  selectedPOI,
+  onDismissPOI,
+  startRoomRef,
+  destinationRoomRef,
+  highlightedFeature,
+  currentPath,
+  accessible,
+  pathCoordinates,
+  selectedFloor,
+}: {
+  readonly selectedPOI: { amenity: string; ref?: string; name?: string } | null;
+  readonly onDismissPOI: () => void;
+  readonly startRoomRef: string | null;
+  readonly destinationRoomRef: string | null;
+  readonly highlightedFeature: IndoorFeature | null | undefined;
+  readonly currentPath: GraphNode[] | null;
+  readonly accessible: boolean;
+  readonly pathCoordinates: { latitude: number; longitude: number }[];
+  readonly selectedFloor: number | null;
+}) {
+  if (selectedPOI) {
+    return (
+      <View style={styles.infoBar} testID="poi-info-bar">
+        <View style={styles.infoRow}>
+          <Text style={styles.amenityMarkerText}>
+            {AMENITY_CONFIG[selectedPOI.amenity]?.label}
+          </Text>
+          <Text style={styles.infoTitle}>
+            {" "}{AMENITY_CONFIG[selectedPOI.amenity]?.displayName ?? selectedPOI.amenity}
+          </Text>
+        </View>
+        {selectedPOI.ref && (
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Room: </Text>
+            <Text style={styles.infoValue} testID="poi-ref">{selectedPOI.ref}</Text>
+          </View>
+        )}
+        {selectedPOI.name && (
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Name: </Text>
+            <Text style={styles.infoValue}>{selectedPOI.name}</Text>
+          </View>
+        )}
+        <TouchableOpacity
+          onPress={onDismissPOI}
+          style={styles.poiDismiss}
+          testID="poi-dismiss"
+        >
+          <Text style={styles.poiDismissText}>Dismiss</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (!startRoomRef && !destinationRoomRef && !highlightedFeature) {
+    return null;
+  }
+
+  return (
+    <View style={styles.infoBar}>
+      {startRoomRef && (
+        <View style={styles.infoRow}>
+          <View style={[styles.infoDot, styles.infoDotStart]} />
+          <Text style={styles.infoLabel}>From: </Text>
+          <Text style={styles.infoValue} testID="start-room-label">{startRoomRef}</Text>
+        </View>
+      )}
+      {destinationRoomRef && (
+        <View style={[styles.infoRow, startRoomRef ? { marginTop: 4 } : undefined]}>
+          <View style={[styles.infoDot, styles.infoDotDestination]} />
+          <Text style={styles.infoLabel}>To: </Text>
+          <Text style={styles.infoValue} testID="destination-room-label">{destinationRoomRef}</Text>
+        </View>
+      )}
+      {startRoomRef && destinationRoomRef && (
+        <RouteInfo
+          currentPath={currentPath}
+          accessible={accessible}
+          pathCoordinates={pathCoordinates}
+        />
+      )}
+      {highlightedFeature && !startRoomRef && !destinationRoomRef && (
+        <HighlightedRoomInfo
+          highlightedFeature={highlightedFeature}
+          selectedFloor={selectedFloor}
+        />
+      )}
+    </View>
+  );
+}
+
 export default function IndoorMapView() {
   const {
     selectedBuilding,
@@ -418,14 +844,12 @@ export default function IndoorMapView() {
       longitudeDelta: MAP_CONSTANTS.DEFAULT_CAMERA_DELTA,
     };
 
-  if (shouldLogIndoorMapDebug()) {
-    console.log("[IndoorMapView] RENDER", {
-      floorTransitioning,
-      pathCoordinatesLength: pathCoordinates.length,
-      selectedFloor,
-      willRenderPolyline: !!(!floorTransitioning && pathCoordinates.length > 1),
-    });
-  }
+  logIndoorMapRender({
+    floorTransitioning,
+    pathCoordinatesLength: pathCoordinates.length,
+    selectedFloor,
+    willRenderPolyline: !!(!floorTransitioning && pathCoordinates.length > 1),
+  });
 
   return (
     <View style={styles.container}>
@@ -555,7 +979,7 @@ export default function IndoorMapView() {
                       isActive && styles.floorButtonTextActive,
                     ]}
                   >
-                    {floor < 0 ? `B${Math.abs(floor)}` : floor}
+                    {formatFloorLabel(floor)}
                   </Text>
                 </TouchableOpacity>
               );
@@ -573,111 +997,21 @@ export default function IndoorMapView() {
 
       {/* Cross-building banner */}
       {isCrossBuilding && !storySteps && (
-        <View style={styles.crossBuildingBanner} testID="cross-building-banner">
-          <Text style={styles.crossBuildingText}>
-            These rooms are in different buildings.
-          </Text>
-          {storyError && (
-            <Text style={styles.crossBuildingError}>{storyError}</Text>
-          )}
-          <TouchableOpacity
-            style={styles.crossBuildingButton}
-            onPress={handleStartStoryMode}
-            disabled={storyLoading}
-            testID="cross-building-directions-button"
-          >
-            {storyLoading ? (
-              <ActivityIndicator size="small" color="#FFFFFF" testID="story-loading" />
-            ) : (
-              <Text style={styles.crossBuildingButtonText}>
-                Get Step-by-Step Directions
-              </Text>
-            )}
-          </TouchableOpacity>
-        </View>
+        <CrossBuildingBanner
+          storyError={storyError}
+          storyLoading={storyLoading}
+          onStartStoryMode={handleStartStoryMode}
+        />
       )}
 
       {/* Story Mode UI */}
       {storySteps && (
-        <View style={styles.storyContainer} testID="story-mode-container">
-          {/* Step indicator bar */}
-          <View style={styles.storyHeader}>
-            <Text style={styles.storyHeaderText} testID="story-step-indicator">
-              Step {storyIndex + 1} of {storySteps.length}
-              {" · "}
-              {storySteps[storyIndex].kind === "indoor"
-                ? `Indoor — ${(storySteps[storyIndex] as IndoorStep).buildingName}`
-                : "Outdoor — Walking"}
-            </Text>
-            <View style={styles.storyDots}>
-              {storySteps.map((step, i) => (
-                <View
-                  key={`dot-${step.kind}-${step.startLabel}-${step.endLabel}`}
-                  style={[
-                    styles.storyDot,
-                    i === storyIndex && styles.storyDotActive,
-                  ]}
-                />
-              ))}
-            </View>
-          </View>
-
-          {/* Step label */}
-          <View style={styles.storyLabelBar}>
-            <Text style={styles.storyLabel} testID="story-step-label">
-              {storySteps[storyIndex].startLabel} → {storySteps[storyIndex].endLabel}
-            </Text>
-          </View>
-
-          {/* Step content */}
-          <View style={styles.storyMapContainer}>
-            {storySteps[storyIndex].kind === "outdoor" ? (
-              <StoryOutdoorMap
-                route={(storySteps[storyIndex] as OutdoorStep).route}
-                startLabel={storySteps[storyIndex].startLabel}
-                endLabel={storySteps[storyIndex].endLabel}
-              />
-            ) : (
-              <StoryIndoorMap
-                step={storySteps[storyIndex] as IndoorStep}
-              />
-            )}
-          </View>
-
-          {/* Navigation bar */}
-          <View style={styles.storyNavBar}>
-            <TouchableOpacity
-              style={[styles.storyNavButton, storyIndex === 0 && styles.storyNavButtonDisabled]}
-              onPress={() => setStoryIndex((i) => Math.max(0, i - 1))}
-              disabled={storyIndex === 0}
-              testID="story-prev-button"
-            >
-              <Text style={[styles.storyNavButtonText, storyIndex === 0 && styles.storyNavButtonTextDisabled]}>
-                ← Previous
-              </Text>
-            </TouchableOpacity>
-            <Text style={styles.storyNavStep}>
-              {storyIndex + 1} / {storySteps.length}
-            </Text>
-            <TouchableOpacity
-              style={[styles.storyNavButton, storyIndex === storySteps.length - 1 && styles.storyNavButtonDisabled]}
-              onPress={() => setStoryIndex((i) => Math.min(storySteps.length - 1, i + 1))}
-              disabled={storyIndex === storySteps.length - 1}
-              testID="story-next-button"
-            >
-              <Text style={[styles.storyNavButtonText, storyIndex === storySteps.length - 1 && styles.storyNavButtonTextDisabled]}>
-                Next →
-              </Text>
-            </TouchableOpacity>
-          </View>
-          <TouchableOpacity
-            style={styles.storyExitButton}
-            onPress={handleExitStoryMode}
-            testID="story-exit-button"
-          >
-            <Text style={styles.storyExitText}>Exit Story Mode</Text>
-          </TouchableOpacity>
-        </View>
+        <StoryModeSection
+          storySteps={storySteps}
+          storyIndex={storyIndex}
+          setStoryIndex={setStoryIndex}
+          onExit={handleExitStoryMode}
+        />
       )}
 
       {/* Map (hidden when story mode active) */}
@@ -689,11 +1023,7 @@ export default function IndoorMapView() {
           customMapStyle={CAMPUS_MAP_STYLE}
           initialRegion={initialRegion}
           testID="indoor-map"
-          onMapReady={() => {
-            if (shouldLogIndoorMapDebug()) {
-              console.log("[IndoorMapView] MAP READY");
-            }
-          }}
+          onMapReady={handleMapReady}
           mapPadding={iosMapPadding}
         >
           {polygonFeatures.map((feature, index) => {
@@ -765,33 +1095,18 @@ export default function IndoorMapView() {
           })}
 
           {/* Amenity point POIs (e.g. water fountains) */}
-          {amenityPointFeatures.map((feature, index) => {
-            const amenity = feature.properties?.amenity ?? "";
-            const config = AMENITY_CONFIG[amenity];
-            if (!config) return null;
-            const coord = getPointCoordinate(feature);
-            if (!coord) return null;
-            return (
-              <Marker
-                key={`amenity-point-${amenity}-${index}`}
-                coordinate={coord}
-                anchor={{ x: 0.5, y: 0.5 }}
-                tracksViewChanges={Platform.OS === "android"}
-                onPress={() => setSelectedPOI({
-                  amenity,
-                  ref: feature.properties?.ref,
-                  name: feature.properties?.name,
-                })}
-                testID={`amenity-point-${amenity}-${index}`}
-              >
-                <View style={styles.facilityMarker}>
-                  <View style={[styles.amenityMarkerCircle, { backgroundColor: config.bgColor }]}>
-                    <Text style={styles.amenityMarkerText}>{config.label}</Text>
-                  </View>
-                </View>
-              </Marker>
-            );
-          })}
+          {amenityPointFeatures.map((feature, index) => (
+            <AmenityPointMarker
+              key={`amenity-point-${feature.properties?.amenity ?? ""}-${index}`}
+              feature={feature}
+              index={index}
+              onPress={() => setSelectedPOI({
+                amenity: feature.properties?.amenity ?? "",
+                ref: feature.properties?.ref,
+                name: feature.properties?.name,
+              })}
+            />
+          ))}
 
           {/* Shortest path polyline — filtered to current floor.
               Uses a stable key so React updates coordinates in place (prop change)
@@ -809,188 +1124,38 @@ export default function IndoorMapView() {
           )}
 
           {/* Staircase / elevator transition markers */}
-          {transitionPoints.map(({ node, toFloor, direction }) => {
-            const isElevator = node.type === NodeType.Elevator;
-            let floorStr = "";
-            if (toFloor !== null) {
-              floorStr = toFloor < 0 ? `B${Math.abs(toFloor)}` : `${toFloor}`;
-            }
-            let arrow = "";
-            if (direction === "up") {
-              arrow = "▲";
-            } else if (direction === "down") {
-              arrow = "▼";
-            }
-            return (
-              <Marker
-                key={`transition-${node.id}`}
-                coordinate={{ latitude: node.lat, longitude: node.lng }}
-                anchor={{ x: 0.5, y: 0.5 }}
-                tracksViewChanges={false}
-              >
-                <View style={[
-                  styles.transitionMarker,
-                  isElevator ? styles.elevatorMarker : styles.staircaseMarker,
-                ]}>
-                  <Text style={styles.transitionIcon}>
-                    {isElevator ? ELEVATOR_LABEL : STAIRCASE_LABEL}
-                  </Text>
-                  {floorStr !== "" && (
-                    <Text style={styles.transitionFloor}>{arrow}{floorStr}</Text>
-                  )}
-                </View>
-              </Marker>
-            );
-          })}
+          {transitionPoints.map(({ node, toFloor, direction }) => (
+            <TransitionMarkerItem
+              key={`transition-${node.id}`}
+              node={node}
+              toFloor={toFloor}
+              direction={direction}
+            />
+          ))}
 
           {/* Room number labels */}
-          {(() => {
-            const labelFeatures = polygonFeatures.filter((f) => !!f.properties?.ref);
-            if (shouldLogIndoorMapDebug()) {
-              console.log("[IndoorMapView] LABELS", {
-                polygonFeaturesCount: polygonFeatures.length,
-                labelFeaturesCount: labelFeatures.length,
-                selectedBuilding: selectedBuilding?.code ?? null,
-                selectedFloor,
-                sampleRefs: labelFeatures.slice(0, 5).map((f) => f.properties?.ref),
-              });
-            }
-            return labelFeatures.map((feature, index) => {
-              const coords = convertCoordinates(feature);
-              if (hasNoCoordinates(coords)) return null;
-              const centroid = getPolygonCentroid(coords);
-              const highlighted = isHighlighted(feature);
-              return (
-                <Marker
-                  key={`label-${feature.properties?.ref}-${index}`}
-                  coordinate={centroid}
-                  anchor={{ x: 0.5, y: 0.5 }}
-                  tracksViewChanges
-                >
-                  <View style={styles.roomLabelContainer}>
-                    <Text
-                      style={[
-                        styles.roomLabelText,
-                        highlighted && styles.roomLabelTextHighlighted,
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {shortLabel(feature.properties!.ref!)}
-                    </Text>
-                  </View>
-                </Marker>
-              );
-            });
-          })()}
+          <RoomLabelsOverlay
+            polygonFeatures={polygonFeatures}
+            selectedBuildingCode={selectedBuilding?.code ?? null}
+            selectedFloor={selectedFloor}
+            isHighlighted={isHighlighted}
+          />
         </MapView>
       </View>}
 
-      {!storySteps && <>
-      {/* POI Info Bar */}
-      {selectedPOI && (
-        <View style={styles.infoBar} testID="poi-info-bar">
-          <View style={styles.infoRow}>
-            <Text style={styles.amenityMarkerText}>
-              {AMENITY_CONFIG[selectedPOI.amenity]?.label}
-            </Text>
-            <Text style={styles.infoTitle}>
-              {" "}{AMENITY_CONFIG[selectedPOI.amenity]?.displayName ?? selectedPOI.amenity}
-            </Text>
-          </View>
-          {selectedPOI.ref && (
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Room: </Text>
-              <Text style={styles.infoValue} testID="poi-ref">{selectedPOI.ref}</Text>
-            </View>
-          )}
-          {selectedPOI.name && (
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Name: </Text>
-              <Text style={styles.infoValue}>{selectedPOI.name}</Text>
-            </View>
-          )}
-          <TouchableOpacity
-            onPress={() => setSelectedPOI(null)}
-            style={styles.poiDismiss}
-            testID="poi-dismiss"
-          >
-            <Text style={styles.poiDismissText}>Dismiss</Text>
-          </TouchableOpacity>
-        </View>
+      {!storySteps && (
+        <BottomInfoSection
+          selectedPOI={selectedPOI}
+          onDismissPOI={() => setSelectedPOI(null)}
+          startRoomRef={startRoomRef}
+          destinationRoomRef={destinationRoomRef}
+          highlightedFeature={highlightedFeature}
+          currentPath={currentPath}
+          accessible={accessible}
+          pathCoordinates={pathCoordinates}
+          selectedFloor={selectedFloor}
+        />
       )}
-
-      {/* Room Info Bar */}
-      {!selectedPOI && (startRoomRef || destinationRoomRef || highlightedFeature) && (
-        <View style={styles.infoBar}>
-          {startRoomRef && (
-            <View style={styles.infoRow}>
-              <View style={[styles.infoDot, styles.infoDotStart]} />
-              <Text style={styles.infoLabel}>From: </Text>
-              <Text style={styles.infoValue} testID="start-room-label">{startRoomRef}</Text>
-            </View>
-          )}
-          {destinationRoomRef && (
-            <View style={[styles.infoRow, startRoomRef ? { marginTop: 4 } : undefined]}>
-              <View style={[styles.infoDot, styles.infoDotDestination]} />
-              <Text style={styles.infoLabel}>To: </Text>
-              <Text style={styles.infoValue} testID="destination-room-label">{destinationRoomRef}</Text>
-            </View>
-          )}
-          {startRoomRef && destinationRoomRef && (() => {
-            if (!currentPath) {
-              return (
-                <View style={styles.infoRow}>
-                  <View style={[styles.infoDot, { backgroundColor: "#9CA3AF" }]} />
-                  <Text style={styles.infoLabel} testID="path-status">Computing route…</Text>
-                </View>
-              );
-            }
-            const floors = [...new Set(currentPath.map((n) => n.floor))].sort((a, b) => a - b);
-            const isMultiFloor = floors.length > 1;
-            const floorLabels = floors.map((f) => (f < 0 ? `B${Math.abs(f)}` : String(f))).join("→");
-            return (
-              <>
-                <View style={styles.infoRow}>
-                  <View style={[styles.infoDot, { backgroundColor: accessible ? "#16A34A" : "#007AFF" }]} />
-                  <Text style={styles.infoLabel} testID="path-status">
-                    {accessible ? "♿ " : ""}{`Route: ${currentPath.length} steps`}
-                    {isMultiFloor && ` · floors ${floorLabels}`}
-                  </Text>
-                </View>
-                {isMultiFloor && pathCoordinates.length === 0 && (
-                  <Text style={[styles.infoLabel, { marginTop: 2, color: "#F59E0B" }]}>
-                    Switch floor to see this segment
-                  </Text>
-                )}
-              </>
-            );
-          })()}
-          {highlightedFeature && !startRoomRef && !destinationRoomRef && (
-            <>
-              <Text style={styles.infoTitle}>{highlightedFeature.properties?.ref}</Text>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Floor: </Text>
-                <Text style={styles.infoValue}>
-                  {selectedFloor !== null && selectedFloor < 0
-                    ? `B${Math.abs(selectedFloor)}`
-                    : selectedFloor}
-                </Text>
-                {highlightedFeature.properties?.indoor && (
-                  <>
-                    <Text style={[styles.infoLabel, { marginLeft: 16 }]}>
-                      Type:{" "}
-                    </Text>
-                    <Text style={styles.infoValue}>
-                      {highlightedFeature.properties.indoor}
-                    </Text>
-                  </>
-                )}
-              </View>
-            </>
-          )}
-        </View>
-      )}
-      </>}
     </View>
   );
 }
