@@ -44,7 +44,7 @@ jobs:
         uses: SonarSource/sonarqube-scan-action@a31c9398be7ace6bbfaf30c0bd5d415f843d45e9
         env:
           SONAR_TOKEN: ${{ secrets.SONARCLOUD_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONARCLOUD_HOST_URL }}
+          SONAR_HOST_URL: https://sonarcloud.io
         with:
           projectBaseDir: campus-guide
 
