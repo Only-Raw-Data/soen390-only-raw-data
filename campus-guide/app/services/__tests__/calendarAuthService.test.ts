@@ -19,6 +19,7 @@ jest.mock("@react-native-google-signin/google-signin", () => {
       signIn: jest.fn().mockResolvedValue({ type: "success", data: {} }),
       addScopes: jest.fn().mockResolvedValue({}),
       getTokens: jest.fn().mockResolvedValue({ accessToken: "forced-token" }),
+      signInSilently: jest.fn().mockResolvedValue({}),
       revokeAccess: jest.fn().mockResolvedValue(null),
       signOut: jest.fn().mockResolvedValue(null),
     },
@@ -136,6 +137,44 @@ describe("calendarAuthService coverage", () => {
       const service = loadService();
       await service.getCalendarConnectionState();
       expect(true).toBe(true);
+    });
+  });
+
+  describe("getFreshCalendarAccessToken", () => {
+    it("returns access token when getTokens succeeds", async () => {
+      const service = loadService();
+      const { GoogleSignin } = require("@react-native-google-signin/google-signin");
+      GoogleSignin.getTokens.mockResolvedValueOnce({ accessToken: "fresh-token" });
+      const token = await service.getFreshCalendarAccessToken();
+      expect(token).toBe("fresh-token");
+    });
+
+    it("returns null when accessToken is null", async () => {
+      const service = loadService();
+      const { GoogleSignin } = require("@react-native-google-signin/google-signin");
+      GoogleSignin.getTokens.mockResolvedValueOnce({ accessToken: null });
+      const token = await service.getFreshCalendarAccessToken();
+      expect(token).toBeNull();
+    });
+
+    it("falls back to signInSilently when getTokens throws", async () => {
+      const service = loadService();
+      const { GoogleSignin } = require("@react-native-google-signin/google-signin");
+      GoogleSignin.getTokens
+        .mockRejectedValueOnce(new Error("No session"))
+        .mockResolvedValueOnce({ accessToken: "refreshed-token" });
+      GoogleSignin.signInSilently.mockResolvedValueOnce({});
+      const token = await service.getFreshCalendarAccessToken();
+      expect(token).toBe("refreshed-token");
+    });
+
+    it("returns null when both getTokens and signInSilently fail", async () => {
+      const service = loadService();
+      const { GoogleSignin } = require("@react-native-google-signin/google-signin");
+      GoogleSignin.getTokens.mockRejectedValue(new Error("No session"));
+      GoogleSignin.signInSilently.mockRejectedValueOnce(new Error("No account"));
+      const token = await service.getFreshCalendarAccessToken();
+      expect(token).toBeNull();
     });
   });
 

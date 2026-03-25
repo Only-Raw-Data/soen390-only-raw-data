@@ -165,4 +165,42 @@ describe("CalendarAuthContext", () => {
       expect(screen.getByTestId("error").props.children).toBe("Bad setup");
     });
   });
+
+  it("shows a generic config error when a non-Error is thrown on mount", async () => {
+    (configureGoogleCalendarAuth as jest.Mock).mockImplementation(() => {
+      throw "unexpected string error";
+    });
+
+    render(
+      <CalendarAuthProvider>
+        <Consumer />
+      </CalendarAuthProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("error").props.children).toBe(
+        "Failed to configure Google auth",
+      );
+    });
+  });
+
+  it("shows a disconnect error when disconnection fails", async () => {
+    (disconnectGoogleCalendar as jest.Mock).mockRejectedValue(
+      new Error("Revoke failed"),
+    );
+
+    render(
+      <CalendarAuthProvider>
+        <Consumer />
+      </CalendarAuthProvider>,
+    );
+
+    fireEvent.press(screen.getByTestId("disconnect"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("error").props.children).toBe(
+        "Unable to disconnect Google Calendar.",
+      );
+    });
+  });
 });
