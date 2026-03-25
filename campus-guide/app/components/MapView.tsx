@@ -37,7 +37,13 @@ import { SegmentMode } from "@app/types/transportation";
 import { PointOfInterest } from "../types/poi";
 import { poiToBuildingAdapter } from "../utils/poiUtils";
 
-function POIMarkerItem({ poi, onPress }: { poi: PointOfInterest; onPress: () => void }) {
+function POIMarkerItem({
+  poi,
+  onPress,
+}: {
+  readonly poi: PointOfInterest;
+  readonly onPress: () => void;
+}) {
   const [trackChanges, setTrackChanges] = React.useState(true);
   const { icon: poiIcon, color: poiColor } = getPoiInfo(poi.type);
 
@@ -60,11 +66,26 @@ function POIMarkerItem({ poi, onPress }: { poi: PointOfInterest; onPress: () => 
         <Ionicons name={poiIcon as any} size={14} color="#FFFFFF" />
       </View>
       <Callout tooltip>
-        <View style={[styles.youAreHereCallout, { borderColor: poiColor, width: 140 }]}>
-          <Text style={[styles.youAreHereText, { color: poiColor }]} numberOfLines={1}>
+        <View
+          style={[
+            styles.youAreHereCallout,
+            { borderColor: poiColor, width: 140 },
+          ]}
+        >
+          <Text
+            style={[styles.youAreHereText, { color: poiColor }]}
+            numberOfLines={1}
+          >
             {poi.name}
           </Text>
-          <Text style={{ fontSize: 10, color: "#6B7280", textTransform: "capitalize" }} numberOfLines={1}>
+          <Text
+            style={{
+              fontSize: 10,
+              color: "#6B7280",
+              textTransform: "capitalize",
+            }}
+            numberOfLines={1}
+          >
             {poi.type.replace("_", " ")}
           </Text>
         </View>
@@ -148,9 +169,6 @@ export default function MapViewApp({
     setSelectedPOI,
     updateSearchCenter,
   } = usePOIContext();
-
-
-
 
   const allBuildingsList = [...SGW_BUILDINGS, ...LOYOLA_BUILDINGS];
 
@@ -352,8 +370,6 @@ export default function MapViewApp({
           showsMyLocationButton={false}
           customMapStyle={CAMPUS_MAP_STYLE}
           onRegionChangeComplete={(region) => {
-
-
             // Smart POI center update: debounced, only on meaningful movement
             // If POIs are enabled, auto-fetches new data instead of clearing toggle
             updateSearchCenter(region.latitude, region.longitude);
