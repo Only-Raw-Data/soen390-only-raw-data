@@ -9,6 +9,12 @@ import {
 const STORAGE_KEY_CONNECTED = "calendar_connected";
 const STORAGE_KEY_CONNECTED_AT = "calendar_connected_at";
 const STORAGE_KEY_ACCESS_TOKEN = "calendar_access_token";
+const STORAGE_KEY_SELECTED_CALENDARS = "calendar_selected_ids";
+
+export type CalendarInfo = {
+  id: string;
+  name: string;
+};
 
 let isConfigured = false;
 
@@ -90,7 +96,49 @@ export async function disconnectGoogleCalendar() {
     STORAGE_KEY_CONNECTED,
     STORAGE_KEY_CONNECTED_AT,
     STORAGE_KEY_ACCESS_TOKEN,
+    STORAGE_KEY_SELECTED_CALENDARS,
   ]);
+}
+
+export async function fetchCalendars(token: string): Promise<CalendarInfo[]> {
+  const response = await fetch(
+    "https://www.googleapis.com/calendar/v3/users/me/calendarList",
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to fetch calendars: ${errorText}`);
+  }
+
+  const data = await response.json();
+  const items = Array.isArray(data.items) ? data.items : [];
+
+  return items
+    .filter((item: any) => typeof item.id === "string")
+    .map((item: any) => ({
+      id: item.id as string,
+      name: (item.summary as string) ?? (item.id as string),
+    }));
+}
+
+export async function saveSelectedCalendarIds(ids: string[]): Promise<void> {
+  await AsyncStorage.setItem(
+    STORAGE_KEY_SELECTED_CALENDARS,
+    JSON.stringify(ids),
+  );
+}
+
+export async function getSelectedCalendarIds(): Promise<string[] | null> {
+  const raw = await AsyncStorage.getItem(STORAGE_KEY_SELECTED_CALENDARS);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as string[];
+  } catch {
+    return null;
+  }
 }
 
 export function getGoogleSignInErrorMessage(error: unknown): string {

@@ -71,6 +71,7 @@ export default function CalendarAuthProvider({
       setIsConnected(state.isConnected);
       setConnectedAt(state.connectedAt);
     } catch (err) {
+      console.error("Failed to connect Google Calendar:", err);
       setError(getGoogleSignInErrorMessage(err));
     } finally {
       setIsLoading(false);

@@ -7,6 +7,7 @@ import React, {
 } from "react";
 import {
   ActivityIndicator,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -18,7 +19,13 @@ import Header from "@app/components/Header";
 import { useCalendarAuth } from "@context/CalendarAuthContext";
 import { formatHourLabel } from "@utils/timeFormat";
 import { buildHourSlots } from "@utils/timeSlots";
-import { getStoredCalendarAccessToken } from "@services/calendarAuthService";
+import {
+  type CalendarInfo,
+  fetchCalendars,
+  getSelectedCalendarIds,
+  getStoredCalendarAccessToken,
+  saveSelectedCalendarIds,
+} from "@services/calendarAuthService";
 
 type WeekDay = {
   label: string;
@@ -152,31 +159,9 @@ function formatWeekRangeLabel(weekDays: WeekDay[]) {
   return `${firstLabel} - ${lastLabel}, ${yearLabel}`;
 }
 
-async function fetchCalendarList(token: string): Promise<string[]> {
-  const response = await fetch(
-    "https://www.googleapis.com/calendar/v3/users/me/calendarList",
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    },
-  );
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to fetch calendar list: ${errorText}`);
-  }
-
-  const data = await response.json();
-  const items = Array.isArray(data.items) ? data.items : [];
-
-  return items
-    .filter((item: any) => typeof item.id === "string")
-    .map((item: any) => item.id);
-}
-
 async function fetchGoogleCalendarEvents(
   weekDays: WeekDay[],
+  calendarIds: string[],
 ): Promise<CalendarEvent[]> {
   const token = await getStoredCalendarAccessToken();
 
@@ -185,7 +170,6 @@ async function fetchGoogleCalendarEvents(
   }
 
   const { start, end } = getWeekBounds(weekDays);
-  const calendarIds = await fetchCalendarList(token);
 
   const allResults = await Promise.all(
     calendarIds.map(async (calendarId) => {
@@ -247,6 +231,12 @@ export default function ScheduleScreen() {
   const [eventsLoading, setEventsLoading] = useState(false);
   const [eventsError, setEventsError] = useState<string | null>(null);
 
+  const [calendars, setCalendars] = useState<CalendarInfo[]>([]);
+  const [selectedCalendarIds, setSelectedCalendarIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const [showCalendarPicker, setShowCalendarPicker] = useState(false);
+
   const weekDays = useMemo(() => getWeekDays(currentDate), [currentDate]);
   const weekRangeLabel = useMemo(() => formatWeekRangeLabel(weekDays), [weekDays]);
 
@@ -257,7 +247,7 @@ export default function ScheduleScreen() {
   }, [isLoading, isConnected]);
 
   const loadEvents = useCallback(async () => {
-    if (!isConnected) {
+    if (!isConnected || selectedCalendarIds.size === 0) {
       setEvents([]);
       setEventsError(null);
       return;
@@ -267,16 +257,19 @@ export default function ScheduleScreen() {
     setEventsError(null);
 
     try {
-      const fetchedEvents = await fetchGoogleCalendarEvents(weekDays);
+      const fetchedEvents = await fetchGoogleCalendarEvents(weekDays, [
+        ...selectedCalendarIds,
+      ]);
       setEvents(fetchedEvents);
     } catch (err) {
+      console.error(err);
       setEventsError(
         err instanceof Error ? err.message : "Failed to load calendar events.",
       );
     } finally {
       setEventsLoading(false);
     }
-  }, [isConnected, weekDays]);
+  }, [isConnected, weekDays, selectedCalendarIds]);
 
   useEffect(() => {
     void loadEvents();
@@ -295,6 +288,48 @@ export default function ScheduleScreen() {
 
     return () => clearTimeout(timeout);
   }, [currentDate]);
+
+  useEffect(() => {
+    if (!isConnected) {
+      setCalendars([]);
+      setSelectedCalendarIds(new Set());
+      return;
+    }
+
+    async function loadCalendars() {
+      const token = await getStoredCalendarAccessToken();
+      if (!token) return;
+
+      const fetched = await fetchCalendars(token);
+      setCalendars(fetched);
+
+      const saved = await getSelectedCalendarIds();
+      if (saved !== null) {
+        setSelectedCalendarIds(new Set(saved));
+      } else {
+        setSelectedCalendarIds(new Set(fetched.map((c) => c.id)));
+      }
+    }
+
+    void loadCalendars();
+  }, [isConnected]);
+
+  const handleCalendarToggle = useCallback((id: string) => {
+    setSelectedCalendarIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleSaveCalendarSelection = useCallback(async () => {
+    await saveSelectedCalendarIds([...selectedCalendarIds]);
+    setShowCalendarPicker(false);
+  }, [selectedCalendarIds]);
 
   const onConnectPress = async () => {
     if (isLoading) return;
@@ -481,6 +516,15 @@ export default function ScheduleScreen() {
       </View>
 
       <View style={styles.bottomBar}>
+        {isConnected ? (
+          <View style={styles.connectedBadge}>
+            <Ionicons name="checkmark-circle" size={16} color="#16A34A" />
+            <Text style={styles.connectedBadgeText}>
+              Connected to Google Calendar
+            </Text>
+          </View>
+        ) : null}
+
         <TouchableOpacity
           style={[styles.connectButton, isConnected && styles.connectedButton]}
           activeOpacity={0.85}
@@ -496,7 +540,62 @@ export default function ScheduleScreen() {
             </>
           )}
         </TouchableOpacity>
+
+        {isConnected && calendars.length > 0 ? (
+          <TouchableOpacity
+            style={styles.manageCalendarsButton}
+            activeOpacity={0.8}
+            onPress={() => setShowCalendarPicker(true)}
+          >
+            <Ionicons name="list-outline" size={16} color="#912338" />
+            <Text style={styles.manageCalendarsText}>Manage Calendars</Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
+
+      <Modal
+        visible={showCalendarPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowCalendarPicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheet}>
+            <Text style={styles.modalTitle}>Select Calendars</Text>
+
+            <ScrollView style={styles.modalList}>
+              {calendars.map((cal) => {
+                const selected = selectedCalendarIds.has(cal.id);
+                return (
+                  <TouchableOpacity
+                    key={cal.id}
+                    style={styles.calendarRow}
+                    activeOpacity={0.7}
+                    onPress={() => handleCalendarToggle(cal.id)}
+                  >
+                    <Ionicons
+                      name={selected ? "checkmark-circle" : "ellipse-outline"}
+                      size={22}
+                      color={selected ? "#912338" : "#9CA3AF"}
+                    />
+                    <Text style={styles.calendarRowText} numberOfLines={1}>
+                      {cal.name}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            <TouchableOpacity
+              style={styles.modalSaveButton}
+              activeOpacity={0.85}
+              onPress={handleSaveCalendarSelection}
+            >
+              <Text style={styles.modalSaveButtonText}>Save</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -723,6 +822,79 @@ const styles = StyleSheet.create({
     backgroundColor: "#4B5563",
   },
   connectButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+    fontSize: 16,
+  },
+  connectedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    marginBottom: 10,
+  },
+  connectedBadgeText: {
+    fontSize: 13,
+    color: "#16A34A",
+    fontWeight: "600",
+  },
+  manageCalendarsButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    marginTop: 10,
+  },
+  manageCalendarsText: {
+    color: "#912338",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "flex-end",
+  },
+  modalSheet: {
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingTop: 20,
+    paddingHorizontal: 16,
+    paddingBottom: 32,
+    maxHeight: "60%",
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#111827",
+    marginBottom: 14,
+    textAlign: "center",
+  },
+  modalList: {
+    marginBottom: 16,
+  },
+  calendarRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  calendarRowText: {
+    flex: 1,
+    fontSize: 15,
+    color: "#111827",
+  },
+  modalSaveButton: {
+    height: 44,
+    borderRadius: 8,
+    backgroundColor: "#912338",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalSaveButtonText: {
     color: "#FFFFFF",
     fontWeight: "700",
     fontSize: 16,
