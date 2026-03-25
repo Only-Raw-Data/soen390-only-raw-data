@@ -22,8 +22,8 @@ import { buildHourSlots } from "@utils/timeSlots";
 import {
   type CalendarInfo,
   fetchCalendars,
+  getFreshCalendarAccessToken,
   getSelectedCalendarIds,
-  getStoredCalendarAccessToken,
   saveSelectedCalendarIds,
 } from "@services/calendarAuthService";
 
@@ -163,7 +163,7 @@ async function fetchGoogleCalendarEvents(
   weekDays: WeekDay[],
   calendarIds: string[],
 ): Promise<CalendarEvent[]> {
-  const token = await getStoredCalendarAccessToken();
+  const token = await getFreshCalendarAccessToken();
 
   if (!token) {
     throw new Error("No Google Calendar access token found.");
@@ -297,7 +297,7 @@ export default function ScheduleScreen() {
     }
 
     async function loadCalendars() {
-      const token = await getStoredCalendarAccessToken();
+      const token = await getFreshCalendarAccessToken();
       if (!token) return;
 
       const fetched = await fetchCalendars(token);

@@ -83,6 +83,15 @@ export async function getStoredCalendarAccessToken() {
   return AsyncStorage.getItem(STORAGE_KEY_ACCESS_TOKEN);
 }
 
+export async function getFreshCalendarAccessToken(): Promise<string | null> {
+  try {
+    const tokens = await GoogleSignin.getTokens();
+    return tokens.accessToken ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export async function disconnectGoogleCalendar() {
   try {
     await GoogleSignin.revokeAccess();
