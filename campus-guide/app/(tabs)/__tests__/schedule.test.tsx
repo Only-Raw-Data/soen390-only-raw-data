@@ -417,22 +417,6 @@ describe("ScheduleScreen", () => {
     });
   });
 
-  it("navigates to next week on chevron-forward press", async () => {
-    render(<ScheduleScreen />);
-
-    const initialLabel = screen.getAllByText(/MON|TUE|WED|THU|FRI/)[0];
-    expect(initialLabel).toBeTruthy();
-
-    fireEvent.press(screen.getByText("Today"));
-    const labelBefore = screen.getByRole
-      ? screen.queryAllByText(/\d{4}/)
-      : null;
-
-    fireEvent.press(screen.getByTestId
-      ? screen.queryByTestId("next-week") ?? screen.getAllByText("")[0]
-      : screen.getAllByText("")[0]);
-  });
-
   it("navigates to previous and next week", () => {
     render(<ScheduleScreen />);
 
