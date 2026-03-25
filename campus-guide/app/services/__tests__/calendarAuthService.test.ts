@@ -138,6 +138,116 @@ describe("calendarAuthService coverage", () => {
       await service.getCalendarConnectionState();
       expect(true).toBe(true);
     });
+
+    it("saveSelectedCalendarIds stores ids as JSON", async () => {
+      const service = loadService();
+      await service.saveSelectedCalendarIds(["cal1", "cal2"]);
+      const AsyncStorageMock = require("@react-native-async-storage/async-storage").default;
+      expect(AsyncStorageMock.setItem).toHaveBeenCalledWith(
+        "calendar_selected_ids",
+        JSON.stringify(["cal1", "cal2"]),
+      );
+    });
+
+    it("getSelectedCalendarIds returns null when nothing stored", async () => {
+      const service = loadService();
+      const AsyncStorageMock = require("@react-native-async-storage/async-storage").default;
+      AsyncStorageMock.getItem.mockResolvedValueOnce(null);
+      const result = await service.getSelectedCalendarIds();
+      expect(result).toBeNull();
+    });
+
+    it("getSelectedCalendarIds parses stored JSON", async () => {
+      const service = loadService();
+      const AsyncStorageMock = require("@react-native-async-storage/async-storage").default;
+      AsyncStorageMock.getItem.mockResolvedValueOnce(JSON.stringify(["cal1"]));
+      const result = await service.getSelectedCalendarIds();
+      expect(result).toEqual(["cal1"]);
+    });
+
+    it("getSelectedCalendarIds returns null on invalid JSON", async () => {
+      const service = loadService();
+      const AsyncStorageMock = require("@react-native-async-storage/async-storage").default;
+      AsyncStorageMock.getItem.mockResolvedValueOnce("not-valid-json{{");
+      const result = await service.getSelectedCalendarIds();
+      expect(result).toBeNull();
+    });
+  });
+
+  describe("fetchCalendars", () => {
+    beforeEach(() => {
+      global.fetch = jest.fn();
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("returns calendars on success", async () => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          items: [
+            { id: "cal1", summary: "My Calendar" },
+            { id: "cal2", summary: "Work" },
+          ],
+        }),
+      });
+      const service = loadService();
+      const result = await service.fetchCalendars("token");
+      expect(result).toEqual([
+        { id: "cal1", name: "My Calendar" },
+        { id: "cal2", name: "Work" },
+      ]);
+    });
+
+    it("uses id as name when summary is missing", async () => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          items: [{ id: "cal1" }],
+        }),
+      });
+      const service = loadService();
+      const result = await service.fetchCalendars("token");
+      expect(result).toEqual([{ id: "cal1", name: "cal1" }]);
+    });
+
+    it("throws on non-ok response", async () => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: false,
+        text: async () => "Unauthorized",
+      });
+      const service = loadService();
+      await expect(service.fetchCalendars("token")).rejects.toThrow(
+        "Failed to fetch calendars: Unauthorized",
+      );
+    });
+
+    it("returns empty array when items is not an array", async () => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ items: null }),
+      });
+      const service = loadService();
+      const result = await service.fetchCalendars("token");
+      expect(result).toEqual([]);
+    });
+
+    it("filters out items without a string id", async () => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          items: [
+            { id: 123, summary: "Bad" },
+            { id: "cal1", summary: "Good" },
+          ],
+        }),
+      });
+      const service = loadService();
+      const result = await service.fetchCalendars("token");
+      expect(result).toEqual([{ id: "cal1", name: "Good" }]);
+    });
   });
 
   describe("getFreshCalendarAccessToken", () => {

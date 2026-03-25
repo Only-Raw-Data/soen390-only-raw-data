@@ -166,6 +166,24 @@ describe("CalendarAuthContext", () => {
     });
   });
 
+  it("shows error when refreshConnection fails on mount", async () => {
+    (getCalendarConnectionState as jest.Mock).mockRejectedValue(
+      new Error("Storage unavailable"),
+    );
+
+    render(
+      <CalendarAuthProvider>
+        <Consumer />
+      </CalendarAuthProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("error").props.children).toBe(
+        "Unable to read calendar connection state.",
+      );
+    });
+  });
+
   it("shows a generic config error when a non-Error is thrown on mount", async () => {
     (configureGoogleCalendarAuth as jest.Mock).mockImplementation(() => {
       throw "unexpected string error";

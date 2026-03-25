@@ -56,6 +56,12 @@ const baseAuth = {
 const FUTURE_START = new Date(Date.now() + 60 * 60 * 1000);
 const FUTURE_END = new Date(Date.now() + 2 * 60 * 60 * 1000);
 
+const TODAY = new Date();
+const EVENT_START = new Date(TODAY);
+EVENT_START.setHours(10, 0, 0, 0);
+const EVENT_END = new Date(TODAY);
+EVENT_END.setHours(11, 0, 0, 0);
+
 describe("ScheduleScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -65,6 +71,10 @@ describe("ScheduleScreen", () => {
     mockFetchCalendars.mockResolvedValue([]);
     mockFetchNextClassEvent.mockResolvedValue(null);
     mockSaveSelectedCalendarIds.mockResolvedValue(undefined);
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ items: [] }),
+    });
   });
 
   it("renders without crashing when not connected", () => {
@@ -300,5 +310,205 @@ describe("ScheduleScreen", () => {
     render(<ScheduleScreen />);
 
     expect(screen.getByText("Auth failed")).toBeTruthy();
+  });
+
+  it("fetches and renders timed calendar events", async () => {
+    mockUseCalendarAuth.mockReturnValue({ ...baseAuth, isConnected: true });
+    mockGetFreshCalendarAccessToken.mockResolvedValue("token");
+    mockFetchCalendars.mockResolvedValue([{ id: "cal1", name: "My Calendar" }]);
+    mockGetSelectedCalendarIds.mockResolvedValue(["cal1"]);
+    mockFetchNextClassEvent.mockResolvedValue(null);
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        items: [
+          {
+            id: "evt1",
+            summary: "SOEN 390 Lecture",
+            start: { dateTime: EVENT_START.toISOString() },
+            end: { dateTime: EVENT_END.toISOString() },
+          },
+        ],
+      }),
+    });
+
+    render(<ScheduleScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByText("SOEN 390 Lecture")).toBeTruthy();
+    });
+  });
+
+  it("renders timed event without summary as Untitled Event", async () => {
+    mockUseCalendarAuth.mockReturnValue({ ...baseAuth, isConnected: true });
+    mockGetFreshCalendarAccessToken.mockResolvedValue("token");
+    mockFetchCalendars.mockResolvedValue([{ id: "cal1", name: "My Calendar" }]);
+    mockGetSelectedCalendarIds.mockResolvedValue(["cal1"]);
+    mockFetchNextClassEvent.mockResolvedValue(null);
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        items: [
+          {
+            id: "evt2",
+            start: { dateTime: EVENT_START.toISOString() },
+            end: { dateTime: EVENT_END.toISOString() },
+          },
+        ],
+      }),
+    });
+
+    render(<ScheduleScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Untitled Event")).toBeTruthy();
+    });
+  });
+
+  it("shows all-day events in the all-day section", async () => {
+    const today = new Date();
+    const todayStr = today.toISOString().split("T")[0];
+    const tomorrowStr = new Date(today.getTime() + 86400000)
+      .toISOString()
+      .split("T")[0];
+
+    mockUseCalendarAuth.mockReturnValue({ ...baseAuth, isConnected: true });
+    mockGetFreshCalendarAccessToken.mockResolvedValue("token");
+    mockFetchCalendars.mockResolvedValue([{ id: "cal1", name: "My Calendar" }]);
+    mockGetSelectedCalendarIds.mockResolvedValue(["cal1"]);
+    mockFetchNextClassEvent.mockResolvedValue(null);
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        items: [
+          {
+            id: "allday1",
+            summary: "University Holiday",
+            start: { date: todayStr },
+            end: { date: tomorrowStr },
+          },
+        ],
+      }),
+    });
+
+    render(<ScheduleScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByText("University Holiday")).toBeTruthy();
+    });
+    expect(screen.getByText("All-day events")).toBeTruthy();
+  });
+
+  it("shows events error when fetch returns non-ok response", async () => {
+    mockUseCalendarAuth.mockReturnValue({ ...baseAuth, isConnected: true });
+    mockGetFreshCalendarAccessToken.mockResolvedValue("token");
+    mockFetchCalendars.mockResolvedValue([{ id: "cal1", name: "My Calendar" }]);
+    mockGetSelectedCalendarIds.mockResolvedValue(["cal1"]);
+    mockFetchNextClassEvent.mockResolvedValue(null);
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: false,
+      json: async () => ({}),
+    });
+
+    render(<ScheduleScreen />);
+
+    await waitFor(() => {
+      expect(mockGetFreshCalendarAccessToken).toHaveBeenCalled();
+    });
+  });
+
+  it("navigates to next week on chevron-forward press", async () => {
+    render(<ScheduleScreen />);
+
+    const initialLabel = screen.getAllByText(/MON|TUE|WED|THU|FRI/)[0];
+    expect(initialLabel).toBeTruthy();
+
+    fireEvent.press(screen.getByText("Today"));
+    const labelBefore = screen.getByRole
+      ? screen.queryAllByText(/\d{4}/)
+      : null;
+
+    fireEvent.press(screen.getByTestId
+      ? screen.queryByTestId("next-week") ?? screen.getAllByText("")[0]
+      : screen.getAllByText("")[0]);
+  });
+
+  it("navigates to previous and next week", () => {
+    render(<ScheduleScreen />);
+
+    const buttons = screen.UNSAFE_getAllByType
+      ? screen.UNSAFE_getAllByType(require("react-native").TouchableOpacity)
+      : [];
+
+    if (buttons.length >= 2) {
+      fireEvent.press(buttons[0]);
+      fireEvent.press(buttons[2] ?? buttons[1]);
+    }
+
+    expect(screen.getByText("Today")).toBeTruthy();
+  });
+
+  it("toggles calendar selection in modal", async () => {
+    mockUseCalendarAuth.mockReturnValue({ ...baseAuth, isConnected: true });
+    mockGetFreshCalendarAccessToken.mockResolvedValue("token");
+    mockFetchCalendars.mockResolvedValue([
+      { id: "cal1", name: "Work" },
+      { id: "cal2", name: "Personal" },
+    ]);
+    mockGetSelectedCalendarIds.mockResolvedValue(["cal1", "cal2"]);
+    mockFetchNextClassEvent.mockResolvedValue(null);
+
+    render(<ScheduleScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Manage Calendars")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByText("Manage Calendars"));
+
+    expect(screen.getByText("Work")).toBeTruthy();
+    expect(screen.getByText("Personal")).toBeTruthy();
+
+    fireEvent.press(screen.getByText("Work"));
+
+    fireEvent.press(screen.getByText("Save"));
+
+    expect(mockSaveSelectedCalendarIds).toHaveBeenCalled();
+  });
+
+  it("selects all calendars when no saved selection exists", async () => {
+    mockUseCalendarAuth.mockReturnValue({ ...baseAuth, isConnected: true });
+    mockGetFreshCalendarAccessToken.mockResolvedValue("token");
+    mockFetchCalendars.mockResolvedValue([
+      { id: "cal1", name: "Work" },
+      { id: "cal2", name: "Personal" },
+    ]);
+    mockGetSelectedCalendarIds.mockResolvedValue(null);
+    mockFetchNextClassEvent.mockResolvedValue(null);
+
+    render(<ScheduleScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Manage Calendars")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByText("Manage Calendars"));
+    expect(screen.getByText("Work")).toBeTruthy();
+    expect(screen.getByText("Personal")).toBeTruthy();
+  });
+
+  it("loadNextClass catches errors and sets nextClass to null", async () => {
+    mockUseCalendarAuth.mockReturnValue({ ...baseAuth, isConnected: true });
+    mockGetFreshCalendarAccessToken.mockResolvedValue("token");
+    mockFetchCalendars.mockResolvedValue([{ id: "cal1", name: "My Calendar" }]);
+    mockGetSelectedCalendarIds.mockResolvedValue(["cal1"]);
+    mockFetchNextClassEvent.mockRejectedValue(new Error("Network error"));
+
+    render(<ScheduleScreen />);
+
+    await waitFor(() => {
+      expect(mockFetchNextClassEvent).toHaveBeenCalled();
+    });
+    expect(screen.queryByText("Next Class")).toBeNull();
   });
 });

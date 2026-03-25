@@ -91,7 +91,7 @@ function getWeekDays(baseDate: Date): WeekDay[] {
 function getWeekBounds(weekDays: WeekDay[]) {
   const start = startOfDay(weekDays[0].date);
 
-  const end = new Date(weekDays[weekDays.length - 1].date);
+  const end = new Date(weekDays.at(-1)!.date);
   end.setHours(23, 59, 59, 999);
 
   return { start, end };
@@ -138,7 +138,7 @@ function getEventLayout(start: Date, end: Date) {
 
 function formatWeekRangeLabel(weekDays: WeekDay[]) {
   const first = weekDays[0].date;
-  const last = weekDays[weekDays.length - 1].date;
+  const last = weekDays.at(-1)!.date;
 
   const sameMonth = first.getMonth() === last.getMonth();
   const sameYear = first.getFullYear() === last.getFullYear();
@@ -217,6 +217,61 @@ async function fetchGoogleCalendarEvents(
   return allResults.flat();
 }
 
+function NextClassCard({
+  nextClass,
+  isLoading,
+}: {
+  readonly nextClass: NextClassEvent | null;
+  readonly isLoading: boolean;
+}) {
+  if (!isLoading && nextClass === null) return null;
+
+  return (
+    <View style={styles.nextClassCard}>
+      <View style={styles.nextClassHeader}>
+        <Ionicons name="school-outline" size={14} color="#912338" />
+        <Text style={styles.nextClassLabel}>Next Class</Text>
+        {isLoading ? (
+          <ActivityIndicator size="small" color="#912338" style={styles.nextClassSpinner} />
+        ) : null}
+      </View>
+      {nextClass ? (
+        <>
+          <Text style={styles.nextClassTitle} numberOfLines={1}>
+            {nextClass.title}
+          </Text>
+          <Text style={styles.nextClassTime}>
+            {nextClass.start.toLocaleDateString([], {
+              weekday: "short",
+              month: "short",
+              day: "numeric",
+            })}{" "}
+            {nextClass.start.toLocaleTimeString([], {
+              hour: "numeric",
+              minute: "2-digit",
+            })}{" "}
+            –{" "}
+            {nextClass.end.toLocaleTimeString([], {
+              hour: "numeric",
+              minute: "2-digit",
+            })}
+          </Text>
+          {nextClass.location ? (
+            <View style={styles.nextClassLocationRow}>
+              <Ionicons name="location-outline" size={13} color="#6B7280" />
+              <Text style={styles.nextClassLocation} numberOfLines={1}>
+                {nextClass.location}
+              </Text>
+            </View>
+          ) : (
+            <Text style={styles.nextClassNoLocation}>No location specified</Text>
+          )}
+        </>
+      ) : null}
+    </View>
+  );
+}
+
 export default function ScheduleScreen() {
   const {
     connectCalendar,
@@ -277,7 +332,7 @@ export default function ScheduleScreen() {
   }, [isConnected, weekDays, selectedCalendarIds]);
 
   useEffect(() => {
-    void loadEvents();
+    loadEvents().catch(() => {});
   }, [loadEvents]);
 
   useEffect(() => {
@@ -309,10 +364,10 @@ export default function ScheduleScreen() {
       setCalendars(fetched);
 
       const saved = await getSelectedCalendarIds();
-      if (saved !== null) {
-        setSelectedCalendarIds(new Set(saved));
-      } else {
+      if (saved === null) {
         setSelectedCalendarIds(new Set(fetched.map((c) => c.id)));
+      } else {
+        setSelectedCalendarIds(new Set(saved));
       }
     }
 
@@ -439,49 +494,8 @@ export default function ScheduleScreen() {
         </View>
       </View>
 
-      {isConnected && (nextClass !== null || nextClassLoading) ? (
-        <View style={styles.nextClassCard}>
-          <View style={styles.nextClassHeader}>
-            <Ionicons name="school-outline" size={14} color="#912338" />
-            <Text style={styles.nextClassLabel}>Next Class</Text>
-            {nextClassLoading ? (
-              <ActivityIndicator size="small" color="#912338" style={styles.nextClassSpinner} />
-            ) : null}
-          </View>
-          {nextClass !== null ? (
-            <>
-              <Text style={styles.nextClassTitle} numberOfLines={1}>
-                {nextClass.title}
-              </Text>
-              <Text style={styles.nextClassTime}>
-                {nextClass.start.toLocaleDateString([], {
-                  weekday: "short",
-                  month: "short",
-                  day: "numeric",
-                })}{" "}
-                {nextClass.start.toLocaleTimeString([], {
-                  hour: "numeric",
-                  minute: "2-digit",
-                })}{" "}
-                –{" "}
-                {nextClass.end.toLocaleTimeString([], {
-                  hour: "numeric",
-                  minute: "2-digit",
-                })}
-              </Text>
-              {nextClass.location !== null ? (
-                <View style={styles.nextClassLocationRow}>
-                  <Ionicons name="location-outline" size={13} color="#6B7280" />
-                  <Text style={styles.nextClassLocation} numberOfLines={1}>
-                    {nextClass.location}
-                  </Text>
-                </View>
-              ) : (
-                <Text style={styles.nextClassNoLocation}>No location specified</Text>
-              )}
-            </>
-          ) : null}
-        </View>
+      {isConnected ? (
+        <NextClassCard nextClass={nextClass} isLoading={nextClassLoading} />
       ) : null}
 
       {allDayEvents.length > 0 ? (
