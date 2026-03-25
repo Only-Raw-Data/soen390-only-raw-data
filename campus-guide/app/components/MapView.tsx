@@ -37,6 +37,63 @@ import { SegmentMode } from "@app/types/transportation";
 import { PointOfInterest } from "../types/poi";
 import { poiToBuildingAdapter } from "../utils/poiUtils";
 
+function POIMarkerItem({
+  poi,
+  onPress,
+}: {
+  readonly poi: PointOfInterest;
+  readonly onPress: () => void;
+}) {
+  const [trackChanges, setTrackChanges] = React.useState(true);
+  const { icon: poiIcon, color: poiColor } = getPoiInfo(poi.type);
+
+  React.useEffect(() => {
+    // 500ms delay gives Android enough time to render icon font before capturing the map snapshot
+    const timer = setTimeout(() => setTrackChanges(false), 500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  return (
+    <Marker
+      coordinate={{ latitude: poi.lat, longitude: poi.lon }}
+      title={poi.name}
+      description={poi.type}
+      tracksViewChanges={trackChanges}
+      testID={`poi-marker-${poi.id}`}
+      onPress={onPress}
+    >
+      <View style={[styles.poiMarkerContainer, { backgroundColor: poiColor }]}>
+        <Ionicons name={poiIcon as any} size={14} color="#FFFFFF" />
+      </View>
+      <Callout tooltip>
+        <View
+          style={[
+            styles.youAreHereCallout,
+            { borderColor: poiColor, width: 140 },
+          ]}
+        >
+          <Text
+            style={[styles.youAreHereText, { color: poiColor }]}
+            numberOfLines={1}
+          >
+            {poi.name}
+          </Text>
+          <Text
+            style={{
+              fontSize: 10,
+              color: "#6B7280",
+              textTransform: "capitalize",
+            }}
+            numberOfLines={1}
+          >
+            {poi.type.replace("_", " ")}
+          </Text>
+        </View>
+      </Callout>
+    </Marker>
+  );
+}
+
 const SEGMENT_COLORS: Record<SegmentMode, string> = {
   WALK: "#3B82F6",
   BUS: "#16A34A",
@@ -112,9 +169,6 @@ export default function MapViewApp({
     setSelectedPOI,
     updateSearchCenter,
   } = usePOIContext();
-
-
-
 
   const allBuildingsList = [...SGW_BUILDINGS, ...LOYOLA_BUILDINGS];
 
@@ -316,8 +370,6 @@ export default function MapViewApp({
           showsMyLocationButton={false}
           customMapStyle={CAMPUS_MAP_STYLE}
           onRegionChangeComplete={(region) => {
-
-
             // Smart POI center update: debounced, only on meaningful movement
             // If POIs are enabled, auto-fetches new data instead of clearing toggle
             updateSearchCenter(region.latitude, region.longitude);
@@ -428,58 +480,17 @@ export default function MapViewApp({
 
           {/* POI Markers */}
           {showPOIs &&
-            pois.map((poi) => {
-              const { icon: poiIcon, color: poiColor } = getPoiInfo(poi.type);
-              return (
-                <Marker
-                  key={`poi-${poi.id}`}
-                  coordinate={{ latitude: poi.lat, longitude: poi.lon }}
-                  title={poi.name}
-                  description={poi.type}
-                  tracksViewChanges={false}
-                  testID={`poi-marker-${poi.id}`}
-                  onPress={() => {
-                    setSelectedPOI(poi);
-                    setSelectedBuilding(null);
-                    setInfoBuilding(null);
-                  }}
-                >
-                  <View
-                    style={[
-                      styles.poiMarkerContainer,
-                      { backgroundColor: poiColor },
-                    ]}
-                  >
-                    <Ionicons name={poiIcon as any} size={14} color="#FFFFFF" />
-                  </View>
-                  <Callout tooltip>
-                    <View
-                      style={[
-                        styles.youAreHereCallout,
-                        { borderColor: poiColor, width: 140 },
-                      ]}
-                    >
-                      <Text
-                        style={[styles.youAreHereText, { color: poiColor }]}
-                        numberOfLines={1}
-                      >
-                        {poi.name}
-                      </Text>
-                      <Text
-                        style={{
-                          fontSize: 10,
-                          color: "#6B7280",
-                          textTransform: "capitalize",
-                        }}
-                        numberOfLines={1}
-                      >
-                        {poi.type.replace("_", " ")}
-                      </Text>
-                    </View>
-                  </Callout>
-                </Marker>
-              );
-            })}
+            pois.map((poi) => (
+              <POIMarkerItem
+                key={`poi-${poi.id}`}
+                poi={poi}
+                onPress={() => {
+                  setSelectedPOI(poi);
+                  setSelectedBuilding(null);
+                  setInfoBuilding(null);
+                }}
+              />
+            ))}
 
           {/* Render Directions Polyline */}
           {showRoute && (
