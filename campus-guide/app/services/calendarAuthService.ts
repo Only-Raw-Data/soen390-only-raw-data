@@ -88,7 +88,13 @@ export async function getFreshCalendarAccessToken(): Promise<string | null> {
     const tokens = await GoogleSignin.getTokens();
     return tokens.accessToken ?? null;
   } catch {
-    return null;
+    try {
+      await GoogleSignin.signInSilently();
+      const tokens = await GoogleSignin.getTokens();
+      return tokens.accessToken ?? null;
+    } catch {
+      return null;
+    }
   }
 }
 
@@ -107,6 +113,68 @@ export async function disconnectGoogleCalendar() {
     STORAGE_KEY_ACCESS_TOKEN,
     STORAGE_KEY_SELECTED_CALENDARS,
   ]);
+}
+
+export type NextClassEvent = {
+  id: string;
+  title: string;
+  start: Date;
+  end: Date;
+  location: string | null;
+};
+
+export async function fetchNextClassEvent(
+  token: string,
+  calendarIds: string[],
+): Promise<NextClassEvent | null> {
+  if (calendarIds.length === 0) return null;
+
+  const now = new Date();
+  const timeMax = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+  const allResults = await Promise.all(
+    calendarIds.map(async (calendarId) => {
+      const url =
+        `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?` +
+        new URLSearchParams({
+          timeMin: now.toISOString(),
+          timeMax: timeMax.toISOString(),
+          singleEvents: "true",
+          orderBy: "startTime",
+          maxResults: "10",
+        }).toString();
+
+      const response = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) return [];
+
+      const data = await response.json();
+      const items: any[] = Array.isArray(data.items) ? data.items : [];
+
+      return items
+        .filter(
+          (item) =>
+            typeof item.id === "string" &&
+            typeof item.start?.dateTime === "string" &&
+            typeof item.end?.dateTime === "string",
+        )
+        .map((item) => ({
+          id: `${calendarId}_${item.id}`,
+          title: typeof item.summary === "string" ? item.summary : "Untitled Event",
+          start: new Date(item.start.dateTime as string),
+          end: new Date(item.end.dateTime as string),
+          location: typeof item.location === "string" ? item.location : null,
+        }));
+    }),
+  );
+
+  const upcoming = allResults
+    .flat()
+    .sort((a, b) => a.start.getTime() - b.start.getTime());
+
+  return upcoming[0] ?? null;
 }
 
 export async function fetchCalendars(token: string): Promise<CalendarInfo[]> {

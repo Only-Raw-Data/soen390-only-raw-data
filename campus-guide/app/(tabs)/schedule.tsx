@@ -21,7 +21,9 @@ import { formatHourLabel } from "@utils/timeFormat";
 import { buildHourSlots } from "@utils/timeSlots";
 import {
   type CalendarInfo,
+  type NextClassEvent,
   fetchCalendars,
+  fetchNextClassEvent,
   getFreshCalendarAccessToken,
   getSelectedCalendarIds,
   saveSelectedCalendarIds,
@@ -166,7 +168,7 @@ async function fetchGoogleCalendarEvents(
   const token = await getFreshCalendarAccessToken();
 
   if (!token) {
-    throw new Error("No Google Calendar access token found.");
+    return [];
   }
 
   const { start, end } = getWeekBounds(weekDays);
@@ -236,6 +238,9 @@ export default function ScheduleScreen() {
     new Set(),
   );
   const [showCalendarPicker, setShowCalendarPicker] = useState(false);
+
+  const [nextClass, setNextClass] = useState<NextClassEvent | null>(null);
+  const [nextClassLoading, setNextClassLoading] = useState(false);
 
   const weekDays = useMemo(() => getWeekDays(currentDate), [currentDate]);
   const weekRangeLabel = useMemo(() => formatWeekRangeLabel(weekDays), [weekDays]);
@@ -313,6 +318,29 @@ export default function ScheduleScreen() {
 
     void loadCalendars();
   }, [isConnected]);
+
+  useEffect(() => {
+    if (!isConnected || selectedCalendarIds.size === 0) {
+      setNextClass(null);
+      return;
+    }
+
+    async function loadNextClass() {
+      setNextClassLoading(true);
+      try {
+        const token = await getFreshCalendarAccessToken();
+        if (!token) return;
+        const event = await fetchNextClassEvent(token, [...selectedCalendarIds]);
+        setNextClass(event);
+      } catch {
+        setNextClass(null);
+      } finally {
+        setNextClassLoading(false);
+      }
+    }
+
+    void loadNextClass();
+  }, [isConnected, selectedCalendarIds]);
 
   const handleCalendarToggle = useCallback((id: string) => {
     setSelectedCalendarIds((prev) => {
@@ -410,6 +438,51 @@ export default function ScheduleScreen() {
           ))}
         </View>
       </View>
+
+      {isConnected && (nextClass !== null || nextClassLoading) ? (
+        <View style={styles.nextClassCard}>
+          <View style={styles.nextClassHeader}>
+            <Ionicons name="school-outline" size={14} color="#912338" />
+            <Text style={styles.nextClassLabel}>Next Class</Text>
+            {nextClassLoading ? (
+              <ActivityIndicator size="small" color="#912338" style={styles.nextClassSpinner} />
+            ) : null}
+          </View>
+          {nextClass !== null ? (
+            <>
+              <Text style={styles.nextClassTitle} numberOfLines={1}>
+                {nextClass.title}
+              </Text>
+              <Text style={styles.nextClassTime}>
+                {nextClass.start.toLocaleDateString([], {
+                  weekday: "short",
+                  month: "short",
+                  day: "numeric",
+                })}{" "}
+                {nextClass.start.toLocaleTimeString([], {
+                  hour: "numeric",
+                  minute: "2-digit",
+                })}{" "}
+                –{" "}
+                {nextClass.end.toLocaleTimeString([], {
+                  hour: "numeric",
+                  minute: "2-digit",
+                })}
+              </Text>
+              {nextClass.location !== null ? (
+                <View style={styles.nextClassLocationRow}>
+                  <Ionicons name="location-outline" size={13} color="#6B7280" />
+                  <Text style={styles.nextClassLocation} numberOfLines={1}>
+                    {nextClass.location}
+                  </Text>
+                </View>
+              ) : (
+                <Text style={styles.nextClassNoLocation}>No location specified</Text>
+              )}
+            </>
+          ) : null}
+        </View>
+      ) : null}
 
       {allDayEvents.length > 0 ? (
         <View style={styles.allDaySection}>
@@ -688,6 +761,65 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 18,
     fontWeight: "700",
+  },
+  nextClassCard: {
+    backgroundColor: "#FFFFFF",
+    marginHorizontal: 12,
+    marginTop: 10,
+    marginBottom: 2,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderLeftWidth: 4,
+    borderLeftColor: "#912338",
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  nextClassHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginBottom: 4,
+  },
+  nextClassLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#912338",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    flex: 1,
+  },
+  nextClassSpinner: {
+    marginLeft: 4,
+  },
+  nextClassTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#111827",
+    marginBottom: 2,
+  },
+  nextClassTime: {
+    fontSize: 12,
+    color: "#374151",
+    marginBottom: 4,
+  },
+  nextClassLocationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  nextClassLocation: {
+    fontSize: 12,
+    color: "#6B7280",
+    flex: 1,
+  },
+  nextClassNoLocation: {
+    fontSize: 12,
+    color: "#9CA3AF",
+    fontStyle: "italic",
   },
   allDaySection: {
     backgroundColor: "#FFFFFF",

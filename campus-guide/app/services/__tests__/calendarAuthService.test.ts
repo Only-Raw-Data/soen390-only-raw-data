@@ -138,4 +138,163 @@ describe("calendarAuthService coverage", () => {
       expect(true).toBe(true);
     });
   });
+
+  describe("fetchNextClassEvent", () => {
+    const FUTURE_ISO = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+    const FUTURE_END_ISO = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+
+    beforeEach(() => {
+      global.fetch = jest.fn();
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("returns null when calendarIds is empty", async () => {
+      const service = loadService();
+      const result = await service.fetchNextClassEvent("token", []);
+      expect(result).toBeNull();
+    });
+
+    it("returns null when API returns no items", async () => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ items: [] }),
+      });
+      const service = loadService();
+      const result = await service.fetchNextClassEvent("token", ["cal1"]);
+      expect(result).toBeNull();
+    });
+
+    it("returns null when API call fails", async () => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce({ ok: false });
+      const service = loadService();
+      const result = await service.fetchNextClassEvent("token", ["cal1"]);
+      expect(result).toBeNull();
+    });
+
+    it("returns the next event with location", async () => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          items: [
+            {
+              id: "evt1",
+              summary: "SOEN 390",
+              start: { dateTime: FUTURE_ISO },
+              end: { dateTime: FUTURE_END_ISO },
+              location: "H-920",
+            },
+          ],
+        }),
+      });
+      const service = loadService();
+      const result = await service.fetchNextClassEvent("token", ["cal1"]);
+      expect(result).not.toBeNull();
+      expect(result.title).toBe("SOEN 390");
+      expect(result.location).toBe("H-920");
+      expect(result.id).toBe("cal1_evt1");
+    });
+
+    it("returns null location when event has none", async () => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          items: [
+            {
+              id: "evt2",
+              summary: "Office Hours",
+              start: { dateTime: FUTURE_ISO },
+              end: { dateTime: FUTURE_END_ISO },
+            },
+          ],
+        }),
+      });
+      const service = loadService();
+      const result = await service.fetchNextClassEvent("token", ["cal1"]);
+      expect(result).not.toBeNull();
+      expect(result.location).toBeNull();
+    });
+
+    it("filters out all-day events (no dateTime field)", async () => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          items: [
+            {
+              id: "allday",
+              summary: "Holiday",
+              start: { date: "2026-03-25" },
+              end: { date: "2026-03-26" },
+            },
+          ],
+        }),
+      });
+      const service = loadService();
+      const result = await service.fetchNextClassEvent("token", ["cal1"]);
+      expect(result).toBeNull();
+    });
+
+    it("picks the earliest event across multiple calendars", async () => {
+      const soonerISO = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+      const laterISO = new Date(Date.now() + 90 * 60 * 1000).toISOString();
+      const endISO = new Date(Date.now() + 120 * 60 * 1000).toISOString();
+
+      (global.fetch as jest.Mock)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            items: [
+              {
+                id: "evtA",
+                summary: "Later Class",
+                start: { dateTime: laterISO },
+                end: { dateTime: endISO },
+                location: "H-110",
+              },
+            ],
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            items: [
+              {
+                id: "evtB",
+                summary: "Earlier Class",
+                start: { dateTime: soonerISO },
+                end: { dateTime: endISO },
+                location: "MB-3.270",
+              },
+            ],
+          }),
+        });
+
+      const service = loadService();
+      const result = await service.fetchNextClassEvent("token", ["cal1", "cal2"]);
+      expect(result).not.toBeNull();
+      expect(result.title).toBe("Earlier Class");
+      expect(result.location).toBe("MB-3.270");
+    });
+
+    it("uses 'Untitled Event' when summary is missing", async () => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          items: [
+            {
+              id: "evt3",
+              start: { dateTime: FUTURE_ISO },
+              end: { dateTime: FUTURE_END_ISO },
+            },
+          ],
+        }),
+      });
+      const service = loadService();
+      const result = await service.fetchNextClassEvent("token", ["cal1"]);
+      expect(result).not.toBeNull();
+      expect(result.title).toBe("Untitled Event");
+    });
+  });
 });
