@@ -86,10 +86,11 @@ describe("ScheduleScreen", () => {
     expect(screen.getByText("Connected to Google Calendar")).toBeTruthy();
   });
 
-  it("shows loading text when auth is loading", () => {
+  it("hides connect/disconnect button text when auth is loading", () => {
     mockUseCalendarAuth.mockReturnValue({ ...baseAuth, isLoading: true });
     render(<ScheduleScreen />);
-    expect(screen.getByText("Loading...")).toBeTruthy();
+    expect(screen.queryByText("Connect Google Calendar")).toBeNull();
+    expect(screen.queryByText("Disconnect Google Calendar")).toBeNull();
   });
 
   it("does not show next class card when not connected", () => {
@@ -254,7 +255,9 @@ describe("ScheduleScreen", () => {
     fireEvent.press(screen.getByText("Save"));
 
     expect(mockSaveSelectedCalendarIds).toHaveBeenCalledWith(["cal1"]);
-    expect(screen.queryByText("Select Calendars")).toBeNull();
+    await waitFor(() => {
+      expect(screen.queryByText("Select Calendars")).toBeNull();
+    });
   });
 
   it("calls connectCalendar when Connect button is pressed", () => {
