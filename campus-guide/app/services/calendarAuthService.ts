@@ -1,10 +1,12 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
 import {
   GoogleSignin,
   isSuccessResponse,
   isErrorWithCode,
   statusCodes,
 } from "@react-native-google-signin/google-signin";
+import { GOOGLE_CALENDAR_SCOPES } from "@constants/calendarAuth";
 
 const STORAGE_KEY_CONNECTED = "calendar_connected";
 const STORAGE_KEY_CONNECTED_AT = "calendar_connected_at";
@@ -31,7 +33,7 @@ export function configureGoogleCalendarAuth() {
   GoogleSignin.configure({
     webClientId,
     iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
-    scopes: ["https://www.googleapis.com/auth/calendar.readonly"],
+    scopes: GOOGLE_CALENDAR_SCOPES,
   });
 
   isConfigured = true;
@@ -49,7 +51,7 @@ export async function connectGoogleCalendar() {
   }
 
   await GoogleSignin.addScopes({
-    scopes: ["https://www.googleapis.com/auth/calendar.readonly"],
+    scopes: GOOGLE_CALENDAR_SCOPES,
   });
 
   const tokens = await GoogleSignin.getTokens();
@@ -60,10 +62,11 @@ export async function connectGoogleCalendar() {
 
   const connectedAt = new Date().toISOString();
 
+  await SecureStore.setItemAsync(STORAGE_KEY_ACCESS_TOKEN, tokens.accessToken);
+
   await AsyncStorage.multiSet([
     [STORAGE_KEY_CONNECTED, "true"],
     [STORAGE_KEY_CONNECTED_AT, connectedAt],
-    [STORAGE_KEY_ACCESS_TOKEN, tokens.accessToken],
   ]);
 
   return { isConnected: true, connectedAt };
@@ -80,7 +83,7 @@ export async function getCalendarConnectionState() {
 }
 
 export async function getStoredCalendarAccessToken() {
-  return AsyncStorage.getItem(STORAGE_KEY_ACCESS_TOKEN);
+  return SecureStore.getItemAsync(STORAGE_KEY_ACCESS_TOKEN);
 }
 
 export async function getFreshCalendarAccessToken(): Promise<string | null> {
@@ -107,10 +110,11 @@ export async function disconnectGoogleCalendar() {
     await GoogleSignin.signOut();
   } catch {}
 
+  await SecureStore.deleteItemAsync(STORAGE_KEY_ACCESS_TOKEN);
+
   await AsyncStorage.multiRemove([
     STORAGE_KEY_CONNECTED,
     STORAGE_KEY_CONNECTED_AT,
-    STORAGE_KEY_ACCESS_TOKEN,
     STORAGE_KEY_SELECTED_CALENDARS,
   ]);
 }
