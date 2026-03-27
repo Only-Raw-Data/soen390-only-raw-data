@@ -8,15 +8,25 @@ appId: com.soen390.campusguide
 - assertVisible: "SGW Campus"
 
 - tapOn:
+    id: "poi-toggle-button"
+- waitForAnimationToEnd
+
+- tapOn:
+    point: "30%,47%"
+- waitForAnimationToEnd
+
+- assertVisible: "CAFE"
+
+- tapOn:
     point: "90%,93%"
 - waitForAnimationToEnd
 
-- setLocation:
-    latitude: 45.4972
-    longitude: -73.5789
+- assertVisible: "Reggie's"
 
-- tapOn:
-    id: "poi-toggle-button"
-- waitForAnimationToEnd
+- swipe:
+    direction: UP
+    duration: 5000
+
+- assertVisible: "Nakamichi"
 
 - stopApp
