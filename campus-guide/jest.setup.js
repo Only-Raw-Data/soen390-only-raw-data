@@ -23,6 +23,7 @@ jest.spyOn(console, "error").mockImplementation((...args) => {
       "Error fetching routes:",
       "Google Maps API Key is missing",
       "Failed to fetch route #",
+      "Failed to connect Google Calendar:",
     ];
     if (expectedTestErrors.some((msg) => firstArg.includes(msg))) {
       return;
