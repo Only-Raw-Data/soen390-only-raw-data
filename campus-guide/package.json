@@ -61,7 +61,7 @@
     "typescript": "~5.9.2"
   },
   "jest": {
-    "preset": "react-native",
+    "preset": "jest-expo",
     "setupFilesAfterEnv": [
       "<rootDir>/jest.setup.js"
     ],
@@ -83,7 +83,7 @@
       "!**/*.config.{ts,js}"
     ],
     "transformIgnorePatterns": [
-      "node_modules/(?!(react-native|@react-native|@react-navigation|react-navigation|@expo|expo)/)"
+      "node_modules/(?!(react-native|@react-native|@react-navigation|react-navigation|@expo|expo[^/]*)/)"
     ],
     "moduleFileExtensions": [
       "ts",
