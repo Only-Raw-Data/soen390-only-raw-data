@@ -7,10 +7,6 @@ appId: com.soen390.campusguide
 
 - assertVisible: "SGW Campus"
 
-- tapOn:
-    point: "90%,93%"
-- waitForAnimationToEnd
-
 - tapOn: "Directions"
 - waitForAnimationToEnd
 
@@ -25,21 +21,42 @@ appId: com.soen390.campusguide
 
 - assertVisible: "Destination"
 - tapOn: "Destination"
-- inputText: "Central"
+- inputText: "Vanier Li"
 - hideKeyboard
 - waitForAnimationToEnd
 
-- tapOn: "Central Building"
+- tapOn: "Vanier Library Building"
 - waitForAnimationToEnd
 
 - assertVisible: "John Molson Building"
-- assertVisible: "Central Building"
+- assertVisible: "Vanier Library Building"
 
 - tapOn:
    point: "50%,45%"
 - waitForAnimationToEnd
 
+- tapOn: "Car"
+- waitForAnimationToEnd
+- assertVisible:
+    text: ".*mins.*km.*" 
+
+- tapOn: "Transit"
+- waitForAnimationToEnd
+- assertVisible:
+    text: ".*mins.*km.*" 
+
+- doubleTapOn:
+    point: "50%,85%"
+- waitForAnimationToEnd
+
 - tapOn: "Shuttle"
+- waitForAnimationToEnd
+
+- doubleTapOn:
+    point: "50%,85%"
+- waitForAnimationToEnd
+
+- tapOn: "Full Schedule"
 - waitForAnimationToEnd
 
 - assertVisible: "Shuttle Bus Schedule"
