@@ -20,7 +20,7 @@ import {
   getFeaturesForFloor,
 } from "@app/context/IndoorMapContext";
 import { IndoorFeature } from "@app/types/indoorMap";
-import { IndoorStep, NavigationStep, OutdoorStep } from "@app/types/navigation";
+import { IndoorStep, NavigationStep} from "@app/types/navigation";
 import { planCrossBuildingRoute } from "@app/services/crossBuildingRouteService";
 import StoryOutdoorMap from "./StoryOutdoorMap";
 import { formatFloorLabel } from "@app/utils/timeFormat";
