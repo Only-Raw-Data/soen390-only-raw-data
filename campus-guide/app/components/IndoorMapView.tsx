@@ -20,7 +20,7 @@ import {
   getFeaturesForFloor,
 } from "@app/context/IndoorMapContext";
 import { IndoorFeature } from "@app/types/indoorMap";
-import { IndoorStep, NavigationStep, OutdoorStep } from "@app/types/navigation";
+import { IndoorStep, NavigationStep} from "@app/types/navigation";
 import { planCrossBuildingRoute } from "@app/services/crossBuildingRouteService";
 import StoryOutdoorMap from "./StoryOutdoorMap";
 import { formatFloorLabel } from "@app/utils/timeFormat";
@@ -41,6 +41,8 @@ import {
   STAIRCASE_LABEL,
   AMENITY_CONFIG,
 } from "@app/utils/indoorMapUtils";
+
+type Direction = "up" | "down" | null;
 
 function FacilityPolygon({
   feature,
@@ -137,7 +139,7 @@ function StoryModeSection({
   const isFirst = storyIndex === 0;
   const isLast = storyIndex === storySteps.length - 1;
   const stepLabel = currentStep.kind === "indoor"
-    ? `Indoor — ${(currentStep as IndoorStep).buildingName}`
+    ? `Indoor — ${(currentStep).buildingName}`
     : "Outdoor — Walking";
 
   return (
@@ -170,13 +172,13 @@ function StoryModeSection({
       <View style={styles.storyMapContainer}>
         {currentStep.kind === "outdoor" ? (
           <StoryOutdoorMap
-            route={(currentStep as OutdoorStep).route}
+            route={(currentStep).route}
             startLabel={currentStep.startLabel}
             endLabel={currentStep.endLabel}
           />
         ) : (
           <StoryIndoorMap
-            step={currentStep as IndoorStep}
+            step={currentStep}
           />
         )}
       </View>
@@ -224,11 +226,17 @@ function TransitionMarkerItem({
 }: {
   readonly node: GraphNode;
   readonly toFloor: number | null;
-  readonly direction: "up" | "down" | null;
+  readonly direction: Direction;
 }) {
   const isElevator = node.type === NodeType.Elevator;
   const floorStr = formatFloorLabel(toFloor);
-  const arrow = direction === "up" ? "▲" : direction === "down" ? "▼" : "";
+  let arrow = "";
+
+  if (direction === "up") {
+    arrow = "▲";
+  } else if (direction === "down") {
+    arrow = "▼";
+    }
 
   return (
     <Marker

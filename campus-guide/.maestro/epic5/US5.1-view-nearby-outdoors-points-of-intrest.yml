@@ -1,0 +1,32 @@
+appId: com.soen390.campusguide
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "SGW Campus"
+    timeout: 1800000
+
+- assertVisible: "SGW Campus"
+
+- tapOn:
+    id: "poi-toggle-button"
+- waitForAnimationToEnd
+
+- tapOn:
+    point: "30%,47%"
+- waitForAnimationToEnd
+
+- assertVisible: "CAFE"
+
+- tapOn:
+    point: "90%,93%"
+- waitForAnimationToEnd
+
+- assertVisible: "Reggie's"
+
+- swipe:
+    direction: UP
+    duration: 5000
+
+- assertVisible: "Nakamichi"
+
+- stopApp
