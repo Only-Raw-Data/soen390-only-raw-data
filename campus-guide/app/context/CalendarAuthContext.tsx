@@ -6,16 +6,13 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import * as Google from "expo-auth-session/providers/google";
-import * as WebBrowser from "expo-web-browser";
-import { ResponseType } from "expo-auth-session";
 import {
-  completeAuthSession,
+  configureGoogleCalendarAuth,
+  connectGoogleCalendar,
   disconnectGoogleCalendar,
   getCalendarConnectionState,
-  getRedirectUri,
+  getGoogleSignInErrorMessage,
 } from "@services/calendarAuthService";
-import { GOOGLE_CALENDAR_SCOPES } from "@constants/calendarAuth";
 
 interface CalendarAuthContextType {
   isConnected: boolean;
@@ -41,29 +38,16 @@ export default function CalendarAuthProvider({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const googleClientId =
-    process.env.EXPO_PUBLIC_GOOGLE_CALENDAR_CLIENT_ID?.trim() ||
-    process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID?.trim() ||
-    "";
-
-  const redirectUri = getRedirectUri();
-
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    clientId: googleClientId,
-    redirectUri,
-    scopes: GOOGLE_CALENDAR_SCOPES,
-    responseType: ResponseType.Code,
-    extraParams: {
-      access_type: "offline",
-      prompt: "consent",
-    },
-  });
-
   useEffect(() => {
-    WebBrowser.warmUpAsync();
-    return () => {
-      WebBrowser.coolDownAsync();
-    };
+    try {
+      configureGoogleCalendarAuth();
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to configure Google auth",
+      );
+    }
   }, []);
 
   const refreshConnection = useCallback(async () => {
@@ -78,59 +62,21 @@ export default function CalendarAuthProvider({
     });
   }, [refreshConnection]);
 
-  useEffect(() => {
-    if (response?.type === "success" && request?.codeVerifier) {
-      const exchangeAuthorizationCode = async () => {
-        const { code } = response.params;
-        setIsLoading(true);
-
-        try {
-          const state = await completeAuthSession(
-            code,
-            request.codeVerifier,
-            redirectUri,
-          );
-          setIsConnected(state.isConnected);
-          setConnectedAt(state.connectedAt);
-        } catch (err) {
-          setError(
-            err instanceof Error
-              ? err.message
-              : "Failed to exchange authorization code.",
-          );
-        } finally {
-          setIsLoading(false);
-        }
-      };
-
-      void exchangeAuthorizationCode();
-    } else if (response?.type === "error") {
-      setError("Google sign-in failed: " + response.error?.message);
-      setIsLoading(false);
-    }
-  }, [response, request]);
-
   const connectCalendar = useCallback(async () => {
     setError(null);
     setIsLoading(true);
 
-    if (!googleClientId) {
-      setError("Google OAuth web client ID is missing. Update .env and restart.");
-      setIsLoading(false);
-      return;
-    }
-
     try {
-      await promptAsync();
-    } catch (connectionError) {
-      const message =
-        connectionError instanceof Error
-          ? connectionError.message
-          : "Unable to initiate Google Calendar connection.";
-      setError(message);
+      const state = await connectGoogleCalendar();
+      setIsConnected(state.isConnected);
+      setConnectedAt(state.connectedAt);
+    } catch (err) {
+      console.error("Failed to connect Google Calendar:", err);
+      setError(getGoogleSignInErrorMessage(err));
+    } finally {
       setIsLoading(false);
     }
-  }, [promptAsync, googleClientId]);
+  }, []);
 
   const disconnectCalendar = useCallback(async () => {
     setError(null);
@@ -178,8 +124,8 @@ export default function CalendarAuthProvider({
 export function useCalendarAuth(): CalendarAuthContextType {
   const context = useContext(CalendarAuthContext);
 
-  if (context === undefined) {
-    throw new Error("useCalendarAuth must be used within a CalendarAuthProvider");
+  if (!context) {
+    throw new Error("useCalendarAuth must be used within a provider");
   }
 
   return context;

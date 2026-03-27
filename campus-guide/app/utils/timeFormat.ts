@@ -9,3 +9,11 @@ export function formatHourLabel(hour24: number): string {
   return `${hour12}:00 ${suffix}`;
 }
 
+export function formatFloorLabel(floor: number | null): string {
+  if (floor === null) {
+    console.warn("[formatFloorLabel] called with null floor");
+    return "";
+  }
+  return floor < 0 ? `B${Math.abs(floor)}` : String(floor);
+}
+
