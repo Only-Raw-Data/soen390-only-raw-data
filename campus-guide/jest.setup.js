@@ -132,3 +132,35 @@ jest.mock('expo-file-system/next', () => ({
     cache: 'cache_dir',
   },
 }));
+
+/** PostHog is optional in unit tests; real app uses PostHogProvider. */
+const mockPostHogClient = {
+  capture: jest.fn(),
+  screen: jest.fn(),
+  identify: jest.fn(),
+  reset: jest.fn(),
+  group: jest.fn(),
+  flush: jest.fn(),
+};
+
+jest.mock("posthog-react-native", () => ({
+  PostHogProvider: function PostHogProviderMock({ children }) {
+    return children;
+  },
+  usePostHog: jest.fn(() => mockPostHogClient),
+}));
+
+/** useTaskSession / usability hooks expect a participant session in tests. */
+jest.mock("./app/context/ParticipantSessionContext", () => ({
+  ParticipantSessionProvider: function ParticipantSessionProviderMock({
+    children,
+  }) {
+    return children;
+  },
+  useParticipantSession: jest.fn(() => ({
+    participantId: "jest-test",
+    taskSet: "",
+    isHydrated: true,
+    startSession: jest.fn(() => Promise.resolve()),
+  })),
+}));
