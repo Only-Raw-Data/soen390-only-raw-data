@@ -3,8 +3,11 @@ import { StyleSheet, View } from 'react-native';
 import Header from '@app/components/Header';
 import DirectionsHeader from '@app/components/DirectionsHeader';
 import MapViewApp from '@app/components/MapView';
+import { useScreenTimer } from '@hooks/useScreenTimer';
 
 export default function TabTwoScreen() {
+  useScreenTimer('Directions');
+
   return (
     <View style={styles.container}>
       <Header />

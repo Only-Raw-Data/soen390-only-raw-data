@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
 import BuildingSearchHeader from "./BuildingSearchComponent";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { usePostHog } from "posthog-react-native";
 import {
   Campus,
   Building,
@@ -36,6 +37,8 @@ import { isWithinShuttleHours } from "../utils/shuttleHours";
 import { SegmentMode } from "@app/types/transportation";
 import { PointOfInterest } from "../types/poi";
 import { poiToBuildingAdapter } from "../utils/poiUtils";
+import { useMapUsabilityTasks } from "@hooks/useMapUsabilityTasks";
+import { useActionRepeatSignal } from "@hooks/useActionRepeatSignal";
 
 function POIMarkerItem({
   poi,
@@ -105,11 +108,14 @@ const SEGMENT_COLORS: Record<SegmentMode, string> = {
 interface MapViewAppProps {
   readonly googleMapsApiKey?: string;
   readonly showSearch?: boolean;
+  /** Usability tasks 1–2: only on the main Map tab */
+  readonly enableUsabilityTaskTracking?: boolean;
 }
 
 export default function MapViewApp({
   showSearch,
   googleMapsApiKey,
+  enableUsabilityTaskTracking = false,
 }: MapViewAppProps) {
   const {
     startBuilding,
@@ -122,6 +128,9 @@ export default function MapViewApp({
     route,
     transportationMode,
   } = useDirections();
+
+  const posthog = usePostHog();
+  const trackActionRepeat = useActionRepeatSignal();
 
   const isShuttleCrossCampus =
     transportationMode === "shuttle" &&
@@ -172,12 +181,21 @@ export default function MapViewApp({
 
   const allBuildingsList = [...SGW_BUILDINGS, ...LOYOLA_BUILDINGS];
 
+  useMapUsabilityTasks(enableUsabilityTaskTracking, selectedCampus, infoBuilding);
+
+  const onBuildingSearchSubmit = useCallback(() => {
+    const q = searchQuery.trim();
+    if (!q) return;
+    posthog.capture("map_building_searched", { query: q });
+  }, [searchQuery, posthog]);
+
   const handleCampusChange = (campus: Campus) => {
+    trackActionRepeat("map_campus_toggle");
+    posthog.capture('map_campus_switched', { campus });
     setSelectedCampus(campus);
     setSelectedBuilding(null);
     setSelectedPOI(null);
 
-    // Animate map to the new campus
     if (mapRef.current) {
       mapRef.current.animateToRegion(
         CAMPUS_REGIONS[campus],
@@ -187,7 +205,11 @@ export default function MapViewApp({
   };
 
   const handleBuildingPress = (building: Building) => {
-    // Switch campus context (markers/polygons) if the building is on the other campus
+    posthog.capture('map_building_tapped', {
+      building_code: building.code,
+      building_name: building.name,
+      campus: building.campus,
+    });
     if (
       building.id !== selectedBuilding?.id &&
       building.campus !== selectedCampus
@@ -320,6 +342,7 @@ export default function MapViewApp({
         <BuildingSearchHeader
           value={searchQuery}
           onChangeText={setSearchQuery}
+          onSubmitEditing={onBuildingSearchSubmit}
         />
       )}
       <View style={styles.campusToggleContainer}>

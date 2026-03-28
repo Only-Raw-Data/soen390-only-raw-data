@@ -6,6 +6,7 @@ import React, {
   useCallback,
   ReactNode,
 } from "react";
+import { usePostHog } from "posthog-react-native";
 import { Building } from "@/constants/buildings";
 import { TransportationMode } from "@app/types/transportation";
 import { fetchDirections, RouteData } from "@app/services/directionsService";
@@ -29,6 +30,7 @@ interface DirectionsContextType {
 const DirectionsContext = createContext<DirectionsContextType | undefined>(undefined);
 
 export default function DirectionsProvider({ children }: { readonly children: ReactNode }) {
+  const posthog = usePostHog();
   const [startBuilding, setStartBuilding] = useState<Building | null>(null);
   const [destinationBuilding, setDestinationBuilding] = useState<Building | null>(null);
   const [startCoords, setStartCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -77,6 +79,13 @@ export default function DirectionsProvider({ children }: { readonly children: Re
       if (requestId === activeRequestRef.current) {
         if (data && destinationBuilding) {
           setRoute(data);
+          posthog.capture('directions_route_displayed', {
+            origin: startBuilding?.name ?? 'Current Location',
+            destination: destinationBuilding.name,
+            mode: transportationMode,
+            duration: data.duration,
+            distance: data.distance,
+          });
         } else {
           setRoute(null);
         }

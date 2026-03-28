@@ -1,12 +1,13 @@
 import React, { useCallback } from "react";
 import { Tabs, useRouter, usePathname } from "expo-router";
 import BottomNav from "@components/BottomNav";
-import { Screen } from "@types/Screen";
+import type { Screen } from "@app/types/Screen";
 
 import DirectionsProvider from "@context/DirectionsContext";
 import IndoorMapProvider from "@context/IndoorMapContext";
 import CalendarAuthProvider from "@context/CalendarAuthContext";
 import { POIProvider } from "@context/POIContext";
+import { usePostHogScreenTracker } from "@hooks/usePostHogScreenTracker";
 
 // TabBar component moved outside to prevent recreation on each render
 function TabBar({
@@ -24,6 +25,7 @@ function TabBar({
 export default function TabLayout() {
   const router = useRouter();
   const pathname = usePathname();
+  usePostHogScreenTracker();
 
   // Map pathname to screen type
   const getCurrentScreen = (): Screen => {
