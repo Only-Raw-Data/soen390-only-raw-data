@@ -10,6 +10,9 @@ jest.mock("react-native/src/private/animated/NativeAnimatedHelper");
 const originalConsoleError = console.error;
 jest.spyOn(console, "error").mockImplementation((...args) => {
   const firstArg = args[0];
+  if (firstArg instanceof Error && firstArg.message === "render boom") {
+    return;
+  }
   if (
     typeof firstArg === "string" &&
     firstArg.includes("not wrapped in act(...)")
@@ -24,6 +27,8 @@ jest.spyOn(console, "error").mockImplementation((...args) => {
       "Google Maps API Key is missing",
       "Failed to fetch route #",
       "Failed to connect Google Calendar:",
+      "[IndoorErrorBoundary]",
+      "The above error occurred in the",
     ];
     if (expectedTestErrors.some((msg) => firstArg.includes(msg))) {
       return;
@@ -150,17 +155,12 @@ jest.mock("posthog-react-native", () => ({
   usePostHog: jest.fn(() => mockPostHogClient),
 }));
 
-/** useTaskSession / usability hooks expect a participant session in tests. */
-jest.mock("./app/context/ParticipantSessionContext", () => ({
-  ParticipantSessionProvider: function ParticipantSessionProviderMock({
-    children,
-  }) {
-    return children;
-  },
-  useParticipantSession: jest.fn(() => ({
-    participantId: "jest-test",
-    taskSet: "",
-    isHydrated: true,
-    startSession: jest.fn(() => Promise.resolve()),
-  })),
-}));
+jest.mock("@react-native-async-storage/async-storage", () =>
+  require("@react-native-async-storage/async-storage/jest/async-storage-mock"),
+);
+
+/**
+ * MapView / DirectionsHeader pull in useTaskSession → useParticipantSession.
+ * Those test files call jest.mock("@context/ParticipantSessionContext", …).
+ * Integration tests for the real provider omit that mock.
+ */
