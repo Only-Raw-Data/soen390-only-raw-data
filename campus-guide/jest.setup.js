@@ -145,7 +145,8 @@ const mockPostHogClient = {
   identify: jest.fn(),
   reset: jest.fn(),
   group: jest.fn(),
-  flush: jest.fn(),
+  flush: jest.fn(() => Promise.resolve()),
+  ready: jest.fn(() => Promise.resolve()),
 };
 
 jest.mock("posthog-react-native", () => ({

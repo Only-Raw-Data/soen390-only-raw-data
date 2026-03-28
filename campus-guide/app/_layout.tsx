@@ -7,7 +7,7 @@ import * as WebBrowser from "expo-web-browser";
 import Constants from 'expo-constants';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
-import { PostHogProvider } from 'posthog-react-native';
+import { PostHogProvider, PostHogSurveyProvider } from 'posthog-react-native';
 
 import { useColorScheme } from '@/components/useColorScheme';
 import ParticipantIdentifier from '@components/ParticipantIdentifier';
@@ -73,20 +73,23 @@ function RootLayoutNav() {
         }),
       }}
     >
-      <ParticipantSessionProvider>
-        <ParticipantIdentifier>
-          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-            <Stack>
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
-              <Stack.Screen
-                name="moderator"
-                options={{ presentation: 'modal', title: 'Session setup' }}
-              />
-            </Stack>
-          </ThemeProvider>
-        </ParticipantIdentifier>
-      </ParticipantSessionProvider>
+      {/* Required for in-app surveys on React Native (event triggers alone are not enough). */}
+      <PostHogSurveyProvider>
+        <ParticipantSessionProvider>
+          <ParticipantIdentifier>
+            <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+              <Stack>
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+                <Stack.Screen
+                  name="moderator"
+                  options={{ presentation: 'modal', title: 'Session setup' }}
+                />
+              </Stack>
+            </ThemeProvider>
+          </ParticipantIdentifier>
+        </ParticipantSessionProvider>
+      </PostHogSurveyProvider>
     </PostHogProvider>
   );
 }

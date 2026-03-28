@@ -7,13 +7,25 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  Alert,
+  ScrollView,
+  InteractionManager,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { usePostHog } from "posthog-react-native";
 import { useParticipantSession } from "@context/ParticipantSessionContext";
+
+/** After closing the native modal, wait so the stack animation finishes before firing the survey trigger. */
+const COMPLETE_CAPTURE_DELAY_MS = 520;
 
 export default function ModeratorScreen() {
   const router = useRouter();
-  const { startSession } = useParticipantSession();
+  const posthog = usePostHog();
+  const {
+    startSession,
+    participantId: sessionParticipantId,
+    taskSet: sessionTaskSet,
+  } = useParticipantSession();
   const [participantId, setParticipantId] = useState("");
   const [taskSet, setTaskSet] = useState("");
 
@@ -23,12 +35,58 @@ export default function ModeratorScreen() {
     router.back();
   }, [participantId, taskSet, startSession, router]);
 
+  const handleSessionComplete = useCallback(() => {
+    if (!sessionParticipantId) {
+      Alert.alert(
+        "No active session",
+        "Start a participant session first (or have the participant enter their ID on the welcome screen).",
+      );
+      return;
+    }
+    router.back();
+    const payload = {
+      participant_id: sessionParticipantId,
+      task_set: sessionTaskSet,
+    };
+    InteractionManager.runAfterInteractions(() => {
+      setTimeout(() => {
+        void posthog.ready().then(() => {
+          posthog.capture("usability_session_completed", payload);
+          void posthog.flush();
+        });
+      }, COMPLETE_CAPTURE_DELAY_MS);
+    });
+  }, [sessionParticipantId, sessionTaskSet, posthog, router]);
+
   return (
     <KeyboardAvoidingView
       style={styles.root}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator
+      >
       <View style={styles.card}>
+        <Text style={styles.sectionTitle}>After tasks — exit survey</Text>
+        <Text style={styles.hintShort}>
+          Tap when the participant is done. PostHog: event usability_session_completed — survey
+          must be a popover, shown on mobile, with no URL/page targeting.
+        </Text>
+        <TouchableOpacity
+          style={styles.buttonSecondary}
+          onPress={handleSessionComplete}
+          testID="moderator-session-complete"
+        >
+          <Text style={styles.buttonSecondaryText}>
+            Mark usability session complete
+          </Text>
+        </TouchableOpacity>
+
+        <View style={styles.divider} />
+
+        <Text style={styles.sectionTitle}>Start participant session</Text>
         <Text style={styles.label}>Participant ID</Text>
         <TextInput
           style={styles.input}
@@ -51,6 +109,7 @@ export default function ModeratorScreen() {
           <Text style={styles.buttonText}>Start Session</Text>
         </TouchableOpacity>
       </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -59,14 +118,29 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: "#F3F4F6",
-    justifyContent: "center",
+  },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: "flex-start",
     padding: 24,
+    paddingBottom: 40,
   },
   card: {
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
     padding: 20,
     gap: 8,
+  },
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#111827",
+    marginBottom: 4,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "#E5E7EB",
+    marginVertical: 20,
   },
   label: {
     fontSize: 13,
@@ -93,6 +167,26 @@ const styles = StyleSheet.create({
   buttonText: {
     color: "#FFFFFF",
     fontSize: 16,
+    fontWeight: "700",
+  },
+  hintShort: {
+    fontSize: 12,
+    lineHeight: 16,
+    color: "#6B7280",
+    marginBottom: 10,
+  },
+  buttonSecondary: {
+    marginTop: 0,
+    borderWidth: 2,
+    borderColor: "#912338",
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+  },
+  buttonSecondaryText: {
+    color: "#912338",
+    fontSize: 15,
     fontWeight: "700",
   },
 });
