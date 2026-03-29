@@ -63,7 +63,7 @@ function BuildingMarkerItem({
       key={building.id}
       testID={`building-marker-${building.id}`}
       coordinate={{ latitude: building.lat, longitude: building.lng }}
-      title={building.name}
+      title={`${building.code} - ${building.address}`}
       onPress={onPress}
       anchor={{ x: 0.5, y: 0.5 }}
       tracksViewChanges={trackChanges}
