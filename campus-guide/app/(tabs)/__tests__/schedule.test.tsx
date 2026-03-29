@@ -77,10 +77,21 @@ const baseAuth = {
 const FUTURE_START = new Date(Date.now() + 60 * 60 * 1000);
 const FUTURE_END = new Date(Date.now() + 2 * 60 * 60 * 1000);
 
-const TODAY = new Date();
-const EVENT_START = new Date(TODAY);
+// Compute a weekday (Wednesday) in the currently displayed week so the event
+// always lands inside the Mon–Fri grid regardless of what day the test runs.
+function getWednesdayOfCurrentWeek(): Date {
+  const now = new Date();
+  const day = now.getDay();
+  const diffToWed = day === 0 ? -4 : 3 - day;
+  const wed = new Date(now);
+  wed.setDate(wed.getDate() + diffToWed);
+  return wed;
+}
+
+const EVENT_DAY = getWednesdayOfCurrentWeek();
+const EVENT_START = new Date(EVENT_DAY);
 EVENT_START.setHours(10, 0, 0, 0);
-const EVENT_END = new Date(TODAY);
+const EVENT_END = new Date(EVENT_DAY);
 EVENT_END.setHours(11, 0, 0, 0);
 
 describe("ScheduleScreen", () => {
