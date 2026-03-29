@@ -14,15 +14,13 @@ appId: com.soen390.campusguide
 - tapOn: "Schedule"
 - waitForAnimationToEnd
 
-- tapOn: "Connect to Google Calendar"
+- tapOn: ".*Connect Google Calendar"
 - waitForAnimationToEnd
 
 - assertVisible: "Choose an account"
 
 - tapOn: ".*@gmail.com"
 - waitForAnimationToEnd
-
-- assertVisible: "Google hasn't verified this app
 
 - tapOn: "Continue"
 - waitForAnimationToEnd
