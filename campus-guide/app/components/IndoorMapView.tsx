@@ -18,6 +18,7 @@ import {
   INDOOR_BUILDINGS,
   getGeoJsonForBuilding,
   getFeaturesForFloor,
+  getRoomSuggestions,
 } from "@app/context/IndoorMapContext";
 import { IndoorFeature } from "@app/types/indoorMap";
 import { IndoorStep, NavigationStep} from "@app/types/navigation";
@@ -539,6 +540,26 @@ export default function IndoorMapView() {
   const [storyLoading, setStoryLoading] = useState(false);
   const [storyError, setStoryError] = useState<string | null>(null);
 
+  const startSuggestions = useMemo(
+    () => (startRoomRef ? [] : getRoomSuggestions(startSearchQuery)),
+    [startSearchQuery, startRoomRef],
+  );
+
+  const destinationSuggestions = useMemo(
+    () => (destinationRoomRef ? [] : getRoomSuggestions(destinationSearchQuery)),
+    [destinationSearchQuery, destinationRoomRef],
+  );
+
+  const handleSelectStartSuggestion = (room: string) => {
+    setStartSearchQuery(room);
+    searchStartRoom(room);
+  };
+
+  const handleSelectDestinationSuggestion = (room: string) => {
+    setDestinationSearchQuery(room);
+    searchDestinationRoom(room);
+  };
+
   const mapRef = useRef<MapView>(null);
   const [selectedPOI, setSelectedPOI] = useState<{
     amenity: string;
@@ -809,6 +830,8 @@ export default function IndoorMapView() {
             error={startSearchError}
             placeholder="Start room (e.g., H-820)"
             testIDPrefix="room-search-start"
+            suggestions={startSuggestions}
+            onSelectSuggestion={handleSelectStartSuggestion}
           />
         </View>
       </View>
@@ -824,6 +847,8 @@ export default function IndoorMapView() {
             error={destinationSearchError}
             placeholder="Destination room (e.g., H-820)"
             testIDPrefix="room-search-destination"
+            suggestions={destinationSuggestions}
+            onSelectSuggestion={handleSelectDestinationSuggestion}
           />
         </View>
       </View>

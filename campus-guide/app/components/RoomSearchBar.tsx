@@ -4,6 +4,7 @@ import {
   TextInput,
   TouchableOpacity,
   Text,
+  FlatList,
   StyleSheet,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -16,6 +17,8 @@ interface RoomSearchBarProps {
   readonly error?: string | null;
   readonly placeholder?: string;
   readonly testIDPrefix?: string;
+  readonly suggestions?: string[];
+  readonly onSelectSuggestion?: (room: string) => void;
 }
 
 export default function RoomSearchBar({
@@ -26,6 +29,8 @@ export default function RoomSearchBar({
   error,
   placeholder = "Enter room (e.g., H-820)",
   testIDPrefix = "room-search",
+  suggestions = [],
+  onSelectSuggestion,
 }: RoomSearchBarProps) {
   return (
     <View style={styles.container}>
@@ -58,6 +63,25 @@ export default function RoomSearchBar({
         )}
       </View>
       {error && <Text style={styles.errorText}>{error}</Text>}
+      {suggestions.length > 0 && (
+        <View style={styles.suggestionsContainer}>
+          <FlatList
+            data={suggestions}
+            keyExtractor={(item) => item}
+            keyboardShouldPersistTaps="handled"
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={styles.suggestionItem}
+                onPress={() => onSelectSuggestion?.(item)}
+                testID={`${testIDPrefix}-suggestion-${item}`}
+              >
+                <Ionicons name="location-outline" size={16} color="#912338" style={styles.suggestionIcon} />
+                <Text style={styles.suggestionText}>{item}</Text>
+              </TouchableOpacity>
+            )}
+          />
+        </View>
+      )}
     </View>
   );
 }
@@ -93,5 +117,34 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 6,
     marginLeft: 4,
+  },
+  suggestionsContainer: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 8,
+    marginTop: 4,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    maxHeight: 200,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  suggestionItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#F3F4F6",
+  },
+  suggestionIcon: {
+    marginRight: 8,
+  },
+  suggestionText: {
+    fontSize: 15,
+    color: "#1F2937",
+    fontWeight: "500",
   },
 });

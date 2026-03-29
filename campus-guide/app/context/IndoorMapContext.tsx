@@ -241,6 +241,37 @@ export function findRoomInBuildings(
   return null;
 }
 
+const MAX_SUGGESTIONS = 8;
+
+export function getRoomSuggestions(query: string): string[] {
+  const normalized = query.replaceAll(/[\s-]/g, "").toUpperCase();
+  if (normalized.length < 1) return [];
+
+  const seen = new Set<string>();
+  const results: string[] = [];
+
+  for (const building of INDOOR_BUILDINGS) {
+    const geoJson = getGeoJsonForBuilding(building);
+    if (!geoJson) continue;
+
+    for (const feature of geoJson.features) {
+      const ref = feature.properties?.ref;
+      if (!ref) continue;
+      if (feature.properties?.indoor !== "room") continue;
+
+      const refNormalized = ref.replaceAll(/[\s-]/g, "").toUpperCase();
+      if (!refNormalized.startsWith(normalized)) continue;
+      if (seen.has(refNormalized)) continue;
+
+      seen.add(refNormalized);
+      results.push(ref);
+      if (results.length >= MAX_SUGGESTIONS) return results;
+    }
+  }
+
+  return results;
+}
+
 interface IndoorMapContextType {
   selectedBuilding: IndoorBuildingConfig | null;
   selectedFloor: number | null;
