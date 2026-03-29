@@ -19,6 +19,7 @@ import Header from "@app/components/Header";
 import { useCalendarAuth } from "@context/CalendarAuthContext";
 import { formatHourLabel } from "@utils/timeFormat";
 import { buildHourSlots } from "@utils/timeSlots";
+import { useRouter } from "expo-router";
 import {
   type CalendarInfo,
   type NextClassEvent,
@@ -28,6 +29,13 @@ import {
   getSelectedCalendarIds,
   saveSelectedCalendarIds,
 } from "@services/calendarAuthService";
+import {
+  resolveLocationToBuilding,
+  computeMinutesUntilClass,
+  DEFAULT_THRESHOLD_MINUTES,
+} from "@services/nextClassDirectionsService";
+import { useDirections } from "@context/DirectionsContext";
+import useUserLocation from "@hooks/useUserLocation";
 
 type WeekDay = {
   label: string;
@@ -220,11 +228,25 @@ async function fetchGoogleCalendarEvents(
 function NextClassCard({
   nextClass,
   isLoading,
+  onGetDirections,
 }: {
   readonly nextClass: NextClassEvent | null;
   readonly isLoading: boolean;
+  readonly onGetDirections?: () => void;
 }) {
   if (!isLoading && nextClass === null) return null;
+
+  const matchedBuilding = nextClass
+    ? resolveLocationToBuilding(nextClass.location)
+    : null;
+  const minutesUntil = nextClass
+    ? computeMinutesUntilClass(nextClass.start)
+    : null;
+  const showDirectionsButton =
+    matchedBuilding !== null &&
+    minutesUntil !== null &&
+    minutesUntil <= DEFAULT_THRESHOLD_MINUTES &&
+    minutesUntil > -5;
 
   return (
     <View style={styles.nextClassCard}>
@@ -266,6 +288,21 @@ function NextClassCard({
           ) : (
             <Text style={styles.nextClassNoLocation}>No location specified</Text>
           )}
+          {showDirectionsButton && onGetDirections ? (
+            <TouchableOpacity
+              style={styles.nextClassDirectionsButton}
+              activeOpacity={0.8}
+              onPress={onGetDirections}
+            >
+              <Ionicons name="navigate" size={14} color="#FFFFFF" />
+              <Text style={styles.nextClassDirectionsText}>
+                Get Directions
+                {minutesUntil !== null && minutesUntil > 0
+                  ? ` (${Math.ceil(minutesUntil)} min)`
+                  : ""}
+              </Text>
+            </TouchableOpacity>
+          ) : null}
         </>
       ) : null}
     </View>
@@ -280,6 +317,16 @@ export default function ScheduleScreen() {
     isConnected,
     error,
   } = useCalendarAuth();
+
+  const router = useRouter();
+  const {
+    setDestinationBuilding,
+    setStartCoords,
+    setStartBuilding,
+    setTransportationMode,
+    fetchRoute,
+  } = useDirections();
+  const { getRawLocation } = useUserLocation();
 
   const scrollRef = useRef<ScrollView>(null);
 
@@ -437,6 +484,35 @@ export default function ScheduleScreen() {
     setCurrentDate(new Date());
   };
 
+  const handleNextClassDirections = useCallback(async () => {
+    if (!nextClass) return;
+    const building = resolveLocationToBuilding(nextClass.location);
+    if (!building) return;
+
+    setDestinationBuilding(building);
+    setStartBuilding(null);
+    setTransportationMode("walk");
+
+    const coords = await getRawLocation();
+    if (coords) {
+      setStartCoords(coords);
+    }
+
+    router.push("/(tabs)/two");
+    setTimeout(() => {
+      fetchRoute();
+    }, 300);
+  }, [
+    nextClass,
+    setDestinationBuilding,
+    setStartBuilding,
+    setStartCoords,
+    setTransportationMode,
+    fetchRoute,
+    getRawLocation,
+    router,
+  ]);
+
   const allDayEvents = useMemo(
     () => events.filter((event) => event.isAllDay),
     [events],
@@ -495,7 +571,11 @@ export default function ScheduleScreen() {
       </View>
 
       {isConnected ? (
-        <NextClassCard nextClass={nextClass} isLoading={nextClassLoading} />
+        <NextClassCard
+          nextClass={nextClass}
+          isLoading={nextClassLoading}
+          onGetDirections={handleNextClassDirections}
+        />
       ) : null}
 
       {allDayEvents.length > 0 ? (
@@ -834,6 +914,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#9CA3AF",
     fontStyle: "italic",
+  },
+  nextClassDirectionsButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    marginTop: 8,
+    backgroundColor: "#912338",
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+  },
+  nextClassDirectionsText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "700",
   },
   allDaySection: {
     backgroundColor: "#FFFFFF",

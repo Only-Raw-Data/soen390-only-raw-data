@@ -36,6 +36,27 @@ jest.mock("@services/calendarAuthService", () => ({
   saveSelectedCalendarIds: jest.fn(),
 }));
 
+jest.mock("expo-router", () => ({
+  useRouter: jest.fn(() => ({ push: jest.fn() })),
+}));
+
+jest.mock("@context/DirectionsContext", () => ({
+  useDirections: jest.fn(() => ({
+    setDestinationBuilding: jest.fn(),
+    setStartBuilding: jest.fn(),
+    setStartCoords: jest.fn(),
+    setTransportationMode: jest.fn(),
+    fetchRoute: jest.fn(),
+  })),
+}));
+
+jest.mock("@hooks/useUserLocation", () => ({
+  __esModule: true,
+  default: jest.fn(() => ({
+    getRawLocation: jest.fn().mockResolvedValue(null),
+  })),
+}));
+
 const mockUseCalendarAuth = useCalendarAuth as jest.Mock;
 const mockFetchCalendars = fetchCalendars as jest.Mock;
 const mockFetchNextClassEvent = fetchNextClassEvent as jest.Mock;

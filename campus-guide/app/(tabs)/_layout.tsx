@@ -1,6 +1,8 @@
 import React, { useCallback } from "react";
+import { View } from "react-native";
 import { Tabs, useRouter, usePathname } from "expo-router";
 import BottomNav from "@components/BottomNav";
+import NextClassDirectionsBanner from "@components/NextClassDirectionsBanner";
 import { Screen } from "@types/Screen";
 
 import DirectionsProvider from "@context/DirectionsContext";
@@ -65,48 +67,51 @@ export default function TabLayout() {
       <IndoorMapProvider>
         <CalendarAuthProvider>
           <POIProvider>
-            <Tabs
-              screenOptions={{
-                headerShown: false,
-              }}
-              tabBar={() => (
-                <TabBar
-                  currentScreen={currentScreen}
-                  onScreenChange={handleScreenChange}
+            <View style={{ flex: 1 }}>
+              <NextClassDirectionsBanner />
+              <Tabs
+                screenOptions={{
+                  headerShown: false,
+                }}
+                tabBar={() => (
+                  <TabBar
+                    currentScreen={currentScreen}
+                    onScreenChange={handleScreenChange}
+                  />
+                )}
+              >
+                <Tabs.Screen
+                  name="index"
+                  options={{
+                    title: "Campus Guide",
+                  }}
                 />
-              )}
-            >
-              <Tabs.Screen
-                name="index"
-                options={{
-                  title: "Campus Guide",
-                }}
-              />
-              <Tabs.Screen
-                name="two"
-                options={{
-                  title: "Directions",
-                }}
-              />
-              <Tabs.Screen
-                name="indoor"
-                options={{
-                  title: "Indoor",
-                }}
-              />
-              <Tabs.Screen
-                name="schedule"
-                options={{
-                  title: "Schedule",
-                }}
-              />
-              <Tabs.Screen
-                name="poi"
-                options={{
-                  title: "Points of Interest",
-                }}
-              />
-            </Tabs>
+                <Tabs.Screen
+                  name="two"
+                  options={{
+                    title: "Directions",
+                  }}
+                />
+                <Tabs.Screen
+                  name="indoor"
+                  options={{
+                    title: "Indoor",
+                  }}
+                />
+                <Tabs.Screen
+                  name="schedule"
+                  options={{
+                    title: "Schedule",
+                  }}
+                />
+                <Tabs.Screen
+                  name="poi"
+                  options={{
+                    title: "Points of Interest",
+                  }}
+                />
+              </Tabs>
+            </View>
           </POIProvider>
         </CalendarAuthProvider>
       </IndoorMapProvider>
