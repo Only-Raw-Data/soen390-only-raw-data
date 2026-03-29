@@ -37,6 +37,69 @@ import { SegmentMode } from "@app/types/transportation";
 import { PointOfInterest } from "../types/poi";
 import { poiToBuildingAdapter } from "../utils/poiUtils";
 
+function BuildingMarkerItem({
+  building,
+  isCurrentLocation,
+  isStart,
+  isDest,
+  onPress,
+}: {
+  readonly building: Building;
+  readonly isCurrentLocation: boolean;
+  readonly isStart: boolean;
+  readonly isDest: boolean;
+  readonly onPress: () => void;
+}) {
+  const [trackChanges, setTrackChanges] = React.useState(true);
+
+  React.useEffect(() => {
+    // 500ms delay gives Android enough time to render custom view before capturing the map snapshot
+    const timer = setTimeout(() => setTrackChanges(false), 500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  return (
+    <Marker
+      key={building.id}
+      testID={`building-marker-${building.id}`}
+      coordinate={{ latitude: building.lat, longitude: building.lng }}
+      title={building.name}
+      onPress={onPress}
+      anchor={{ x: 0.5, y: 0.5 }}
+      tracksViewChanges={trackChanges}
+    >
+      <View
+        style={[
+          styles.labelMarker,
+          isCurrentLocation && styles.labelMarkerCurrent,
+          isStart && styles.labelMarkerStart,
+          isDest && styles.labelMarkerDest,
+        ]}
+      >
+        <Text
+          style={[
+            styles.labelMarkerText,
+            isCurrentLocation && styles.labelMarkerTextCurrent,
+            (isStart || isDest) && styles.labelMarkerTextAlt,
+          ]}
+          numberOfLines={1}
+        >
+          {building.code}
+        </Text>
+      </View>
+
+      {isCurrentLocation && (
+        <Callout tooltip>
+          <View style={styles.youAreHereCallout}>
+            <View style={styles.youAreHereDot} />
+            <Text style={styles.youAreHereText}>You are here</Text>
+          </View>
+        </Callout>
+      )}
+    </Marker>
+  );
+}
+
 function POIMarkerItem({
   poi,
   onPress,
@@ -427,56 +490,16 @@ export default function MapViewApp({
                 b.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 b.code.toLowerCase().includes(searchQuery.toLowerCase()),
             )
-            .map((building) => {
-              const isCurrentLocation = highlightedBuildingId === building.id;
-              return (
-                <Marker
-                  key={building.id}
-                  testID={`building-marker-${building.id}`}
-                  coordinate={{
-                    latitude: building.lat,
-                    longitude: building.lng,
-                  }}
-                  title={getMarkerTitle(building)}
-                  onPress={() => handleBuildingPress(building)}
-                  anchor={{ x: 0.5, y: 0.5 }}
-                  tracksViewChanges={false}
-                >
-                  <View
-                    style={[
-                      styles.labelMarker,
-                      isCurrentLocation && styles.labelMarkerCurrent,
-                      startBuilding?.id === building.id &&
-                        styles.labelMarkerStart,
-                      destinationBuilding?.id === building.id &&
-                        styles.labelMarkerDest,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.labelMarkerText,
-                        isCurrentLocation && styles.labelMarkerTextCurrent,
-                        (startBuilding?.id === building.id ||
-                          destinationBuilding?.id === building.id) &&
-                          styles.labelMarkerTextAlt,
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {building.code}
-                    </Text>
-                  </View>
-
-                  {isCurrentLocation && (
-                    <Callout tooltip>
-                      <View style={styles.youAreHereCallout}>
-                        <View style={styles.youAreHereDot} />
-                        <Text style={styles.youAreHereText}>You are here</Text>
-                      </View>
-                    </Callout>
-                  )}
-                </Marker>
-              );
-            })}
+            .map((building) => (
+              <BuildingMarkerItem
+                key={building.id}
+                building={building}
+                isCurrentLocation={highlightedBuildingId === building.id}
+                isStart={startBuilding?.id === building.id}
+                isDest={destinationBuilding?.id === building.id}
+                onPress={() => handleBuildingPress(building)}
+              />
+            ))}
 
           {/* POI Markers */}
           {showPOIs &&

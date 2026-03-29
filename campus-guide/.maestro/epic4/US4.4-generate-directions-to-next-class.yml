@@ -1,0 +1,14 @@
+appId: com.soen390.campusguide
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "SGW Campus"
+    timeout: 1800000
+
+- assertVisible: "SGW Campus"
+
+- tapOn:
+    point: "90%,93%"
+- waitForAnimationToEnd
+
+- stopApp
