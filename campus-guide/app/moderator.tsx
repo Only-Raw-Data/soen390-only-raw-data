@@ -48,12 +48,15 @@ export default function ModeratorScreen() {
       participant_id: sessionParticipantId,
       task_set: sessionTaskSet,
     };
+    const captureSessionEvent = async () => {
+      await posthog.ready();
+      posthog.capture("usability_session_completed", payload);
+      await posthog.flush();
+    };
+
     InteractionManager.runAfterInteractions(() => {
       setTimeout(() => {
-        void posthog.ready().then(() => {
-          posthog.capture("usability_session_completed", payload);
-          void posthog.flush();
-        });
+        captureSessionEvent().catch(() => {});
       }, COMPLETE_CAPTURE_DELAY_MS);
     });
   }, [sessionParticipantId, sessionTaskSet, posthog, router]);
