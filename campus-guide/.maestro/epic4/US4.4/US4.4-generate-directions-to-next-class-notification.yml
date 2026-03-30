@@ -11,4 +11,10 @@ appId: com.soen390.campusguide
     point: "90%,93%"
 - waitForAnimationToEnd
 
+- tapOn: "Directions"
+- waitForAnimationToEnd
+
+- assertVisible:
+    text: ".*mins.*km.*" 
+
 - stopApp
