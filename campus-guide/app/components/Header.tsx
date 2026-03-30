@@ -1,4 +1,4 @@
-import NextClassDirectionsBanner from '@app/components/NextClassDirectionsBanner';
+import NextClassDirectionsBanner from "@app/components/NextClassDirectionsBanner";
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import { useRouter } from "expo-router";
 
@@ -9,10 +9,8 @@ export default function Header() {
     router.push("/moderator");
   };
 
-return (
+  return (
     <View style={styles.header}>
-      <Text style={styles.headerTitle}>Concordia Campus Guide</Text>
-      <NextClassDirectionsBanner />
       <Pressable
         onLongPress={openModerator}
         delayLongPress={700}
@@ -21,8 +19,10 @@ return (
       >
         <Text style={styles.headerTitle}>Concordia Campus Guide</Text>
       </Pressable>
+      <NextClassDirectionsBanner />
     </View>
   );
+}
 
 const styles = StyleSheet.create({
   header: {
