@@ -56,12 +56,6 @@ const baseAuth = {
 const FUTURE_START = new Date(Date.now() + 60 * 60 * 1000);
 const FUTURE_END = new Date(Date.now() + 2 * 60 * 60 * 1000);
 
-const TODAY = new Date();
-const EVENT_START = new Date(TODAY);
-EVENT_START.setHours(10, 0, 0, 0);
-const EVENT_END = new Date(TODAY);
-EVENT_END.setHours(11, 0, 0, 0);
-
 describe("ScheduleScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -312,56 +306,70 @@ describe("ScheduleScreen", () => {
     expect(screen.getByText("Auth failed")).toBeTruthy();
   });
 
-  it("fetches and renders timed calendar events", async () => {
-    mockUseCalendarAuth.mockReturnValue({ ...baseAuth, isConnected: true });
-    mockGetFreshCalendarAccessToken.mockResolvedValue("token");
-    mockFetchCalendars.mockResolvedValue([{ id: "cal1", name: "My Calendar" }]);
-    mockGetSelectedCalendarIds.mockResolvedValue(["cal1"]);
-    mockFetchNextClassEvent.mockResolvedValue(null);
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        items: [
-          {
-            id: "evt1",
-            summary: "SOEN 390 Lecture",
-            start: { dateTime: EVENT_START.toISOString() },
-            end: { dateTime: EVENT_END.toISOString() },
-          },
-        ],
-      }),
+  describe("timed calendar events (fixed weekday clock)", () => {
+    const WED_2026_03_25_START = "2026-03-25T10:00:00.000Z";
+    const WED_2026_03_25_END = "2026-03-25T11:00:00.000Z";
+
+    beforeEach(() => {
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date("2026-03-25T14:30:00.000Z"));
     });
 
-    render(<ScheduleScreen />);
-
-    await waitFor(() => {
-      expect(screen.getByText("SOEN 390 Lecture")).toBeTruthy();
-    });
-  });
-
-  it("renders timed event without summary as Untitled Event", async () => {
-    mockUseCalendarAuth.mockReturnValue({ ...baseAuth, isConnected: true });
-    mockGetFreshCalendarAccessToken.mockResolvedValue("token");
-    mockFetchCalendars.mockResolvedValue([{ id: "cal1", name: "My Calendar" }]);
-    mockGetSelectedCalendarIds.mockResolvedValue(["cal1"]);
-    mockFetchNextClassEvent.mockResolvedValue(null);
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        items: [
-          {
-            id: "evt2",
-            start: { dateTime: EVENT_START.toISOString() },
-            end: { dateTime: EVENT_END.toISOString() },
-          },
-        ],
-      }),
+    afterEach(() => {
+      jest.useRealTimers();
     });
 
-    render(<ScheduleScreen />);
+    it("fetches and renders timed calendar events", async () => {
+      mockUseCalendarAuth.mockReturnValue({ ...baseAuth, isConnected: true });
+      mockGetFreshCalendarAccessToken.mockResolvedValue("token");
+      mockFetchCalendars.mockResolvedValue([{ id: "cal1", name: "My Calendar" }]);
+      mockGetSelectedCalendarIds.mockResolvedValue(["cal1"]);
+      mockFetchNextClassEvent.mockResolvedValue(null);
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          items: [
+            {
+              id: "evt1",
+              summary: "SOEN 390 Lecture",
+              start: { dateTime: WED_2026_03_25_START },
+              end: { dateTime: WED_2026_03_25_END },
+            },
+          ],
+        }),
+      });
 
-    await waitFor(() => {
-      expect(screen.getByText("Untitled Event")).toBeTruthy();
+      render(<ScheduleScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText("SOEN 390 Lecture")).toBeTruthy();
+      });
+    });
+
+    it("renders timed event without summary as Untitled Event", async () => {
+      mockUseCalendarAuth.mockReturnValue({ ...baseAuth, isConnected: true });
+      mockGetFreshCalendarAccessToken.mockResolvedValue("token");
+      mockFetchCalendars.mockResolvedValue([{ id: "cal1", name: "My Calendar" }]);
+      mockGetSelectedCalendarIds.mockResolvedValue(["cal1"]);
+      mockFetchNextClassEvent.mockResolvedValue(null);
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          items: [
+            {
+              id: "evt2",
+              start: { dateTime: WED_2026_03_25_START },
+              end: { dateTime: WED_2026_03_25_END },
+            },
+          ],
+        }),
+      });
+
+      render(<ScheduleScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText("Untitled Event")).toBeTruthy();
+      });
     });
   });
 

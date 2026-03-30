@@ -15,8 +15,10 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { usePostHog } from "posthog-react-native";
 import Header from "@app/components/Header";
 import { useCalendarAuth } from "@context/CalendarAuthContext";
+import { useScreenTimer } from "@hooks/useScreenTimer";
 import { formatHourLabel } from "@utils/timeFormat";
 import { buildHourSlots } from "@utils/timeSlots";
 import {
@@ -273,6 +275,8 @@ function NextClassCard({
 }
 
 export default function ScheduleScreen() {
+  useScreenTimer("Schedule");
+  const posthog = usePostHog();
   const {
     connectCalendar,
     disconnectCalendar,
@@ -418,18 +422,22 @@ export default function ScheduleScreen() {
     if (isLoading) return;
 
     if (isConnected) {
+      posthog.capture('calendar_disconnected');
       await disconnectCalendar();
       return;
     }
 
+    posthog.capture('calendar_connected');
     await connectCalendar();
   };
 
   const goToPreviousWeek = () => {
+    posthog.capture('schedule_week_navigated', { direction: 'previous' });
     setCurrentDate((prev) => addDays(prev, -7));
   };
 
   const goToNextWeek = () => {
+    posthog.capture('schedule_week_navigated', { direction: 'next' });
     setCurrentDate((prev) => addDays(prev, 7));
   };
 
