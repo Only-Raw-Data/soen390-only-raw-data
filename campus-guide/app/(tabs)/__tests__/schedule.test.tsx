@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react-native";
+import { render, screen, waitFor, fireEvent, act } from "@testing-library/react-native";
 import ScheduleScreen from "../schedule";
 import { useCalendarAuth } from "@context/CalendarAuthContext";
 import {
@@ -9,6 +9,18 @@ import {
   getSelectedCalendarIds,
   saveSelectedCalendarIds,
 } from "@services/calendarAuthService";
+import {
+  getStoredThresholdMinutes,
+  saveThresholdMinutes,
+} from "@services/nextClassDirectionsService";
+
+const mockSetDestinationBuilding = jest.fn();
+const mockSetStartBuilding = jest.fn();
+const mockSetStartCoords = jest.fn();
+const mockSetTransportationMode = jest.fn();
+const mockFetchRoute = jest.fn();
+const mockPush = jest.fn();
+const mockGetRawLocation = jest.fn().mockResolvedValue(null);
 
 jest.mock("@app/components/Header", () => "Header");
 
@@ -37,23 +49,23 @@ jest.mock("@services/calendarAuthService", () => ({
 }));
 
 jest.mock("expo-router", () => ({
-  useRouter: jest.fn(() => ({ push: jest.fn() })),
+  useRouter: jest.fn(() => ({ push: mockPush })),
 }));
 
 jest.mock("@context/DirectionsContext", () => ({
   useDirections: jest.fn(() => ({
-    setDestinationBuilding: jest.fn(),
-    setStartBuilding: jest.fn(),
-    setStartCoords: jest.fn(),
-    setTransportationMode: jest.fn(),
-    fetchRoute: jest.fn(),
+    setDestinationBuilding: mockSetDestinationBuilding,
+    setStartBuilding: mockSetStartBuilding,
+    setStartCoords: mockSetStartCoords,
+    setTransportationMode: mockSetTransportationMode,
+    fetchRoute: mockFetchRoute,
   })),
 }));
 
 jest.mock("@hooks/useUserLocation", () => ({
   __esModule: true,
   default: jest.fn(() => ({
-    getRawLocation: jest.fn().mockResolvedValue(null),
+    getRawLocation: mockGetRawLocation,
   })),
 }));
 
@@ -61,7 +73,11 @@ jest.mock("@services/nextClassDirectionsService", () => ({
   ...jest.requireActual("@services/nextClassDirectionsService"),
   getStoredThresholdMinutes: jest.fn().mockResolvedValue(15),
   saveThresholdMinutes: jest.fn().mockResolvedValue(undefined),
+  resolveLocationToBuilding: jest.fn(),
 }));
+
+const mockResolveLocationToBuilding =
+  require("@services/nextClassDirectionsService").resolveLocationToBuilding as jest.Mock;
 
 const mockUseCalendarAuth = useCalendarAuth as jest.Mock;
 const mockFetchCalendars = fetchCalendars as jest.Mock;
@@ -69,6 +85,8 @@ const mockFetchNextClassEvent = fetchNextClassEvent as jest.Mock;
 const mockGetFreshCalendarAccessToken = getFreshCalendarAccessToken as jest.Mock;
 const mockGetSelectedCalendarIds = getSelectedCalendarIds as jest.Mock;
 const mockSaveSelectedCalendarIds = saveSelectedCalendarIds as jest.Mock;
+const mockGetStoredThresholdMinutes = getStoredThresholdMinutes as jest.MockedFunction<typeof getStoredThresholdMinutes>;
+const mockSaveThresholdMinutes = saveThresholdMinutes as jest.MockedFunction<typeof saveThresholdMinutes>;
 
 const baseAuth = {
   isConnected: false,
@@ -109,6 +127,16 @@ describe("ScheduleScreen", () => {
     mockFetchCalendars.mockResolvedValue([]);
     mockFetchNextClassEvent.mockResolvedValue(null);
     mockSaveSelectedCalendarIds.mockResolvedValue(undefined);
+    mockGetStoredThresholdMinutes.mockResolvedValue(15);
+    mockSaveThresholdMinutes.mockResolvedValue(undefined);
+    mockResolveLocationToBuilding.mockReturnValue(null);
+    mockGetRawLocation.mockResolvedValue(null);
+    mockPush.mockReset();
+    mockSetDestinationBuilding.mockReset();
+    mockSetStartBuilding.mockReset();
+    mockSetStartCoords.mockReset();
+    mockSetTransportationMode.mockReset();
+    mockFetchRoute.mockReset();
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ items: [] }),
@@ -750,5 +778,302 @@ describe("ScheduleScreen", () => {
 
       expect(screen.getByText("All day")).toBeTruthy();
     });
+  });
+
+  describe("Threshold UI", () => {
+    const connectedSetup = () => {
+      mockUseCalendarAuth.mockReturnValue({ ...baseAuth, isConnected: true });
+      mockGetFreshCalendarAccessToken.mockResolvedValue("token");
+      mockFetchCalendars.mockResolvedValue([{ id: "cal1", name: "My Calendar" }]);
+      mockGetSelectedCalendarIds.mockResolvedValue(["cal1"]);
+      mockFetchNextClassEvent.mockResolvedValue(null);
+    };
+
+    it("shows threshold row with default value when connected", async () => {
+      connectedSetup();
+      render(<ScheduleScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText("Remind me")).toBeTruthy();
+      });
+      expect(screen.getByText("15 min")).toBeTruthy();
+      expect(screen.getByText("before class")).toBeTruthy();
+    });
+
+    it("shows 'Always' and '(no limit)' when threshold is NO_LIMIT", async () => {
+      connectedSetup();
+      mockGetStoredThresholdMinutes.mockResolvedValue(0);
+      render(<ScheduleScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText("Always")).toBeTruthy();
+      });
+      expect(screen.getByText("(no limit)")).toBeTruthy();
+    });
+
+    it("increments threshold when plus is pressed", async () => {
+      connectedSetup();
+      render(<ScheduleScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText("15 min")).toBeTruthy();
+      });
+
+      await act(async () => {
+        fireEvent.press(screen.getByTestId("threshold-plus"));
+      });
+
+      expect(screen.getByText("20 min")).toBeTruthy();
+      expect(mockSaveThresholdMinutes).toHaveBeenCalledWith(20);
+    });
+
+    it("decrements threshold when minus is pressed", async () => {
+      connectedSetup();
+      render(<ScheduleScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText("15 min")).toBeTruthy();
+      });
+
+      await act(async () => {
+        fireEvent.press(screen.getByTestId("threshold-minus"));
+      });
+
+      expect(screen.getByText("10 min")).toBeTruthy();
+      expect(mockSaveThresholdMinutes).toHaveBeenCalledWith(10);
+    });
+
+    it("goes to Always when decremented below minimum", async () => {
+      connectedSetup();
+      mockGetStoredThresholdMinutes.mockResolvedValue(5);
+      render(<ScheduleScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText("5 min")).toBeTruthy();
+      });
+
+      await act(async () => {
+        fireEvent.press(screen.getByTestId("threshold-minus"));
+      });
+
+      expect(screen.getByText("Always")).toBeTruthy();
+      expect(mockSaveThresholdMinutes).toHaveBeenCalledWith(0);
+    });
+
+    it("goes from Always to MIN when plus is pressed", async () => {
+      connectedSetup();
+      mockGetStoredThresholdMinutes.mockResolvedValue(0);
+      render(<ScheduleScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText("Always")).toBeTruthy();
+      });
+
+      await act(async () => {
+        fireEvent.press(screen.getByTestId("threshold-plus"));
+      });
+
+      expect(screen.getByText("5 min")).toBeTruthy();
+      expect(mockSaveThresholdMinutes).toHaveBeenCalledWith(5);
+    });
+
+    it("does not exceed MAX_THRESHOLD when plus is pressed at max", async () => {
+      connectedSetup();
+      mockGetStoredThresholdMinutes.mockResolvedValue(60);
+      render(<ScheduleScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText("60 min")).toBeTruthy();
+      });
+
+      await act(async () => {
+        fireEvent.press(screen.getByTestId("threshold-plus"));
+      });
+
+      expect(screen.getByText("60 min")).toBeTruthy();
+    });
+  });
+
+  describe("NextClassCard directions", () => {
+    const SOON_START = new Date(Date.now() + 10 * 60 * 1000);
+    const SOON_END = new Date(Date.now() + 70 * 60 * 1000);
+
+    const fakeBuilding = {
+      id: "H",
+      name: "Hall Building",
+      coordinates: { latitude: 45.4973, longitude: -73.5789 },
+    };
+
+    const connectedWithNextClass = (location: string | null = "H-920") => {
+      mockUseCalendarAuth.mockReturnValue({ ...baseAuth, isConnected: true });
+      mockGetFreshCalendarAccessToken.mockResolvedValue("token");
+      mockFetchCalendars.mockResolvedValue([{ id: "cal1", name: "My Calendar" }]);
+      mockGetSelectedCalendarIds.mockResolvedValue(["cal1"]);
+      mockFetchNextClassEvent.mockResolvedValue({
+        id: "cal1_evt1",
+        title: "SOEN 390",
+        start: SOON_START,
+        end: SOON_END,
+        location,
+      });
+    };
+
+    it("shows Get Directions button when class is within threshold and building resolves", async () => {
+      connectedWithNextClass("H-920");
+      mockResolveLocationToBuilding.mockReturnValue(fakeBuilding);
+
+      render(<ScheduleScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId("next-class-directions-btn")).toBeTruthy();
+      });
+    });
+
+    it("hides Get Directions button when building does not resolve", async () => {
+      connectedWithNextClass("Unknown Place");
+      mockResolveLocationToBuilding.mockReturnValue(null);
+
+      render(<ScheduleScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText("SOEN 390")).toBeTruthy();
+      });
+      expect(screen.queryByTestId("next-class-directions-btn")).toBeNull();
+    });
+
+    it("hides Get Directions button when class is beyond threshold", async () => {
+      const farStart = new Date(Date.now() + 120 * 60 * 1000);
+      const farEnd = new Date(Date.now() + 180 * 60 * 1000);
+      mockUseCalendarAuth.mockReturnValue({ ...baseAuth, isConnected: true });
+      mockGetFreshCalendarAccessToken.mockResolvedValue("token");
+      mockFetchCalendars.mockResolvedValue([{ id: "cal1", name: "My Calendar" }]);
+      mockGetSelectedCalendarIds.mockResolvedValue(["cal1"]);
+      mockFetchNextClassEvent.mockResolvedValue({
+        id: "cal1_evt1",
+        title: "SOEN 390",
+        start: farStart,
+        end: farEnd,
+        location: "H-920",
+      });
+      mockResolveLocationToBuilding.mockReturnValue(fakeBuilding);
+
+      render(<ScheduleScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText("SOEN 390")).toBeTruthy();
+      });
+      expect(screen.queryByTestId("next-class-directions-btn")).toBeNull();
+    });
+
+    it("shows Get Directions with NO_LIMIT threshold regardless of time", async () => {
+      const farStart = new Date(Date.now() + 120 * 60 * 1000);
+      const farEnd = new Date(Date.now() + 180 * 60 * 1000);
+      mockGetStoredThresholdMinutes.mockResolvedValue(0);
+      mockUseCalendarAuth.mockReturnValue({ ...baseAuth, isConnected: true });
+      mockGetFreshCalendarAccessToken.mockResolvedValue("token");
+      mockFetchCalendars.mockResolvedValue([{ id: "cal1", name: "My Calendar" }]);
+      mockGetSelectedCalendarIds.mockResolvedValue(["cal1"]);
+      mockFetchNextClassEvent.mockResolvedValue({
+        id: "cal1_evt1",
+        title: "SOEN 390",
+        start: farStart,
+        end: farEnd,
+        location: "H-920",
+      });
+      mockResolveLocationToBuilding.mockReturnValue(fakeBuilding);
+
+      render(<ScheduleScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId("next-class-directions-btn")).toBeTruthy();
+      });
+    });
+
+    it("navigates and sets directions when Get Directions is pressed", async () => {
+      connectedWithNextClass("H-920");
+      mockResolveLocationToBuilding.mockReturnValue(fakeBuilding);
+
+      render(<ScheduleScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId("next-class-directions-btn")).toBeTruthy();
+      });
+
+      await act(async () => {
+        fireEvent.press(screen.getByTestId("next-class-directions-btn"));
+      });
+
+      expect(mockSetDestinationBuilding).toHaveBeenCalledWith(fakeBuilding);
+      expect(mockSetStartBuilding).toHaveBeenCalledWith(null);
+      expect(mockSetTransportationMode).toHaveBeenCalledWith("walk");
+      expect(mockPush).toHaveBeenCalledWith("/(tabs)/two");
+    });
+
+    it("sets start coords when getRawLocation returns coordinates", async () => {
+      connectedWithNextClass("H-920");
+      mockResolveLocationToBuilding.mockReturnValue(fakeBuilding);
+      mockGetRawLocation.mockResolvedValue({ latitude: 45.49, longitude: -73.58 });
+
+      render(<ScheduleScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId("next-class-directions-btn")).toBeTruthy();
+      });
+
+      await act(async () => {
+        fireEvent.press(screen.getByTestId("next-class-directions-btn"));
+      });
+
+      expect(mockSetStartCoords).toHaveBeenCalledWith({ latitude: 45.49, longitude: -73.58 });
+    });
+
+    it("does not navigate when resolveLocationToBuilding returns null on press", async () => {
+      connectedWithNextClass("H-920");
+      mockResolveLocationToBuilding
+        .mockReturnValueOnce(fakeBuilding)
+        .mockReturnValueOnce(null);
+
+      render(<ScheduleScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId("next-class-directions-btn")).toBeTruthy();
+      });
+
+      await act(async () => {
+        fireEvent.press(screen.getByTestId("next-class-directions-btn"));
+      });
+
+      expect(mockSetDestinationBuilding).not.toHaveBeenCalled();
+      expect(mockPush).not.toHaveBeenCalled();
+    });
+  });
+
+  it("auto-saves all calendar ids when no saved selection exists", async () => {
+    mockUseCalendarAuth.mockReturnValue({ ...baseAuth, isConnected: true });
+    mockGetFreshCalendarAccessToken.mockResolvedValue("token");
+    mockFetchCalendars.mockResolvedValue([
+      { id: "cal1", name: "Work" },
+      { id: "cal2", name: "Personal" },
+    ]);
+    mockGetSelectedCalendarIds.mockResolvedValue(null);
+    mockFetchNextClassEvent.mockResolvedValue(null);
+
+    render(<ScheduleScreen />);
+
+    await waitFor(() => {
+      expect(mockSaveSelectedCalendarIds).toHaveBeenCalledWith(["cal1", "cal2"]);
+    });
+  });
+
+  it("does not press connect button when loading", () => {
+    const mockConnect = jest.fn();
+    mockUseCalendarAuth.mockReturnValue({
+      ...baseAuth,
+      isLoading: true,
+      connectCalendar: mockConnect,
+    });
+
+    render(<ScheduleScreen />);
+    expect(mockConnect).not.toHaveBeenCalled();
   });
 });

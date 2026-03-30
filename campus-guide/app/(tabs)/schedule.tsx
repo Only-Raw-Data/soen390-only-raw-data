@@ -15,10 +15,8 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { usePostHog } from "posthog-react-native";
 import Header from "@app/components/Header";
 import { useCalendarAuth } from "@context/CalendarAuthContext";
-import { useScreenTimer } from "@hooks/useScreenTimer";
 import { formatHourLabel } from "@utils/timeFormat";
 import { buildHourSlots } from "@utils/timeSlots";
 import { useRouter } from "expo-router";
@@ -216,7 +214,9 @@ async function fetchGoogleCalendarEvents(
       const items = Array.isArray(data.items) ? data.items : [];
 
       return items
-        .filter((item: any) => typeof item.id === "string" && item.start && item.end)
+        .filter(
+          (item: any) => typeof item.id === "string" && item.start && item.end,
+        )
         .map((item: any) => {
           const isAllDay = Boolean(item.start?.date && item.end?.date);
 
@@ -258,7 +258,9 @@ function NextClassCard({
   const withinThreshold =
     thresholdMinutes === NO_LIMIT_THRESHOLD
       ? minutesUntil !== null && minutesUntil > -5
-      : minutesUntil !== null && minutesUntil <= thresholdMinutes && minutesUntil > -5;
+      : minutesUntil !== null &&
+        minutesUntil <= thresholdMinutes &&
+        minutesUntil > -5;
   const showDirectionsButton = matchedBuilding !== null && withinThreshold;
 
   return (
@@ -267,7 +269,11 @@ function NextClassCard({
         <Ionicons name="school-outline" size={14} color="#912338" />
         <Text style={styles.nextClassLabel}>Next Class</Text>
         {isLoading ? (
-          <ActivityIndicator size="small" color="#912338" style={styles.nextClassSpinner} />
+          <ActivityIndicator
+            size="small"
+            color="#912338"
+            style={styles.nextClassSpinner}
+          />
         ) : null}
       </View>
       {nextClass ? (
@@ -299,10 +305,13 @@ function NextClassCard({
               </Text>
             </View>
           ) : (
-            <Text style={styles.nextClassNoLocation}>No location specified</Text>
+            <Text style={styles.nextClassNoLocation}>
+              No location specified
+            </Text>
           )}
           {showDirectionsButton && onGetDirections ? (
             <TouchableOpacity
+              testID="next-class-directions-btn"
               style={styles.nextClassDirectionsButton}
               activeOpacity={0.8}
               onPress={onGetDirections}
@@ -403,15 +412,8 @@ function EventDetailModal({
 }
 
 export default function ScheduleScreen() {
-  useScreenTimer("Schedule");
-  const posthog = usePostHog();
-  const {
-    connectCalendar,
-    disconnectCalendar,
-    isLoading,
-    isConnected,
-    error,
-  } = useCalendarAuth();
+  const { connectCalendar, disconnectCalendar, isLoading, isConnected, error } =
+    useCalendarAuth();
 
   const router = useRouter();
   const {
@@ -439,7 +441,9 @@ export default function ScheduleScreen() {
   const [nextClass, setNextClass] = useState<NextClassEvent | null>(null);
   const [nextClassLoading, setNextClassLoading] = useState(false);
 
-  const [thresholdMinutes, setThresholdMinutes] = useState(DEFAULT_THRESHOLD_MINUTES);
+  const [thresholdMinutes, setThresholdMinutes] = useState(
+    DEFAULT_THRESHOLD_MINUTES,
+  );
 
   useEffect(() => {
     getStoredThresholdMinutes().then(setThresholdMinutes);
@@ -459,10 +463,15 @@ export default function ScheduleScreen() {
       return next;
     });
   }, []);
-  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
 
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(
+    null,
+  );
   const weekDays = useMemo(() => getWeekDays(currentDate), [currentDate]);
-  const weekRangeLabel = useMemo(() => formatWeekRangeLabel(weekDays), [weekDays]);
+  const weekRangeLabel = useMemo(
+    () => formatWeekRangeLabel(weekDays),
+    [weekDays],
+  );
 
   const buttonLabel = useMemo(() => {
     if (isLoading) return "Loading...";
@@ -551,7 +560,9 @@ export default function ScheduleScreen() {
       try {
         const token = await getFreshCalendarAccessToken();
         if (!token) return;
-        const event = await fetchNextClassEvent(token, [...selectedCalendarIds]);
+        const event = await fetchNextClassEvent(token, [
+          ...selectedCalendarIds,
+        ]);
         setNextClass(event);
       } catch {
         setNextClass(null);
@@ -584,22 +595,18 @@ export default function ScheduleScreen() {
     if (isLoading) return;
 
     if (isConnected) {
-      posthog.capture('calendar_disconnected');
       await disconnectCalendar();
       return;
     }
 
-    posthog.capture('calendar_connected');
     await connectCalendar();
   };
 
   const goToPreviousWeek = () => {
-    posthog.capture('schedule_week_navigated', { direction: 'previous' });
     setCurrentDate((prev) => addDays(prev, -7));
   };
 
   const goToNextWeek = () => {
-    posthog.capture('schedule_week_navigated', { direction: 'next' });
     setCurrentDate((prev) => addDays(prev, 7));
   };
 
@@ -738,7 +745,8 @@ export default function ScheduleScreen() {
             <View style={styles.gridColumns}>
               {weekDays.map((day) => {
                 const dayEvents = events.filter(
-                  (event) => !event.isAllDay && isSameDay(event.start, day.date),
+                  (event) =>
+                    !event.isAllDay && isSameDay(event.start, day.date),
                 );
 
                 return (
@@ -750,7 +758,10 @@ export default function ScheduleScreen() {
                     ]}
                   >
                     {HOURS.map((hour) => (
-                      <View key={`${day.label}-${hour}`} style={styles.gridCell} />
+                      <View
+                        key={`${day.label}-${hour}`}
+                        style={styles.gridCell}
+                      />
                     ))}
 
                     {dayEvents.map((event) => {
@@ -809,7 +820,9 @@ export default function ScheduleScreen() {
           ) : null}
 
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
-          {eventsError ? <Text style={styles.errorText}>{eventsError}</Text> : null}
+          {eventsError ? (
+            <Text style={styles.errorText}>{eventsError}</Text>
+          ) : null}
         </ScrollView>
       </View>
 
@@ -855,6 +868,7 @@ export default function ScheduleScreen() {
             <Ionicons name="notifications-outline" size={14} color="#6B7280" />
             <Text style={styles.thresholdLabel}>Remind me</Text>
             <TouchableOpacity
+              testID="threshold-minus"
               style={styles.thresholdStepButton}
               activeOpacity={0.7}
               onPress={() => handleThresholdChange(-5)}
@@ -867,6 +881,7 @@ export default function ScheduleScreen() {
                 : `${thresholdMinutes} min`}
             </Text>
             <TouchableOpacity
+              testID="threshold-plus"
               style={styles.thresholdStepButton}
               activeOpacity={0.7}
               onPress={() => handleThresholdChange(5)}
@@ -875,7 +890,11 @@ export default function ScheduleScreen() {
               <Ionicons
                 name="add"
                 size={14}
-                color={thresholdMinutes >= MAX_THRESHOLD_MINUTES ? "#D1D5DB" : "#912338"}
+                color={
+                  thresholdMinutes >= MAX_THRESHOLD_MINUTES
+                    ? "#D1D5DB"
+                    : "#912338"
+                }
               />
             </TouchableOpacity>
             <Text style={styles.thresholdLabel}>

@@ -6,7 +6,7 @@ export default function Header() {
   const router = useRouter();
 
   const openModerator = () => {
-    router.push("/moderator");
+    router.push("/moderator" as any);
   };
 
   return (
