@@ -2,6 +2,7 @@ import React from "react";
 import Header from "@app/components/Header";
 import IndoorMapView from "@app/components/IndoorMapView";
 import { View, Text, ScrollView } from "react-native";
+import { useScreenTimer } from "@hooks/useScreenTimer";
 
 class IndoorErrorBoundary extends React.Component<
   { children: React.ReactNode },
@@ -42,6 +43,8 @@ class IndoorErrorBoundary extends React.Component<
 }
 
 export default function IndoorScreen() {
+  useScreenTimer("Indoor Navigation");
+
   return (
     <View style={{ flex: 1 }}>
       <Header />

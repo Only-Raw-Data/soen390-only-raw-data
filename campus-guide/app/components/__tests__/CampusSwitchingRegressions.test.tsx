@@ -1,6 +1,17 @@
 import * as React from "react";
 import { render, fireEvent, act, waitFor } from "@testing-library/react-native";
 import MapViewApp from "@/app/components/MapView";
+
+jest.mock("@context/ParticipantSessionContext", () => ({
+  ParticipantSessionProvider: ({ children }: { children: React.ReactNode }) =>
+    children,
+  useParticipantSession: jest.fn(() => ({
+    participantId: "jest-test",
+    taskSet: "",
+    isHydrated: true,
+    startSession: jest.fn(() => Promise.resolve()),
+  })),
+}));
 import { useDirections } from "@context/DirectionsContext";
 import useBuildingPolygons from "@hooks/useBuildingPolygons";
 import { useIsFocused } from "@react-navigation/native";

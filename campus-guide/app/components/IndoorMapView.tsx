@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import MapView, { Marker, Polygon, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
+import { usePostHog } from "posthog-react-native";
 import { NodeType, GraphNode } from "@app/services/indoorGraphService";
 import { CAMPUS_MAP_STYLE } from "@/constants/mapStyle";
 import { MAP_CONSTANTS } from "@/constants/map";
@@ -533,6 +534,8 @@ export default function IndoorMapView() {
     isCrossBuilding,
   } = useIndoorMap();
 
+  const posthog = usePostHog();
+
   // Story mode state
   const [storySteps, setStorySteps] = useState<NavigationStep[] | null>(null);
   const [storyIndex, setStoryIndex] = useState(0);
@@ -685,6 +688,11 @@ export default function IndoorMapView() {
   };
 
   const handleBuildingSelect = (building: typeof INDOOR_BUILDINGS[0]) => {
+    posthog.capture('indoor_building_selected', {
+      building_code: building.code,
+      building_name: building.name,
+      campus: building.campus,
+    });
     clearHighlight();
     setSelectedPOI(null);
     setSelectedBuilding(building);
@@ -692,9 +700,12 @@ export default function IndoorMapView() {
   };
 
   const handleFloorSelect = (floor: number) => {
+    posthog.capture('indoor_floor_changed', {
+      building_code: selectedBuilding?.code ?? '',
+      floor,
+    });
     clearHighlight();
     setSelectedPOI(null);
-    // Debounce Polyline during floor switch to prevent Android native crash
     setFloorTransitioning(true);
     if (floorTimer.current) clearTimeout(floorTimer.current);
     setSelectedFloor(floor);

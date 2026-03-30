@@ -5,12 +5,14 @@ import { Ionicons } from "@expo/vector-icons";
 type Props = {
   readonly value: string;
   readonly onChangeText: (text: string) => void;
+  readonly onSubmitEditing?: () => void;
   readonly placeholder?: string;
 };
 
 export default function BuildingSearchHeader({
   value,
   onChangeText,
+  onSubmitEditing,
   placeholder = "Search buildings...",
 }: Props) {
   return (
@@ -26,6 +28,7 @@ export default function BuildingSearchHeader({
           placeholder={placeholder}
           value={value}
           onChangeText={onChangeText}
+          onSubmitEditing={onSubmitEditing}
           style={styles.searchInput}
           placeholderTextColor="#9CA3AF"
         />

@@ -2,6 +2,16 @@ import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 import DirectionsHeader from '../DirectionsHeader';
+
+jest.mock('@context/ParticipantSessionContext', () => ({
+    ParticipantSessionProvider: ({ children }: { children: React.ReactNode }) => children,
+    useParticipantSession: jest.fn(() => ({
+        participantId: 'jest-test',
+        taskSet: '',
+        isHydrated: true,
+        startSession: jest.fn(() => Promise.resolve()),
+    })),
+}));
 import { useDirections } from '../../context/DirectionsContext';
 import useUserLocation from '../../hooks/useUserLocation';
 import { LOYOLA_BUILDINGS, SGW_BUILDINGS } from '@/constants/buildings';
