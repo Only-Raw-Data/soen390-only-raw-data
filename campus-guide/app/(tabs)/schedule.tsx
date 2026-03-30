@@ -596,9 +596,14 @@ export default function ScheduleScreen() {
         <View style={styles.allDaySection}>
           <Text style={styles.allDayTitle}>All-day events</Text>
           {allDayEvents.map((event) => (
-            <View key={event.id} style={styles.allDayEvent}>
+            <TouchableOpacity
+              key={event.id}
+              style={styles.allDayEvent}
+              activeOpacity={0.8}
+              onPress={() => setSelectedEvent(event)}
+            >
               <Text style={styles.allDayEventText}>{event.title}</Text>
-            </View>
+            </TouchableOpacity>
           ))}
         </View>
       ) : null}
