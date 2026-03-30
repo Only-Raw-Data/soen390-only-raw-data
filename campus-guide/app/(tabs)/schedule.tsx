@@ -440,7 +440,9 @@ export default function ScheduleScreen() {
 
       const saved = await getSelectedCalendarIds();
       if (saved === null) {
-        setSelectedCalendarIds(new Set(fetched.map((c) => c.id)));
+        const allIds = fetched.map((c) => c.id);
+        setSelectedCalendarIds(new Set(allIds));
+        await saveSelectedCalendarIds(allIds);
       } else {
         setSelectedCalendarIds(new Set(saved));
       }

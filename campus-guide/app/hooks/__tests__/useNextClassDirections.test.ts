@@ -18,11 +18,15 @@ jest.mock("@context/CalendarAuthContext", () => ({
 const mockGetFreshToken = jest.fn().mockResolvedValue("test-token");
 const mockGetSelectedIds = jest.fn().mockResolvedValue(["cal1"]);
 const mockFetchNextClass = jest.fn();
+const mockFetchCalendars = jest.fn().mockResolvedValue([]);
+const mockSaveSelectedIds = jest.fn().mockResolvedValue(undefined);
 
 jest.mock("@services/calendarAuthService", () => ({
   getFreshCalendarAccessToken: (...args: any[]) => mockGetFreshToken(...args),
   getSelectedCalendarIds: (...args: any[]) => mockGetSelectedIds(...args),
   fetchNextClassEvent: (...args: any[]) => mockFetchNextClass(...args),
+  fetchCalendars: (...args: any[]) => mockFetchCalendars(...args),
+  saveSelectedCalendarIds: (...args: any[]) => mockSaveSelectedIds(...args),
 }));
 
 describe("useNextClassDirections", () => {
@@ -32,6 +36,8 @@ describe("useNextClassDirections", () => {
     mockGetFreshToken.mockReset().mockResolvedValue("test-token");
     mockGetSelectedIds.mockReset().mockResolvedValue(["cal1"]);
     mockFetchNextClass.mockReset().mockResolvedValue(null);
+    mockFetchCalendars.mockReset().mockResolvedValue([]);
+    mockSaveSelectedIds.mockReset().mockResolvedValue(undefined);
   });
 
   it("starts with no_class status when no event found", async () => {
@@ -134,8 +140,9 @@ describe("useNextClassDirections", () => {
     expect(result.current.status).toBe("no_class");
   });
 
-  it("handles empty calendar IDs gracefully", async () => {
+  it("handles empty calendar IDs by falling back to fetchCalendars", async () => {
     mockGetSelectedIds.mockResolvedValue([]);
+    mockFetchCalendars.mockResolvedValue([]);
 
     const { result } = renderHook(() => useNextClassDirections());
 
@@ -143,19 +150,31 @@ describe("useNextClassDirections", () => {
       expect(result.current.isLoading).toBe(false);
     });
 
+    expect(mockFetchCalendars).toHaveBeenCalled();
     expect(result.current.nextClass).toBeNull();
   });
 
-  it("handles null calendar IDs gracefully", async () => {
+  it("handles null calendar IDs by falling back to fetchCalendars", async () => {
     mockGetSelectedIds.mockResolvedValue(null);
+    mockFetchCalendars.mockResolvedValue([{ id: "cal1", name: "My Cal" }]);
+    const event = {
+      id: "evt1",
+      title: "SOEN 390",
+      start: new Date(Date.now() + 10 * 60 * 1000),
+      end: new Date(Date.now() + 90 * 60 * 1000),
+      location: "H-920",
+    };
+    mockFetchNextClass.mockResolvedValue(event);
 
     const { result } = renderHook(() => useNextClassDirections());
 
     await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
+      expect(result.current.nextClass).not.toBeNull();
     });
 
-    expect(result.current.nextClass).toBeNull();
+    expect(mockFetchCalendars).toHaveBeenCalled();
+    expect(mockSaveSelectedIds).toHaveBeenCalledWith(["cal1"]);
+    expect(result.current.nextClass?.title).toBe("SOEN 390");
   });
 
   it("handles fetch error gracefully", async () => {

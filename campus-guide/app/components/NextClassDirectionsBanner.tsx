@@ -125,14 +125,9 @@ export default function NextClassDirectionsBanner() {
 
 const styles = StyleSheet.create({
   container: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 100,
     paddingHorizontal: 12,
-    paddingTop: 4,
-    paddingBottom: 6,
+    paddingTop: 6,
+    paddingBottom: 8,
     backgroundColor: "#912338",
     shadowColor: "#000",
     shadowOpacity: 0.15,

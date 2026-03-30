@@ -3,8 +3,10 @@ import { useCalendarAuth } from "@context/CalendarAuthContext";
 import {
   type NextClassEvent,
   fetchNextClassEvent,
+  fetchCalendars,
   getFreshCalendarAccessToken,
   getSelectedCalendarIds,
+  saveSelectedCalendarIds,
 } from "@services/calendarAuthService";
 import {
   type NextClassDirectionsState,
@@ -66,13 +68,18 @@ export default function useNextClassDirections(
         return;
       }
 
-      const savedIds = await getSelectedCalendarIds();
-      if (!savedIds || savedIds.length === 0) {
-        setNextClass(null);
-        return;
+      let calendarIds = await getSelectedCalendarIds();
+      if (!calendarIds || calendarIds.length === 0) {
+        const calendars = await fetchCalendars(token);
+        if (calendars.length === 0) {
+          setNextClass(null);
+          return;
+        }
+        calendarIds = calendars.map((c) => c.id);
+        await saveSelectedCalendarIds(calendarIds);
       }
 
-      const event = await fetchNextClassEvent(token, savedIds);
+      const event = await fetchNextClassEvent(token, calendarIds);
       setNextClass(event);
 
       if (event && event.id !== dismissedEventIdRef.current) {
