@@ -1,0 +1,45 @@
+appId: com.soen390.campusguide
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "SGW Campus"
+    timeout: 1800000
+
+- assertVisible: "SGW Campus"
+
+- tapOn:
+    point: "90%,93%"
+- waitForAnimationToEnd
+
+- tapOn: "Schedule"
+- waitForAnimationToEnd
+
+- tapOn: ".*Connect Google Calendar"
+- waitForAnimationToEnd
+
+- assertVisible: "Choose an account"
+
+- tapOn: ".*@gmail.com"
+- waitForAnimationToEnd
+
+- tapOn: "Continue"
+- waitForAnimationToEnd
+
+- assertVisible: "Sign in to App"
+
+- tapOn: "Continue"
+- waitForAnimationToEnd
+
+- assertVisible: "App wants access to your Google Account"
+
+- tapOn: ".*see.*"
+- waitForAnimationToEnd
+
+- tapOn: "Continue"
+- waitForAnimationToEnd
+
+- assertVisible: ".*Connected to Google Calendar"
+
+- assertVisible: ".*NEXT CLASS"
+
+- stopApp

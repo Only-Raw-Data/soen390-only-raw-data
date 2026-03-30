@@ -44,6 +44,8 @@ type CalendarEvent = {
   start: Date;
   end: Date;
   isAllDay: boolean;
+  location: string | null;
+  description: string | null;
 };
 
 const SCHEDULE_START_HOUR_24 = 0;
@@ -76,7 +78,7 @@ function getWeekDays(baseDate: Date): WeekDay[] {
   const diffToMonday = currentDay === 0 ? -6 : 1 - currentDay;
   monday.setDate(normalizedBase.getDate() + diffToMonday);
 
-  const labels = ["MON", "TUE", "WED", "THU", "FRI"];
+  const labels = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
 
   return labels.map((label, index) => {
     const date = addDays(monday, index);
@@ -211,6 +213,8 @@ async function fetchGoogleCalendarEvents(
             start: new Date(item.start?.dateTime || item.start?.date),
             end: new Date(item.end?.dateTime || item.end?.date),
             isAllDay,
+            location: typeof item.location === "string" ? item.location : null,
+            description: typeof item.description === "string" ? item.description : null,
           };
         });
     }),
@@ -274,6 +278,86 @@ function NextClassCard({
   );
 }
 
+function EventDetailModal({
+  event,
+  onClose,
+}: {
+  readonly event: CalendarEvent | null;
+  readonly onClose: () => void;
+}) {
+  if (!event) return null;
+
+  const dateLabel = event.start.toLocaleDateString([], {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+
+  const timeLabel = event.isAllDay
+    ? "All day"
+    : `${event.start.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} – ${event.end.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
+
+  return (
+    <Modal
+      visible={Boolean(event)}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalSheet}>
+          <View style={styles.eventDetailHeader}>
+            <View style={styles.eventDetailAccent} />
+            <Text style={styles.eventDetailTitle}>{event.title}</Text>
+            <TouchableOpacity
+              onPress={onClose}
+              style={styles.eventDetailCloseButton}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="close" size={22} color="#6B7280" />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.eventDetailRow}>
+            <Ionicons name="calendar-outline" size={16} color="#912338" />
+            <Text style={styles.eventDetailText}>{dateLabel}</Text>
+          </View>
+
+          <View style={styles.eventDetailRow}>
+            <Ionicons name="time-outline" size={16} color="#912338" />
+            <Text style={styles.eventDetailText}>{timeLabel}</Text>
+          </View>
+
+          {event.location ? (
+            <View style={styles.eventDetailRow}>
+              <Ionicons name="location-outline" size={16} color="#912338" />
+              <Text style={styles.eventDetailText}>{event.location}</Text>
+            </View>
+          ) : null}
+
+          {event.description ? (
+            <View style={styles.eventDetailDescriptionBox}>
+              <Text style={styles.eventDetailDescriptionLabel}>Notes</Text>
+              <Text style={styles.eventDetailDescription}>
+                {event.description}
+              </Text>
+            </View>
+          ) : null}
+
+          <TouchableOpacity
+            style={styles.modalSaveButton}
+            activeOpacity={0.85}
+            onPress={onClose}
+          >
+            <Text style={styles.modalSaveButtonText}>Close</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 export default function ScheduleScreen() {
   useScreenTimer("Schedule");
   const posthog = usePostHog();
@@ -300,6 +384,8 @@ export default function ScheduleScreen() {
 
   const [nextClass, setNextClass] = useState<NextClassEvent | null>(null);
   const [nextClassLoading, setNextClassLoading] = useState(false);
+
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
 
   const weekDays = useMemo(() => getWeekDays(currentDate), [currentDate]);
   const weekRangeLabel = useMemo(() => formatWeekRangeLabel(weekDays), [weekDays]);
@@ -510,9 +596,14 @@ export default function ScheduleScreen() {
         <View style={styles.allDaySection}>
           <Text style={styles.allDayTitle}>All-day events</Text>
           {allDayEvents.map((event) => (
-            <View key={event.id} style={styles.allDayEvent}>
+            <TouchableOpacity
+              key={event.id}
+              style={styles.allDayEvent}
+              activeOpacity={0.8}
+              onPress={() => setSelectedEvent(event)}
+            >
               <Text style={styles.allDayEventText}>{event.title}</Text>
-            </View>
+            </TouchableOpacity>
           ))}
         </View>
       ) : null}
@@ -568,7 +659,7 @@ export default function ScheduleScreen() {
                       );
 
                       return (
-                        <View
+                        <TouchableOpacity
                           key={event.id}
                           style={[
                             styles.eventBlock,
@@ -577,6 +668,8 @@ export default function ScheduleScreen() {
                               height,
                             },
                           ]}
+                          activeOpacity={0.8}
+                          onPress={() => setSelectedEvent(event)}
                         >
                           <Text style={styles.eventTitle} numberOfLines={2}>
                             {event.title}
@@ -592,7 +685,7 @@ export default function ScheduleScreen() {
                               minute: "2-digit",
                             })}
                           </Text>
-                        </View>
+                        </TouchableOpacity>
                       );
                     })}
                   </View>
@@ -647,6 +740,11 @@ export default function ScheduleScreen() {
           </TouchableOpacity>
         ) : null}
       </View>
+
+      <EventDetailModal
+        event={selectedEvent}
+        onClose={() => setSelectedEvent(null)}
+      />
 
       <Modal
         visible={showCalendarPicker}
@@ -1052,5 +1150,59 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontWeight: "700",
     fontSize: 16,
+  },
+  eventDetailHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 16,
+    gap: 10,
+  },
+  eventDetailAccent: {
+    width: 4,
+    borderRadius: 2,
+    backgroundColor: "#912338",
+    alignSelf: "stretch",
+    minHeight: 20,
+    flexShrink: 0,
+  },
+  eventDetailTitle: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#111827",
+    lineHeight: 24,
+  },
+  eventDetailCloseButton: {
+    padding: 2,
+  },
+  eventDetailRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 12,
+  },
+  eventDetailText: {
+    flex: 1,
+    fontSize: 14,
+    color: "#374151",
+  },
+  eventDetailDescriptionBox: {
+    backgroundColor: "#F9FAFB",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+  },
+  eventDetailDescriptionLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#9CA3AF",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  eventDetailDescription: {
+    fontSize: 14,
+    color: "#374151",
+    lineHeight: 20,
   },
 });
