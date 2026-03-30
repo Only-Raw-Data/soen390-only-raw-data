@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { usePostHog } from "posthog-react-native";
 import Header from "@app/components/Header";
 import useUserLocation from "@app/hooks/useUserLocation";
 import { getPoiInfo } from "@/constants/poi";
@@ -20,6 +21,7 @@ import { usePOIContext } from "@app/context/POIContext";
 import { CAMPUS_REGIONS, Campus } from "@constants/buildings";
 import { PointOfInterest } from "@app/types/poi";
 import InfoModal from "@app/components/InfoModal";
+import { useScreenTimer } from "@hooks/useScreenTimer";
 
 // ─── Radius options ──────────────────────────────────────────────────────────
 
@@ -135,7 +137,9 @@ function POIItem({ poi, onDirections, onInfo }: POIItemProps) {
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function POIScreen() {
+  useScreenTimer("Points of Interest");
   const router = useRouter();
+  const posthog = usePostHog();
   const { setDestinationBuilding, setStartBuilding, startBuilding } =
     useDirections();
 
@@ -199,9 +203,20 @@ export default function POIScreen() {
     return `Found ${filteredPois.length} place${suffix} nearby`;
   }, [filteredPois.length]);
 
+  const handlePoiSearchSubmit = useCallback(() => {
+    const q = searchQuery.trim();
+    if (!q) return;
+    posthog.capture("poi_searched", { query: q });
+  }, [searchQuery, posthog]);
+
   // Handlers
   const handleDirections = useCallback(
     (poi: PointOfInterest) => {
+      posthog.capture('poi_directions_requested', {
+        poi_name: poi.name,
+        poi_type: poi.type,
+        distance_meters: poi.distance ?? null,
+      });
       const building = poiToBuildingAdapter(poi, selectedCampus);
       if (startBuilding) {
         setDestinationBuilding(building);
@@ -216,12 +231,17 @@ export default function POIScreen() {
       setDestinationBuilding,
       startBuilding,
       selectedCampus,
+      posthog,
     ],
   );
 
   const handleInfo = useCallback((poi: PointOfInterest) => {
+    posthog.capture('poi_info_viewed', {
+      poi_name: poi.name,
+      poi_type: poi.type,
+    });
     setInfoPoi(poi);
-  }, []);
+  }, [posthog]);
 
   const handleCloseInfo = useCallback(() => {
     setInfoPoi(null);
@@ -252,7 +272,10 @@ export default function POIScreen() {
                 styles.campusBtn,
                 selectedCampus === campus && styles.campusBtnActive,
               ]}
-              onPress={() => setSelectedCampus(campus)}
+              onPress={() => {
+                posthog.capture('poi_campus_switched', { campus });
+                setSelectedCampus(campus);
+              }}
             >
               <Text
                 style={[
@@ -280,6 +303,7 @@ export default function POIScreen() {
             placeholderTextColor="#9CA3AF"
             value={searchQuery}
             onChangeText={setSearchQuery}
+            onSubmitEditing={handlePoiSearchSubmit}
             testID="search-input"
           />
           {searchQuery.length > 0 && (
@@ -307,7 +331,10 @@ export default function POIScreen() {
                   styles.radiusPill,
                   radiusKm === r && styles.radiusPillActive,
                 ]}
-                onPress={() => setSearchRadius(r * 1000)}
+                onPress={() => {
+                  posthog.capture('poi_radius_changed', { radius_km: r });
+                  setSearchRadius(r * 1000);
+                }}
               >
                 <Text
                   style={[
@@ -338,7 +365,10 @@ export default function POIScreen() {
                 styles.chip,
                 activeCategory === cat.id && styles.chipActive,
               ]}
-              onPress={() => setActiveCategory(cat.id)}
+              onPress={() => {
+                posthog.capture('poi_category_filtered', { category: cat.id, label: cat.label });
+                setActiveCategory(cat.id);
+              }}
             >
               <Ionicons
                 name={cat.icon as any}

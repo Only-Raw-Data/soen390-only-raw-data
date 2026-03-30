@@ -37,7 +37,7 @@
         "./types/*"
       ],
       "@utils/*": [
-        "./utils/*"
+        "./app/utils/*"
       ]
     }
   },

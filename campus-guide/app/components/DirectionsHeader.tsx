@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { usePostHog } from 'posthog-react-native';
 import { useDirections } from '../context/DirectionsContext';
 import { TransportationMode } from '@app/types/transportation';
 import { SGW_BUILDINGS, LOYOLA_BUILDINGS, Building } from '@/constants/buildings';
 import useUserLocation from '@hooks/useUserLocation';
 import ShuttleSchedule from './ShuttleSchedule';
 import { getNextShuttleTimeLabel } from '@app/utils/shuttleHours';
+import { useDirectionsUsabilityTasks } from '@hooks/useDirectionsUsabilityTasks';
+import { useActionRepeatSignal } from '@hooks/useActionRepeatSignal';
 
 export default function DirectionsHeader() {
   const {
@@ -24,6 +27,9 @@ export default function DirectionsHeader() {
     isLoadingRoute,
   } = useDirections();
 
+  const posthog = usePostHog();
+  const { onGetDirectionsCta } = useDirectionsUsabilityTasks();
+  const trackActionRepeat = useActionRepeatSignal();
   const { getRawLocation, isLoading: locationLoading, resetLoadingState } = useUserLocation();
 
   const [isSearchingStart, setIsSearchingStart] = useState(false);
@@ -65,6 +71,13 @@ export default function DirectionsHeader() {
   );
 
   const handleSelectBuilding = (building: Building, type: 'start' | 'dest') => {
+    const eventName = type === 'start' ? 'directions_origin_selected' : 'directions_destination_selected';
+    posthog.capture(eventName, {
+      building_code: building.code,
+      building_name: building.name,
+      campus: building.campus,
+    });
+
     if (type === 'start') {
       setStartBuilding(building);
       setStartCoords(null);
@@ -88,6 +101,8 @@ export default function DirectionsHeader() {
   const shuttleDefaultDest = LOYOLA_BUILDINGS.find(b => b.id === 'vl');
 
   const handleModePress = (mode: TransportationMode) => {
+    trackActionRepeat('directions_transport_mode_toggle');
+    posthog.capture('directions_transport_mode_changed', { mode });
     setTransportationMode(mode);
     if (mode === 'shuttle' && shuttleDefaultStart && shuttleDefaultDest) {
       setStartBuilding(shuttleDefaultStart);
@@ -228,7 +243,15 @@ export default function DirectionsHeader() {
               ((!startBuilding && !startCoords) || !destinationBuilding || isLoadingRoute) && styles.getDirectionsButtonDisabled,
             ]}
             disabled={(!startBuilding && !startCoords) || !destinationBuilding || isLoadingRoute}
-            onPress={fetchRoute}
+            onPress={() => {
+              posthog.capture('directions_started', {
+                origin: startBuilding?.name ?? 'Current Location',
+                destination: destinationBuilding?.name ?? '',
+                mode: transportationMode,
+              });
+              onGetDirectionsCta();
+              fetchRoute();
+            }}
           >
             {isLoadingRoute ? (
               <ActivityIndicator size="small" color="#FFFFFF" />

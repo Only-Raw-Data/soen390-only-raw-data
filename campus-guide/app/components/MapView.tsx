@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
 import BuildingSearchHeader from "./BuildingSearchComponent";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { usePostHog } from "posthog-react-native";
 import {
   Campus,
   Building,
@@ -36,6 +37,71 @@ import { isWithinShuttleHours } from "../utils/shuttleHours";
 import { SegmentMode } from "@app/types/transportation";
 import { PointOfInterest } from "../types/poi";
 import { poiToBuildingAdapter } from "../utils/poiUtils";
+import { useMapUsabilityTasks } from "@hooks/useMapUsabilityTasks";
+import { useActionRepeatSignal } from "@hooks/useActionRepeatSignal";
+
+function BuildingMarkerItem({
+  building,
+  isCurrentLocation,
+  isStart,
+  isDest,
+  onPress,
+}: {
+  readonly building: Building;
+  readonly isCurrentLocation: boolean;
+  readonly isStart: boolean;
+  readonly isDest: boolean;
+  readonly onPress: () => void;
+}) {
+  const [trackChanges, setTrackChanges] = React.useState(true);
+
+  React.useEffect(() => {
+    // 500ms delay gives Android enough time to render custom view before capturing the map snapshot
+    const timer = setTimeout(() => setTrackChanges(false), 500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  return (
+    <Marker
+      key={building.id}
+      testID={`building-marker-${building.id}`}
+      coordinate={{ latitude: building.lat, longitude: building.lng }}
+      title={`${building.code} - ${building.address}`}
+      onPress={onPress}
+      anchor={{ x: 0.5, y: 0.5 }}
+      tracksViewChanges={trackChanges}
+    >
+      <View
+        style={[
+          styles.labelMarker,
+          isCurrentLocation && styles.labelMarkerCurrent,
+          isStart && styles.labelMarkerStart,
+          isDest && styles.labelMarkerDest,
+        ]}
+      >
+        <Text
+          style={[
+            styles.labelMarkerText,
+            isCurrentLocation && styles.labelMarkerTextCurrent,
+            (isStart || isDest) && styles.labelMarkerTextAlt,
+          ]}
+          numberOfLines={1}
+        >
+          {building.code}
+        </Text>
+      </View>
+
+      {isCurrentLocation && (
+        <Callout tooltip>
+          <View style={styles.youAreHereCallout}>
+            <View style={styles.youAreHereDot} />
+            <Text style={styles.youAreHereText}>You are here</Text>
+          </View>
+        </Callout>
+      )}
+    </Marker>
+  );
+}
 
 function POIMarkerItem({
   poi,
@@ -105,11 +171,14 @@ const SEGMENT_COLORS: Record<SegmentMode, string> = {
 interface MapViewAppProps {
   readonly googleMapsApiKey?: string;
   readonly showSearch?: boolean;
+  /** Usability tasks 1–2: only on the main Map tab */
+  readonly enableUsabilityTaskTracking?: boolean;
 }
 
 export default function MapViewApp({
   showSearch,
   googleMapsApiKey,
+  enableUsabilityTaskTracking = false,
 }: MapViewAppProps) {
   const {
     startBuilding,
@@ -122,6 +191,9 @@ export default function MapViewApp({
     route,
     transportationMode,
   } = useDirections();
+
+  const posthog = usePostHog();
+  const trackActionRepeat = useActionRepeatSignal();
 
   const isShuttleCrossCampus =
     transportationMode === "shuttle" &&
@@ -172,12 +244,21 @@ export default function MapViewApp({
 
   const allBuildingsList = [...SGW_BUILDINGS, ...LOYOLA_BUILDINGS];
 
+  useMapUsabilityTasks(enableUsabilityTaskTracking, selectedCampus, infoBuilding);
+
+  const onBuildingSearchSubmit = useCallback(() => {
+    const q = searchQuery.trim();
+    if (!q) return;
+    posthog.capture("map_building_searched", { query: q });
+  }, [searchQuery, posthog]);
+
   const handleCampusChange = (campus: Campus) => {
+    trackActionRepeat("map_campus_toggle");
+    posthog.capture('map_campus_switched', { campus });
     setSelectedCampus(campus);
     setSelectedBuilding(null);
     setSelectedPOI(null);
 
-    // Animate map to the new campus
     if (mapRef.current) {
       mapRef.current.animateToRegion(
         CAMPUS_REGIONS[campus],
@@ -187,7 +268,11 @@ export default function MapViewApp({
   };
 
   const handleBuildingPress = (building: Building) => {
-    // Switch campus context (markers/polygons) if the building is on the other campus
+    posthog.capture('map_building_tapped', {
+      building_code: building.code,
+      building_name: building.name,
+      campus: building.campus,
+    });
     if (
       building.id !== selectedBuilding?.id &&
       building.campus !== selectedCampus
@@ -211,14 +296,6 @@ export default function MapViewApp({
     setSelectedBuilding(building);
     setSelectedPOI(null);
     setInfoBuilding(null);
-  };
-
-  const getMarkerTitle = (building: Building) => {
-    if (startBuilding?.id === building.id)
-      return "START - " + building.code + " - " + building.address;
-    if (destinationBuilding?.id === building.id)
-      return "DESTINATION - " + building.code + " - " + building.address;
-    return building.code + " - " + building.address;
   };
 
   const getStrokeColorForBuilding = (isStart: boolean, isDest: boolean) => {
@@ -320,6 +397,7 @@ export default function MapViewApp({
         <BuildingSearchHeader
           value={searchQuery}
           onChangeText={setSearchQuery}
+          onSubmitEditing={onBuildingSearchSubmit}
         />
       )}
       <View style={styles.campusToggleContainer}>
@@ -427,56 +505,16 @@ export default function MapViewApp({
                 b.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 b.code.toLowerCase().includes(searchQuery.toLowerCase()),
             )
-            .map((building) => {
-              const isCurrentLocation = highlightedBuildingId === building.id;
-              return (
-                <Marker
-                  key={building.id}
-                  testID={`building-marker-${building.id}`}
-                  coordinate={{
-                    latitude: building.lat,
-                    longitude: building.lng,
-                  }}
-                  title={getMarkerTitle(building)}
-                  onPress={() => handleBuildingPress(building)}
-                  anchor={{ x: 0.5, y: 0.5 }}
-                  tracksViewChanges={false}
-                >
-                  <View
-                    style={[
-                      styles.labelMarker,
-                      isCurrentLocation && styles.labelMarkerCurrent,
-                      startBuilding?.id === building.id &&
-                        styles.labelMarkerStart,
-                      destinationBuilding?.id === building.id &&
-                        styles.labelMarkerDest,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.labelMarkerText,
-                        isCurrentLocation && styles.labelMarkerTextCurrent,
-                        (startBuilding?.id === building.id ||
-                          destinationBuilding?.id === building.id) &&
-                          styles.labelMarkerTextAlt,
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {building.code}
-                    </Text>
-                  </View>
-
-                  {isCurrentLocation && (
-                    <Callout tooltip>
-                      <View style={styles.youAreHereCallout}>
-                        <View style={styles.youAreHereDot} />
-                        <Text style={styles.youAreHereText}>You are here</Text>
-                      </View>
-                    </Callout>
-                  )}
-                </Marker>
-              );
-            })}
+            .map((building) => (
+              <BuildingMarkerItem
+                key={building.id}
+                building={building}
+                isCurrentLocation={highlightedBuildingId === building.id}
+                isStart={startBuilding?.id === building.id}
+                isDest={destinationBuilding?.id === building.id}
+                onPress={() => handleBuildingPress(building)}
+              />
+            ))}
 
           {/* POI Markers */}
           {showPOIs &&

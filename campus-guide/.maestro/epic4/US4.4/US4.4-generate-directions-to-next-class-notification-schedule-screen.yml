@@ -11,26 +11,13 @@ appId: com.soen390.campusguide
     point: "90%,93%"
 - waitForAnimationToEnd
 
-- tapOn:
-    id: "poi-toggle-button"
+- tapOn: "Schedule"
 - waitForAnimationToEnd
 
-- tapOn:
-    point: "30%,47%"
+- tapOn: ".*Get Directions.*"
 - waitForAnimationToEnd
 
-- assertVisible: "CAFE"
-
-- tapOn:
-    point: "90%,93%"
-- waitForAnimationToEnd
-
-- assertVisible: "Reggie's"
-
-- swipe:
-    direction: UP
-    duration: 5000
-
-- assertVisible: "Nakamichi"
+- assertVisible:
+    text: ".*mins.*km.*" 
 
 - stopApp

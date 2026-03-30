@@ -55,7 +55,8 @@ export default {
       locationWhenInUsePermission:
         "Allow Campus Guide to use your location to find the nearest building."
     }
-  ]
+  ],
+  "expo-localization"
 ],
 
     experiments: {

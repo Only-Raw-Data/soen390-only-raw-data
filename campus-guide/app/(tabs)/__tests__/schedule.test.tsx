@@ -350,56 +350,70 @@ describe("ScheduleScreen", () => {
     expect(screen.getByText("Auth failed")).toBeTruthy();
   });
 
-  it("fetches and renders timed calendar events", async () => {
-    mockUseCalendarAuth.mockReturnValue({ ...baseAuth, isConnected: true });
-    mockGetFreshCalendarAccessToken.mockResolvedValue("token");
-    mockFetchCalendars.mockResolvedValue([{ id: "cal1", name: "My Calendar" }]);
-    mockGetSelectedCalendarIds.mockResolvedValue(["cal1"]);
-    mockFetchNextClassEvent.mockResolvedValue(null);
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        items: [
-          {
-            id: "evt1",
-            summary: "SOEN 390 Lecture",
-            start: { dateTime: EVENT_START.toISOString() },
-            end: { dateTime: EVENT_END.toISOString() },
-          },
-        ],
-      }),
+  describe("timed calendar events (fixed weekday clock)", () => {
+    const WED_2026_03_25_START = "2026-03-25T10:00:00.000Z";
+    const WED_2026_03_25_END = "2026-03-25T11:00:00.000Z";
+
+    beforeEach(() => {
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date("2026-03-25T14:30:00.000Z"));
     });
 
-    render(<ScheduleScreen />);
-
-    await waitFor(() => {
-      expect(screen.getByText("SOEN 390 Lecture")).toBeTruthy();
-    });
-  });
-
-  it("renders timed event without summary as Untitled Event", async () => {
-    mockUseCalendarAuth.mockReturnValue({ ...baseAuth, isConnected: true });
-    mockGetFreshCalendarAccessToken.mockResolvedValue("token");
-    mockFetchCalendars.mockResolvedValue([{ id: "cal1", name: "My Calendar" }]);
-    mockGetSelectedCalendarIds.mockResolvedValue(["cal1"]);
-    mockFetchNextClassEvent.mockResolvedValue(null);
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        items: [
-          {
-            id: "evt2",
-            start: { dateTime: EVENT_START.toISOString() },
-            end: { dateTime: EVENT_END.toISOString() },
-          },
-        ],
-      }),
+    afterEach(() => {
+      jest.useRealTimers();
     });
 
-    render(<ScheduleScreen />);
+    it("fetches and renders timed calendar events", async () => {
+      mockUseCalendarAuth.mockReturnValue({ ...baseAuth, isConnected: true });
+      mockGetFreshCalendarAccessToken.mockResolvedValue("token");
+      mockFetchCalendars.mockResolvedValue([{ id: "cal1", name: "My Calendar" }]);
+      mockGetSelectedCalendarIds.mockResolvedValue(["cal1"]);
+      mockFetchNextClassEvent.mockResolvedValue(null);
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          items: [
+            {
+              id: "evt1",
+              summary: "SOEN 390 Lecture",
+              start: { dateTime: WED_2026_03_25_START },
+              end: { dateTime: WED_2026_03_25_END },
+            },
+          ],
+        }),
+      });
 
-    await waitFor(() => {
-      expect(screen.getByText("Untitled Event")).toBeTruthy();
+      render(<ScheduleScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText("SOEN 390 Lecture")).toBeTruthy();
+      });
+    });
+
+    it("renders timed event without summary as Untitled Event", async () => {
+      mockUseCalendarAuth.mockReturnValue({ ...baseAuth, isConnected: true });
+      mockGetFreshCalendarAccessToken.mockResolvedValue("token");
+      mockFetchCalendars.mockResolvedValue([{ id: "cal1", name: "My Calendar" }]);
+      mockGetSelectedCalendarIds.mockResolvedValue(["cal1"]);
+      mockFetchNextClassEvent.mockResolvedValue(null);
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          items: [
+            {
+              id: "evt2",
+              start: { dateTime: WED_2026_03_25_START },
+              end: { dateTime: WED_2026_03_25_END },
+            },
+          ],
+        }),
+      });
+
+      render(<ScheduleScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText("Untitled Event")).toBeTruthy();
+      });
     });
   });
 
@@ -532,5 +546,209 @@ describe("ScheduleScreen", () => {
       expect(mockFetchNextClassEvent).toHaveBeenCalled();
     });
     expect(screen.queryByText("Next Class")).toBeNull();
+  });
+
+  it("shows SAT and SUN columns in the week header", () => {
+    render(<ScheduleScreen />);
+    expect(screen.getByText("SAT")).toBeTruthy();
+    expect(screen.getByText("SUN")).toBeTruthy();
+  });
+
+  describe("EventDetailModal", () => {
+    const WED_START = "2026-03-25T10:00:00.000Z";
+    const WED_END = "2026-03-25T11:00:00.000Z";
+
+    beforeEach(() => {
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date("2026-03-25T14:30:00.000Z"));
+      mockUseCalendarAuth.mockReturnValue({ ...baseAuth, isConnected: true });
+      mockGetFreshCalendarAccessToken.mockResolvedValue("token");
+      mockFetchCalendars.mockResolvedValue([{ id: "cal1", name: "My Calendar" }]);
+      mockGetSelectedCalendarIds.mockResolvedValue(["cal1"]);
+      mockFetchNextClassEvent.mockResolvedValue(null);
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it("opens event detail modal when a timed event is pressed", async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          items: [
+            {
+              id: "evt1",
+              summary: "SOEN 390 Lecture",
+              start: { dateTime: WED_START },
+              end: { dateTime: WED_END },
+              location: "H-920",
+              description: "Weekly lecture notes",
+            },
+          ],
+        }),
+      });
+
+      render(<ScheduleScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText("SOEN 390 Lecture")).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByText("SOEN 390 Lecture"));
+
+      expect(screen.getByText("H-920")).toBeTruthy();
+      expect(screen.getByText("Notes")).toBeTruthy();
+      expect(screen.getByText("Weekly lecture notes")).toBeTruthy();
+    });
+
+    it("closes event detail modal when Close button is pressed", async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          items: [
+            {
+              id: "evt1",
+              summary: "SOEN 390 Lecture",
+              start: { dateTime: WED_START },
+              end: { dateTime: WED_END },
+            },
+          ],
+        }),
+      });
+
+      render(<ScheduleScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText("SOEN 390 Lecture")).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByText("SOEN 390 Lecture"));
+
+      expect(screen.getByText("Close")).toBeTruthy();
+
+      fireEvent.press(screen.getByText("Close"));
+
+      await waitFor(() => {
+        expect(screen.queryByText("Close")).toBeNull();
+      });
+    });
+
+    it("shows event detail modal without location when location is absent", async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          items: [
+            {
+              id: "evt2",
+              summary: "COMP 352",
+              start: { dateTime: WED_START },
+              end: { dateTime: WED_END },
+            },
+          ],
+        }),
+      });
+
+      render(<ScheduleScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText("COMP 352")).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByText("COMP 352"));
+
+      expect(screen.getByText("Close")).toBeTruthy();
+      expect(screen.queryByText("Notes")).toBeNull();
+    });
+
+    it("shows event detail modal without Notes section when description is absent", async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          items: [
+            {
+              id: "evt3",
+              summary: "ENGR 201",
+              start: { dateTime: WED_START },
+              end: { dateTime: WED_END },
+              location: "EV-2.184",
+            },
+          ],
+        }),
+      });
+
+      render(<ScheduleScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText("ENGR 201")).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByText("ENGR 201"));
+
+      expect(screen.getByText("EV-2.184")).toBeTruthy();
+      expect(screen.queryByText("Notes")).toBeNull();
+    });
+
+    it("maps location and description from Google Calendar API response", async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          items: [
+            {
+              id: "evt4",
+              summary: "SOEN 341",
+              start: { dateTime: WED_START },
+              end: { dateTime: WED_END },
+              location: "MB-1.210",
+              description: "Sprint review session",
+            },
+          ],
+        }),
+      });
+
+      render(<ScheduleScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText("SOEN 341")).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByText("SOEN 341"));
+
+      expect(screen.getByText("MB-1.210")).toBeTruthy();
+      expect(screen.getByText("Sprint review session")).toBeTruthy();
+    });
+
+    it("shows All day label in detail modal for all-day events", async () => {
+      const today = new Date("2026-03-25");
+      const todayStr = today.toISOString().split("T")[0];
+      const tomorrowStr = new Date(today.getTime() + 86400000)
+        .toISOString()
+        .split("T")[0];
+
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          items: [
+            {
+              id: "allday1",
+              summary: "Spring Break",
+              start: { date: todayStr },
+              end: { date: tomorrowStr },
+            },
+          ],
+        }),
+      });
+
+      render(<ScheduleScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText("Spring Break")).toBeTruthy();
+      });
+
+      const allEventTexts = screen.getAllByText("Spring Break");
+      fireEvent.press(allEventTexts[0]);
+
+      expect(screen.getByText("All day")).toBeTruthy();
+    });
   });
 });
