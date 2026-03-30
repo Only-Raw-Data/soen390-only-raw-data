@@ -1,10 +1,23 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   resolveLocationToBuilding,
   computeMinutesUntilClass,
   evaluateNextClassDirections,
   DEFAULT_THRESHOLD_MINUTES,
+  MIN_THRESHOLD_MINUTES,
+  MAX_THRESHOLD_MINUTES,
+  getStoredThresholdMinutes,
+  saveThresholdMinutes,
 } from "../nextClassDirectionsService";
 import type { NextClassEvent } from "../calendarAuthService";
+
+jest.mock("@react-native-async-storage/async-storage", () => ({
+  __esModule: true,
+  default: {
+    getItem: jest.fn(),
+    setItem: jest.fn(),
+  },
+}));
 
 function makeEvent(overrides: Partial<NextClassEvent> = {}): NextClassEvent {
   return {
@@ -199,6 +212,78 @@ describe("nextClassDirectionsService", () => {
       const result = evaluateNextClassDirections(event, DEFAULT_THRESHOLD_MINUTES, now);
       expect(result.status).toBe("within_threshold");
       expect(result.shouldNotify).toBe(true);
+    });
+  });
+
+  describe("getStoredThresholdMinutes", () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it("returns default when nothing is stored", async () => {
+      (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
+      const result = await getStoredThresholdMinutes();
+      expect(result).toBe(DEFAULT_THRESHOLD_MINUTES);
+    });
+
+    it("returns the stored value", async () => {
+      (AsyncStorage.getItem as jest.Mock).mockResolvedValue("30");
+      const result = await getStoredThresholdMinutes();
+      expect(result).toBe(30);
+    });
+
+    it("clamps values below minimum", async () => {
+      (AsyncStorage.getItem as jest.Mock).mockResolvedValue("1");
+      const result = await getStoredThresholdMinutes();
+      expect(result).toBe(MIN_THRESHOLD_MINUTES);
+    });
+
+    it("clamps values above maximum", async () => {
+      (AsyncStorage.getItem as jest.Mock).mockResolvedValue("999");
+      const result = await getStoredThresholdMinutes();
+      expect(result).toBe(MAX_THRESHOLD_MINUTES);
+    });
+
+    it("returns default for non-numeric values", async () => {
+      (AsyncStorage.getItem as jest.Mock).mockResolvedValue("abc");
+      const result = await getStoredThresholdMinutes();
+      expect(result).toBe(DEFAULT_THRESHOLD_MINUTES);
+    });
+
+    it("returns default when storage throws", async () => {
+      (AsyncStorage.getItem as jest.Mock).mockRejectedValue(new Error("fail"));
+      const result = await getStoredThresholdMinutes();
+      expect(result).toBe(DEFAULT_THRESHOLD_MINUTES);
+    });
+  });
+
+  describe("saveThresholdMinutes", () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it("saves the value to storage", async () => {
+      await saveThresholdMinutes(20);
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        "directions_threshold_minutes",
+        "20",
+      );
+    });
+
+    it("clamps below minimum before saving", async () => {
+      await saveThresholdMinutes(1);
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        "directions_threshold_minutes",
+        String(MIN_THRESHOLD_MINUTES),
+      );
+    });
+
+    it("clamps above maximum before saving", async () => {
+      await saveThresholdMinutes(999);
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        "directions_threshold_minutes",
+        String(MAX_THRESHOLD_MINUTES),
+      );
     });
   });
 });

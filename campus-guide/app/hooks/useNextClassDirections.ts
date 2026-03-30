@@ -10,6 +10,8 @@ import {
   type NextClassDirectionsState,
   DEFAULT_THRESHOLD_MINUTES,
   evaluateNextClassDirections,
+  getStoredThresholdMinutes,
+  saveThresholdMinutes,
 } from "@services/nextClassDirectionsService";
 
 const NEXT_CLASS_POLL_MS = 5 * 60 * 1000;
@@ -22,8 +24,9 @@ export interface UseNextClassDirectionsOptions {
 export default function useNextClassDirections(
   options?: UseNextClassDirectionsOptions,
 ) {
-  const thresholdMinutes =
-    options?.thresholdMinutes ?? DEFAULT_THRESHOLD_MINUTES;
+  const [thresholdMinutes, setThresholdMinutesState] = useState(
+    options?.thresholdMinutes ?? DEFAULT_THRESHOLD_MINUTES,
+  );
 
   const { isConnected } = useCalendarAuth();
 
@@ -35,6 +38,19 @@ export default function useNextClassDirections(
   const [isLoading, setIsLoading] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const dismissedEventIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (options?.thresholdMinutes != null) return;
+    getStoredThresholdMinutes().then(setThresholdMinutesState);
+  }, [options?.thresholdMinutes]);
+
+  const setThresholdMinutes = useCallback(
+    async (minutes: number) => {
+      setThresholdMinutesState(minutes);
+      await saveThresholdMinutes(minutes);
+    },
+    [],
+  );
 
   const fetchNextClass = useCallback(async () => {
     if (!isConnected) {
@@ -105,5 +121,7 @@ export default function useNextClassDirections(
     dismiss,
     refresh,
     isConnected,
+    thresholdMinutes,
+    setThresholdMinutes,
   };
 }

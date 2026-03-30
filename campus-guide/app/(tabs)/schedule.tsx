@@ -33,6 +33,10 @@ import {
   resolveLocationToBuilding,
   computeMinutesUntilClass,
   DEFAULT_THRESHOLD_MINUTES,
+  MIN_THRESHOLD_MINUTES,
+  MAX_THRESHOLD_MINUTES,
+  getStoredThresholdMinutes,
+  saveThresholdMinutes,
 } from "@services/nextClassDirectionsService";
 import { useDirections } from "@context/DirectionsContext";
 import useUserLocation from "@hooks/useUserLocation";
@@ -229,10 +233,12 @@ function NextClassCard({
   nextClass,
   isLoading,
   onGetDirections,
+  thresholdMinutes,
 }: {
   readonly nextClass: NextClassEvent | null;
   readonly isLoading: boolean;
   readonly onGetDirections?: () => void;
+  readonly thresholdMinutes: number;
 }) {
   if (!isLoading && nextClass === null) return null;
 
@@ -245,7 +251,7 @@ function NextClassCard({
   const showDirectionsButton =
     matchedBuilding !== null &&
     minutesUntil !== null &&
-    minutesUntil <= DEFAULT_THRESHOLD_MINUTES &&
+    minutesUntil <= thresholdMinutes &&
     minutesUntil > -5;
 
   return (
@@ -343,6 +349,20 @@ export default function ScheduleScreen() {
 
   const [nextClass, setNextClass] = useState<NextClassEvent | null>(null);
   const [nextClassLoading, setNextClassLoading] = useState(false);
+
+  const [thresholdMinutes, setThresholdMinutes] = useState(DEFAULT_THRESHOLD_MINUTES);
+
+  useEffect(() => {
+    getStoredThresholdMinutes().then(setThresholdMinutes);
+  }, []);
+
+  const handleThresholdChange = useCallback(async (delta: number) => {
+    setThresholdMinutes((prev) => {
+      const next = Math.max(MIN_THRESHOLD_MINUTES, Math.min(MAX_THRESHOLD_MINUTES, prev + delta));
+      saveThresholdMinutes(next);
+      return next;
+    });
+  }, []);
 
   const weekDays = useMemo(() => getWeekDays(currentDate), [currentDate]);
   const weekRangeLabel = useMemo(() => formatWeekRangeLabel(weekDays), [weekDays]);
@@ -575,6 +595,7 @@ export default function ScheduleScreen() {
           nextClass={nextClass}
           isLoading={nextClassLoading}
           onGetDirections={handleNextClassDirections}
+          thresholdMinutes={thresholdMinutes}
         />
       ) : null}
 
@@ -717,6 +738,39 @@ export default function ScheduleScreen() {
             <Ionicons name="list-outline" size={16} color="#912338" />
             <Text style={styles.manageCalendarsText}>Manage Calendars</Text>
           </TouchableOpacity>
+        ) : null}
+
+        {isConnected ? (
+          <View style={styles.thresholdRow}>
+            <Ionicons name="notifications-outline" size={14} color="#6B7280" />
+            <Text style={styles.thresholdLabel}>Remind me</Text>
+            <TouchableOpacity
+              style={styles.thresholdStepButton}
+              activeOpacity={0.7}
+              onPress={() => handleThresholdChange(-5)}
+              disabled={thresholdMinutes <= MIN_THRESHOLD_MINUTES}
+            >
+              <Ionicons
+                name="remove"
+                size={14}
+                color={thresholdMinutes <= MIN_THRESHOLD_MINUTES ? "#D1D5DB" : "#912338"}
+              />
+            </TouchableOpacity>
+            <Text style={styles.thresholdValue}>{thresholdMinutes} min</Text>
+            <TouchableOpacity
+              style={styles.thresholdStepButton}
+              activeOpacity={0.7}
+              onPress={() => handleThresholdChange(5)}
+              disabled={thresholdMinutes >= MAX_THRESHOLD_MINUTES}
+            >
+              <Ionicons
+                name="add"
+                size={14}
+                color={thresholdMinutes >= MAX_THRESHOLD_MINUTES ? "#D1D5DB" : "#912338"}
+              />
+            </TouchableOpacity>
+            <Text style={styles.thresholdLabel}>before class</Text>
+          </View>
         ) : null}
       </View>
 
@@ -1091,6 +1145,36 @@ const styles = StyleSheet.create({
     color: "#912338",
     fontSize: 13,
     fontWeight: "600",
+  },
+  thresholdRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#F3F4F6",
+  },
+  thresholdLabel: {
+    fontSize: 12,
+    color: "#6B7280",
+  },
+  thresholdValue: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#111827",
+    minWidth: 46,
+    textAlign: "center",
+  },
+  thresholdStepButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    justifyContent: "center",
+    alignItems: "center",
   },
   modalOverlay: {
     flex: 1,

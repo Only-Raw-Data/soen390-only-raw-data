@@ -57,6 +57,12 @@ jest.mock("@hooks/useUserLocation", () => ({
   })),
 }));
 
+jest.mock("@services/nextClassDirectionsService", () => ({
+  ...jest.requireActual("@services/nextClassDirectionsService"),
+  getStoredThresholdMinutes: jest.fn().mockResolvedValue(15),
+  saveThresholdMinutes: jest.fn().mockResolvedValue(undefined),
+}));
+
 const mockUseCalendarAuth = useCalendarAuth as jest.Mock;
 const mockFetchCalendars = fetchCalendars as jest.Mock;
 const mockFetchNextClassEvent = fetchNextClassEvent as jest.Mock;

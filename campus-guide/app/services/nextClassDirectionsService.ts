@@ -1,7 +1,28 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Building, All_BUILDINGS } from "@/constants/buildings";
 import type { NextClassEvent } from "@services/calendarAuthService";
 
 export const DEFAULT_THRESHOLD_MINUTES = 15;
+export const MIN_THRESHOLD_MINUTES = 5;
+export const MAX_THRESHOLD_MINUTES = 60;
+const STORAGE_KEY_THRESHOLD = "directions_threshold_minutes";
+
+export async function getStoredThresholdMinutes(): Promise<number> {
+  try {
+    const raw = await AsyncStorage.getItem(STORAGE_KEY_THRESHOLD);
+    if (raw === null) return DEFAULT_THRESHOLD_MINUTES;
+    const parsed = parseInt(raw, 10);
+    if (isNaN(parsed)) return DEFAULT_THRESHOLD_MINUTES;
+    return Math.max(MIN_THRESHOLD_MINUTES, Math.min(MAX_THRESHOLD_MINUTES, parsed));
+  } catch {
+    return DEFAULT_THRESHOLD_MINUTES;
+  }
+}
+
+export async function saveThresholdMinutes(minutes: number): Promise<void> {
+  const clamped = Math.max(MIN_THRESHOLD_MINUTES, Math.min(MAX_THRESHOLD_MINUTES, minutes));
+  await AsyncStorage.setItem(STORAGE_KEY_THRESHOLD, String(clamped));
+}
 
 export type NextClassDirectionsState = {
   nextClass: NextClassEvent | null;
