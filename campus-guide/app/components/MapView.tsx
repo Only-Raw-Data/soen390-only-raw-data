@@ -298,14 +298,6 @@ export default function MapViewApp({
     setInfoBuilding(null);
   };
 
-  const getMarkerTitle = (building: Building) => {
-    if (startBuilding?.id === building.id)
-      return "START - " + building.code + " - " + building.address;
-    if (destinationBuilding?.id === building.id)
-      return "DESTINATION - " + building.code + " - " + building.address;
-    return building.code + " - " + building.address;
-  };
-
   const getStrokeColorForBuilding = (isStart: boolean, isDest: boolean) => {
     if (isStart) return "#10B981";
     if (isDest) return "#FFEA00";
