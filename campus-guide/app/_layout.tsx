@@ -15,6 +15,12 @@ import { ParticipantSessionProvider } from '@context/ParticipantSessionContext';
 
 const isExpoGo = Constants.appOwnership === 'expo';
 
+/** PostHogProvider requires a non-empty apiKey; use this when analytics are off. */
+const POSTHOG_DISABLED_PLACEHOLDER_KEY = 'local-dev-posthog-off';
+
+const posthogApiKey = (process.env.EXPO_PUBLIC_POSTHOG_API_KEY ?? '').trim();
+const posthogEnabled = posthogApiKey.length > 0;
+
 export {
   // Catch any errors thrown by the Layout component.
   ErrorBoundary,
@@ -57,39 +63,46 @@ export default function RootLayout() {
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
 
+  const appTree = (
+    <ParticipantSessionProvider>
+      <ParticipantIdentifier>
+        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+          <Stack>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+            <Stack.Screen
+              name="moderator"
+              options={{ presentation: 'modal', title: 'Session setup' }}
+            />
+          </Stack>
+        </ThemeProvider>
+      </ParticipantIdentifier>
+    </ParticipantSessionProvider>
+  );
+
   return (
     <PostHogProvider
-      apiKey={process.env.EXPO_PUBLIC_POSTHOG_API_KEY!}
+      apiKey={posthogEnabled ? posthogApiKey : POSTHOG_DISABLED_PLACEHOLDER_KEY}
       options={{
+        disabled: !posthogEnabled,
         host: process.env.EXPO_PUBLIC_POSTHOG_HOST,
-        enableSessionReplay: !isExpoGo,
-        ...(!isExpoGo && {
-          sessionReplayConfig: {
-            maskAllTextInputs: false,
-            maskAllImages: false,
-            captureLog: true,
-            captureNetworkTelemetry: true,
-          },
-        }),
+        enableSessionReplay: posthogEnabled && !isExpoGo,
+        ...(posthogEnabled &&
+          !isExpoGo && {
+            sessionReplayConfig: {
+              maskAllTextInputs: false,
+              maskAllImages: false,
+              captureLog: true,
+              captureNetworkTelemetry: true,
+            },
+          }),
       }}
     >
-      {/* Required for in-app surveys on React Native (event triggers alone are not enough). */}
-      <PostHogSurveyProvider>
-        <ParticipantSessionProvider>
-          <ParticipantIdentifier>
-            <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-              <Stack>
-                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
-                <Stack.Screen
-                  name="moderator"
-                  options={{ presentation: 'modal', title: 'Session setup' }}
-                />
-              </Stack>
-            </ThemeProvider>
-          </ParticipantIdentifier>
-        </ParticipantSessionProvider>
-      </PostHogSurveyProvider>
+      {posthogEnabled ? (
+        <PostHogSurveyProvider>{appTree}</PostHogSurveyProvider>
+      ) : (
+        appTree
+      )}
     </PostHogProvider>
   );
 }
