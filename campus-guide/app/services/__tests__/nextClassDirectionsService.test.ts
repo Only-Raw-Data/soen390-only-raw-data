@@ -6,6 +6,7 @@ import {
   DEFAULT_THRESHOLD_MINUTES,
   MIN_THRESHOLD_MINUTES,
   MAX_THRESHOLD_MINUTES,
+  NO_LIMIT_THRESHOLD,
   getStoredThresholdMinutes,
   saveThresholdMinutes,
 } from "../nextClassDirectionsService";
@@ -213,6 +214,17 @@ describe("nextClassDirectionsService", () => {
       expect(result.status).toBe("within_threshold");
       expect(result.shouldNotify).toBe(true);
     });
+
+    it("always notifies when threshold is NO_LIMIT (0), even if class is days away", () => {
+      const now = new Date("2026-03-29T08:00:00");
+      const event = makeEvent({
+        start: new Date("2026-03-31T10:00:00"),
+      });
+      const result = evaluateNextClassDirections(event, NO_LIMIT_THRESHOLD, now);
+      expect(result.status).toBe("within_threshold");
+      expect(result.shouldNotify).toBe(true);
+      expect(result.matchedBuilding).not.toBeNull();
+    });
   });
 
   describe("getStoredThresholdMinutes", () => {
@@ -255,6 +267,12 @@ describe("nextClassDirectionsService", () => {
       const result = await getStoredThresholdMinutes();
       expect(result).toBe(DEFAULT_THRESHOLD_MINUTES);
     });
+
+    it("returns 0 (no limit) when stored value is 0", async () => {
+      (AsyncStorage.getItem as jest.Mock).mockResolvedValue("0");
+      const result = await getStoredThresholdMinutes();
+      expect(result).toBe(NO_LIMIT_THRESHOLD);
+    });
   });
 
   describe("saveThresholdMinutes", () => {
@@ -283,6 +301,14 @@ describe("nextClassDirectionsService", () => {
       expect(AsyncStorage.setItem).toHaveBeenCalledWith(
         "directions_threshold_minutes",
         String(MAX_THRESHOLD_MINUTES),
+      );
+    });
+
+    it("saves 0 for no-limit mode", async () => {
+      await saveThresholdMinutes(NO_LIMIT_THRESHOLD);
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
+        "directions_threshold_minutes",
+        "0",
       );
     });
   });

@@ -5,6 +5,8 @@ import type { NextClassEvent } from "@services/calendarAuthService";
 export const DEFAULT_THRESHOLD_MINUTES = 15;
 export const MIN_THRESHOLD_MINUTES = 5;
 export const MAX_THRESHOLD_MINUTES = 60;
+/** 0 means "no limit" — always show for any upcoming class. */
+export const NO_LIMIT_THRESHOLD = 0;
 const STORAGE_KEY_THRESHOLD = "directions_threshold_minutes";
 
 export async function getStoredThresholdMinutes(): Promise<number> {
@@ -13,6 +15,7 @@ export async function getStoredThresholdMinutes(): Promise<number> {
     if (raw === null) return DEFAULT_THRESHOLD_MINUTES;
     const parsed = parseInt(raw, 10);
     if (isNaN(parsed)) return DEFAULT_THRESHOLD_MINUTES;
+    if (parsed === NO_LIMIT_THRESHOLD) return NO_LIMIT_THRESHOLD;
     return Math.max(MIN_THRESHOLD_MINUTES, Math.min(MAX_THRESHOLD_MINUTES, parsed));
   } catch {
     return DEFAULT_THRESHOLD_MINUTES;
@@ -20,6 +23,10 @@ export async function getStoredThresholdMinutes(): Promise<number> {
 }
 
 export async function saveThresholdMinutes(minutes: number): Promise<void> {
+  if (minutes === NO_LIMIT_THRESHOLD) {
+    await AsyncStorage.setItem(STORAGE_KEY_THRESHOLD, String(NO_LIMIT_THRESHOLD));
+    return;
+  }
   const clamped = Math.max(MIN_THRESHOLD_MINUTES, Math.min(MAX_THRESHOLD_MINUTES, minutes));
   await AsyncStorage.setItem(STORAGE_KEY_THRESHOLD, String(clamped));
 }
@@ -120,7 +127,7 @@ export function evaluateNextClassDirections(
     ? resolveLocationToBuilding(nextClass.location)
     : null;
 
-  if (minutes > thresholdMinutes) {
+  if (thresholdMinutes !== NO_LIMIT_THRESHOLD && minutes > thresholdMinutes) {
     return {
       nextClass,
       matchedBuilding,

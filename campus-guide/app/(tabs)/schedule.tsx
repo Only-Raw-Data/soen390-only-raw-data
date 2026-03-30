@@ -35,6 +35,7 @@ import {
   DEFAULT_THRESHOLD_MINUTES,
   MIN_THRESHOLD_MINUTES,
   MAX_THRESHOLD_MINUTES,
+  NO_LIMIT_THRESHOLD,
   getStoredThresholdMinutes,
   saveThresholdMinutes,
 } from "@services/nextClassDirectionsService";
@@ -248,11 +249,11 @@ function NextClassCard({
   const minutesUntil = nextClass
     ? computeMinutesUntilClass(nextClass.start)
     : null;
-  const showDirectionsButton =
-    matchedBuilding !== null &&
-    minutesUntil !== null &&
-    minutesUntil <= thresholdMinutes &&
-    minutesUntil > -5;
+  const withinThreshold =
+    thresholdMinutes === NO_LIMIT_THRESHOLD
+      ? minutesUntil !== null && minutesUntil > -5
+      : minutesUntil !== null && minutesUntil <= thresholdMinutes && minutesUntil > -5;
+  const showDirectionsButton = matchedBuilding !== null && withinThreshold;
 
   return (
     <View style={styles.nextClassCard}>
@@ -356,9 +357,16 @@ export default function ScheduleScreen() {
     getStoredThresholdMinutes().then(setThresholdMinutes);
   }, []);
 
-  const handleThresholdChange = useCallback(async (delta: number) => {
+  const handleThresholdChange = useCallback((delta: number) => {
     setThresholdMinutes((prev) => {
-      const next = Math.max(MIN_THRESHOLD_MINUTES, Math.min(MAX_THRESHOLD_MINUTES, prev + delta));
+      let next: number;
+      if (prev === NO_LIMIT_THRESHOLD) {
+        next = delta > 0 ? MIN_THRESHOLD_MINUTES : NO_LIMIT_THRESHOLD;
+      } else {
+        next = prev + delta;
+        if (next < MIN_THRESHOLD_MINUTES) next = NO_LIMIT_THRESHOLD;
+        else if (next > MAX_THRESHOLD_MINUTES) next = MAX_THRESHOLD_MINUTES;
+      }
       saveThresholdMinutes(next);
       return next;
     });
@@ -748,15 +756,14 @@ export default function ScheduleScreen() {
               style={styles.thresholdStepButton}
               activeOpacity={0.7}
               onPress={() => handleThresholdChange(-5)}
-              disabled={thresholdMinutes <= MIN_THRESHOLD_MINUTES}
             >
-              <Ionicons
-                name="remove"
-                size={14}
-                color={thresholdMinutes <= MIN_THRESHOLD_MINUTES ? "#D1D5DB" : "#912338"}
-              />
+              <Ionicons name="remove" size={14} color="#912338" />
             </TouchableOpacity>
-            <Text style={styles.thresholdValue}>{thresholdMinutes} min</Text>
+            <Text style={styles.thresholdValue}>
+              {thresholdMinutes === NO_LIMIT_THRESHOLD
+                ? "Always"
+                : `${thresholdMinutes} min`}
+            </Text>
             <TouchableOpacity
               style={styles.thresholdStepButton}
               activeOpacity={0.7}
@@ -769,7 +776,11 @@ export default function ScheduleScreen() {
                 color={thresholdMinutes >= MAX_THRESHOLD_MINUTES ? "#D1D5DB" : "#912338"}
               />
             </TouchableOpacity>
-            <Text style={styles.thresholdLabel}>before class</Text>
+            <Text style={styles.thresholdLabel}>
+              {thresholdMinutes === NO_LIMIT_THRESHOLD
+                ? "(no limit)"
+                : "before class"}
+            </Text>
           </View>
         ) : null}
       </View>
