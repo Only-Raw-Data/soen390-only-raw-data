@@ -125,15 +125,10 @@ export default function NextClassDirectionsBanner() {
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 12,
-    paddingTop: 6,
-    paddingBottom: 8,
-    backgroundColor: "#912338",
-    shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 5,
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.15)",
   },
   content: {
     flexDirection: "row",

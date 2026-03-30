@@ -1,8 +1,6 @@
 import React, { useCallback } from "react";
-import { View } from "react-native";
 import { Tabs, useRouter, usePathname } from "expo-router";
 import BottomNav from "@components/BottomNav";
-import NextClassDirectionsBanner from "@components/NextClassDirectionsBanner";
 import { Screen } from "@types/Screen";
 
 import DirectionsProvider from "@context/DirectionsContext";
@@ -67,9 +65,7 @@ export default function TabLayout() {
       <IndoorMapProvider>
         <CalendarAuthProvider>
           <POIProvider>
-            <View style={{ flex: 1 }}>
-              <NextClassDirectionsBanner />
-              <Tabs
+            <Tabs
                 screenOptions={{
                   headerShown: false,
                 }}
@@ -111,7 +107,6 @@ export default function TabLayout() {
                   }}
                 />
               </Tabs>
-            </View>
           </POIProvider>
         </CalendarAuthProvider>
       </IndoorMapProvider>
