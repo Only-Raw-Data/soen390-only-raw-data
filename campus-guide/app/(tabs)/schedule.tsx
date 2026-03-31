@@ -41,6 +41,8 @@ import {
 } from "@services/nextClassDirectionsService";
 import { useDirections } from "@context/DirectionsContext";
 import useUserLocation from "@hooks/useUserLocation";
+import { Building } from "@/constants/buildings";
+import type { TransportationMode } from "@app/types/transportation";
 
 type WeekDay = {
   label: string;
@@ -739,6 +741,252 @@ function ScheduleDayColumn({
   );
 }
 
+function getConnectButtonLabel(isLoading: boolean, isConnected: boolean): string {
+  if (isLoading) return "Loading...";
+  if (isConnected) return "Disconnect Google Calendar";
+  return "Connect Google Calendar";
+}
+
+async function navigateScheduleToNextClassDirections(
+  nextClass: NextClassEvent | null,
+  router: ReturnType<typeof useRouter>,
+  setDestinationBuilding: (building: Building | null) => void,
+  setStartBuilding: (building: Building | null) => void,
+  setTransportationMode: (mode: TransportationMode) => void,
+  setStartCoords: (coords: { lat: number; lng: number } | null) => void,
+  fetchRoute: () => void | Promise<void>,
+  getRawLocation: () => Promise<{ lat: number; lng: number } | null>,
+): Promise<void> {
+  if (!nextClass) return;
+  const building = resolveLocationToBuilding(nextClass.location);
+  if (!building) return;
+
+  setDestinationBuilding(building);
+  setStartBuilding(null);
+  setTransportationMode("walk");
+
+  const coords = await getRawLocation();
+  if (coords) {
+    setStartCoords(coords);
+  }
+
+  router.push("/(tabs)/two");
+  setTimeout(() => {
+    void fetchRoute();
+  }, 300);
+}
+
+function ScheduleWeekDaysHeader({ weekDays }: { readonly weekDays: WeekDay[] }) {
+  return (
+    <View style={styles.weekHeader}>
+      <View style={styles.weekHeaderTimeSpacer} />
+      <View style={styles.weekHeaderDays}>
+        {weekDays.map((day) => (
+          <View key={day.label} style={styles.weekDayColumn}>
+            <Text style={styles.weekDayLabel}>{day.label}</Text>
+            {day.isActive ? (
+              <View style={styles.activeDayCircle}>
+                <Text style={styles.activeDayText}>{day.dayNumber}</Text>
+              </View>
+            ) : (
+              <Text style={styles.weekDayNumber}>{day.dayNumber}</Text>
+            )}
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function ScheduleCalendarScrollMessages({
+  eventsLoading,
+  error,
+  eventsError,
+}: {
+  readonly eventsLoading: boolean;
+  readonly error: string | null;
+  readonly eventsError: string | null;
+}) {
+  return (
+    <>
+      {eventsLoading ? (
+        <Text style={styles.infoText}>Loading calendar events...</Text>
+      ) : null}
+
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+      {eventsError ? (
+        <Text style={styles.errorText}>{eventsError}</Text>
+      ) : null}
+    </>
+  );
+}
+
+function ScheduleScreenBottomBar({
+  isConnected,
+  isLoading,
+  connectButtonLabel,
+  onConnectPress,
+  calendars,
+  onOpenCalendarPicker,
+  thresholdMinutes,
+  handleThresholdChange,
+}: {
+  readonly isConnected: boolean;
+  readonly isLoading: boolean;
+  readonly connectButtonLabel: string;
+  readonly onConnectPress: () => void;
+  readonly calendars: CalendarInfo[];
+  readonly onOpenCalendarPicker: () => void;
+  readonly thresholdMinutes: number;
+  readonly handleThresholdChange: (delta: number) => void;
+}) {
+  const showManageCalendars = isConnected && calendars.length > 0;
+
+  return (
+    <View style={styles.bottomBar}>
+      {isConnected ? (
+        <View style={styles.connectedBadge}>
+          <Ionicons name="checkmark-circle" size={16} color="#16A34A" />
+          <Text style={styles.connectedBadgeText}>
+            Connected to Google Calendar
+          </Text>
+        </View>
+      ) : null}
+
+      <TouchableOpacity
+        style={[styles.connectButton, isConnected && styles.connectedButton]}
+        activeOpacity={0.85}
+        onPress={onConnectPress}
+        disabled={isLoading}
+      >
+        {isLoading ? (
+          <ActivityIndicator color="#FFFFFF" />
+        ) : (
+          <>
+            <Ionicons name="calendar-outline" size={18} color="#FFFFFF" />
+            <Text style={styles.connectButtonText}>{connectButtonLabel}</Text>
+          </>
+        )}
+      </TouchableOpacity>
+
+      {showManageCalendars ? (
+        <TouchableOpacity
+          style={styles.manageCalendarsButton}
+          activeOpacity={0.8}
+          onPress={onOpenCalendarPicker}
+        >
+          <Ionicons name="list-outline" size={16} color="#912338" />
+          <Text style={styles.manageCalendarsText}>Manage Calendars</Text>
+        </TouchableOpacity>
+      ) : null}
+
+      {isConnected ? (
+        <View style={styles.thresholdRow}>
+          <Ionicons name="notifications-outline" size={14} color="#6B7280" />
+          <Text style={styles.thresholdLabel}>Remind me</Text>
+          <TouchableOpacity
+            testID="threshold-minus"
+            style={styles.thresholdStepButton}
+            activeOpacity={0.7}
+            onPress={() => handleThresholdChange(-5)}
+          >
+            <Ionicons name="remove" size={14} color="#912338" />
+          </TouchableOpacity>
+          <Text style={styles.thresholdValue}>
+            {thresholdMinutes === NO_LIMIT_THRESHOLD
+              ? "Always"
+              : `${thresholdMinutes} min`}
+          </Text>
+          <TouchableOpacity
+            testID="threshold-plus"
+            style={styles.thresholdStepButton}
+            activeOpacity={0.7}
+            onPress={() => handleThresholdChange(5)}
+            disabled={thresholdMinutes >= MAX_THRESHOLD_MINUTES}
+          >
+            <Ionicons
+              name="add"
+              size={14}
+              color={
+                thresholdMinutes >= MAX_THRESHOLD_MINUTES
+                  ? "#D1D5DB"
+                  : "#912338"
+              }
+            />
+          </TouchableOpacity>
+          <Text style={styles.thresholdLabel}>
+            {thresholdMinutes === NO_LIMIT_THRESHOLD
+              ? "(no limit)"
+              : "before class"}
+          </Text>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function ScheduleCalendarPickerModal({
+  visible,
+  calendars,
+  selectedCalendarIds,
+  onRequestClose,
+  onToggleCalendar,
+  onSave,
+}: {
+  readonly visible: boolean;
+  readonly calendars: CalendarInfo[];
+  readonly selectedCalendarIds: Set<string>;
+  readonly onRequestClose: () => void;
+  readonly onToggleCalendar: (id: string) => void;
+  readonly onSave: () => void;
+}) {
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onRequestClose}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalSheet}>
+          <Text style={styles.modalTitle}>Select Calendars</Text>
+
+          <ScrollView style={styles.modalList}>
+            {calendars.map((cal) => {
+              const selected = selectedCalendarIds.has(cal.id);
+              return (
+                <TouchableOpacity
+                  key={cal.id}
+                  style={styles.calendarRow}
+                  activeOpacity={0.7}
+                  onPress={() => onToggleCalendar(cal.id)}
+                >
+                  <Ionicons
+                    name={selected ? "checkmark-circle" : "ellipse-outline"}
+                    size={22}
+                    color={selected ? "#912338" : "#9CA3AF"}
+                  />
+                  <Text style={styles.calendarRowText} numberOfLines={1}>
+                    {cal.name}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+
+          <TouchableOpacity
+            style={styles.modalSaveButton}
+            activeOpacity={0.85}
+            onPress={onSave}
+          >
+            <Text style={styles.modalSaveButtonText}>Save</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 async function runConnectOrDisconnect(
   isLoading: boolean,
   isConnected: boolean,
@@ -803,12 +1051,6 @@ export default function ScheduleScreen() {
     [weekDays],
   );
 
-  const buttonLabel = useMemo(() => {
-    if (isLoading) return "Loading...";
-    if (isConnected) return "Disconnect Google Calendar";
-    return "Connect Google Calendar";
-  }, [isLoading, isConnected]);
-
   const onConnectPress = useCallback(async () => {
     await runConnectOrDisconnect(
       isLoading,
@@ -830,33 +1072,26 @@ export default function ScheduleScreen() {
     setCurrentDate(new Date());
   };
 
-  const handleNextClassDirections = useCallback(async () => {
-    if (!nextClass) return;
-    const building = resolveLocationToBuilding(nextClass.location);
-    if (!building) return;
-
-    setDestinationBuilding(building);
-    setStartBuilding(null);
-    setTransportationMode("walk");
-
-    const coords = await getRawLocation();
-    if (coords) {
-      setStartCoords(coords);
-    }
-
-    router.push("/(tabs)/two");
-    setTimeout(() => {
-      fetchRoute();
-    }, 300);
+  const handleNextClassDirections = useCallback(() => {
+    return navigateScheduleToNextClassDirections(
+      nextClass,
+      router,
+      setDestinationBuilding,
+      setStartBuilding,
+      setTransportationMode,
+      setStartCoords,
+      fetchRoute,
+      getRawLocation,
+    );
   }, [
     nextClass,
+    router,
     setDestinationBuilding,
     setStartBuilding,
-    setStartCoords,
     setTransportationMode,
+    setStartCoords,
     fetchRoute,
     getRawLocation,
-    router,
   ]);
 
   const allDayEvents = useMemo(
@@ -898,23 +1133,7 @@ export default function ScheduleScreen() {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.weekHeader}>
-        <View style={styles.weekHeaderTimeSpacer} />
-        <View style={styles.weekHeaderDays}>
-          {weekDays.map((day) => (
-            <View key={day.label} style={styles.weekDayColumn}>
-              <Text style={styles.weekDayLabel}>{day.label}</Text>
-              {day.isActive ? (
-                <View style={styles.activeDayCircle}>
-                  <Text style={styles.activeDayText}>{day.dayNumber}</Text>
-                </View>
-              ) : (
-                <Text style={styles.weekDayNumber}>{day.dayNumber}</Text>
-              )}
-            </View>
-          ))}
-        </View>
-      </View>
+      <ScheduleWeekDaysHeader weekDays={weekDays} />
 
       {isConnected ? (
         <NextClassCard
@@ -970,145 +1189,38 @@ export default function ScheduleScreen() {
             </View>
           </View>
 
-          {eventsLoading ? (
-            <Text style={styles.infoText}>Loading calendar events...</Text>
-          ) : null}
-
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
-          {eventsError ? (
-            <Text style={styles.errorText}>{eventsError}</Text>
-          ) : null}
+          <ScheduleCalendarScrollMessages
+            eventsLoading={eventsLoading}
+            error={error}
+            eventsError={eventsError}
+          />
         </ScrollView>
       </View>
 
-      <View style={styles.bottomBar}>
-        {isConnected ? (
-          <View style={styles.connectedBadge}>
-            <Ionicons name="checkmark-circle" size={16} color="#16A34A" />
-            <Text style={styles.connectedBadgeText}>
-              Connected to Google Calendar
-            </Text>
-          </View>
-        ) : null}
-
-        <TouchableOpacity
-          style={[styles.connectButton, isConnected && styles.connectedButton]}
-          activeOpacity={0.85}
-          onPress={onConnectPress}
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <ActivityIndicator color="#FFFFFF" />
-          ) : (
-            <>
-              <Ionicons name="calendar-outline" size={18} color="#FFFFFF" />
-              <Text style={styles.connectButtonText}>{buttonLabel}</Text>
-            </>
-          )}
-        </TouchableOpacity>
-
-        {isConnected && calendars.length > 0 ? (
-          <TouchableOpacity
-            style={styles.manageCalendarsButton}
-            activeOpacity={0.8}
-            onPress={() => setShowCalendarPicker(true)}
-          >
-            <Ionicons name="list-outline" size={16} color="#912338" />
-            <Text style={styles.manageCalendarsText}>Manage Calendars</Text>
-          </TouchableOpacity>
-        ) : null}
-
-        {isConnected ? (
-          <View style={styles.thresholdRow}>
-            <Ionicons name="notifications-outline" size={14} color="#6B7280" />
-            <Text style={styles.thresholdLabel}>Remind me</Text>
-            <TouchableOpacity
-              testID="threshold-minus"
-              style={styles.thresholdStepButton}
-              activeOpacity={0.7}
-              onPress={() => handleThresholdChange(-5)}
-            >
-              <Ionicons name="remove" size={14} color="#912338" />
-            </TouchableOpacity>
-            <Text style={styles.thresholdValue}>
-              {thresholdMinutes === NO_LIMIT_THRESHOLD
-                ? "Always"
-                : `${thresholdMinutes} min`}
-            </Text>
-            <TouchableOpacity
-              testID="threshold-plus"
-              style={styles.thresholdStepButton}
-              activeOpacity={0.7}
-              onPress={() => handleThresholdChange(5)}
-              disabled={thresholdMinutes >= MAX_THRESHOLD_MINUTES}
-            >
-              <Ionicons
-                name="add"
-                size={14}
-                color={
-                  thresholdMinutes >= MAX_THRESHOLD_MINUTES
-                    ? "#D1D5DB"
-                    : "#912338"
-                }
-              />
-            </TouchableOpacity>
-            <Text style={styles.thresholdLabel}>
-              {thresholdMinutes === NO_LIMIT_THRESHOLD
-                ? "(no limit)"
-                : "before class"}
-            </Text>
-          </View>
-        ) : null}
-      </View>
+      <ScheduleScreenBottomBar
+        isConnected={isConnected}
+        isLoading={isLoading}
+        connectButtonLabel={getConnectButtonLabel(isLoading, isConnected)}
+        onConnectPress={onConnectPress}
+        calendars={calendars}
+        onOpenCalendarPicker={() => setShowCalendarPicker(true)}
+        thresholdMinutes={thresholdMinutes}
+        handleThresholdChange={handleThresholdChange}
+      />
 
       <EventDetailModal
         event={selectedEvent}
         onClose={() => setSelectedEvent(null)}
       />
 
-      <Modal
+      <ScheduleCalendarPickerModal
         visible={showCalendarPicker}
-        transparent
-        animationType="slide"
+        calendars={calendars}
+        selectedCalendarIds={selectedCalendarIds}
         onRequestClose={() => setShowCalendarPicker(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalSheet}>
-            <Text style={styles.modalTitle}>Select Calendars</Text>
-
-            <ScrollView style={styles.modalList}>
-              {calendars.map((cal) => {
-                const selected = selectedCalendarIds.has(cal.id);
-                return (
-                  <TouchableOpacity
-                    key={cal.id}
-                    style={styles.calendarRow}
-                    activeOpacity={0.7}
-                    onPress={() => handleCalendarToggle(cal.id)}
-                  >
-                    <Ionicons
-                      name={selected ? "checkmark-circle" : "ellipse-outline"}
-                      size={22}
-                      color={selected ? "#912338" : "#9CA3AF"}
-                    />
-                    <Text style={styles.calendarRowText} numberOfLines={1}>
-                      {cal.name}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-
-            <TouchableOpacity
-              style={styles.modalSaveButton}
-              activeOpacity={0.85}
-              onPress={handleSaveCalendarSelection}
-            >
-              <Text style={styles.modalSaveButtonText}>Save</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+        onToggleCalendar={handleCalendarToggle}
+        onSave={handleSaveCalendarSelection}
+      />
     </View>
   );
 }
