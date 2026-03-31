@@ -69,6 +69,7 @@ describe("NextClassDirectionsBanner", () => {
   });
 
   it("renders nothing when not connected", () => {
+    // Arrange
     (useNextClassDirections as jest.Mock).mockReturnValue({
       nextClass: null,
       matchedBuilding: null,
@@ -82,11 +83,14 @@ describe("NextClassDirectionsBanner", () => {
       isConnected: false,
     });
 
+    // Act
     const { toJSON } = render(<NextClassDirectionsBanner />);
+    // Assert
     expect(toJSON()).toBeNull();
   });
 
   it("renders nothing when shouldNotify is false", () => {
+    // Arrange
     (useNextClassDirections as jest.Mock).mockReturnValue({
       nextClass: {
         id: "evt1",
@@ -106,11 +110,14 @@ describe("NextClassDirectionsBanner", () => {
       isConnected: true,
     });
 
+    // Act
     const { toJSON } = render(<NextClassDirectionsBanner />);
+    // Assert
     expect(toJSON()).toBeNull();
   });
 
   it("renders nothing when dismissed", () => {
+    // Arrange
     (useNextClassDirections as jest.Mock).mockReturnValue({
       nextClass: {
         id: "evt1",
@@ -130,11 +137,14 @@ describe("NextClassDirectionsBanner", () => {
       isConnected: true,
     });
 
+    // Act
     const { toJSON } = render(<NextClassDirectionsBanner />);
+    // Assert
     expect(toJSON()).toBeNull();
   });
 
   it("renders banner with class info when within threshold", () => {
+    // Arrange
     (useNextClassDirections as jest.Mock).mockReturnValue({
       nextClass: {
         id: "evt1",
@@ -154,12 +164,15 @@ describe("NextClassDirectionsBanner", () => {
       isConnected: true,
     });
 
+    // Act
     const { getByText } = render(<NextClassDirectionsBanner />);
+    // Assert
     expect(getByText("SOEN 390")).toBeTruthy();
     expect(getByText("Directions")).toBeTruthy();
   });
 
   it("shows 'Starting now' when minutesUntilClass <= 0", () => {
+    // Arrange
     (useNextClassDirections as jest.Mock).mockReturnValue({
       nextClass: {
         id: "evt1",
@@ -179,11 +192,14 @@ describe("NextClassDirectionsBanner", () => {
       isConnected: true,
     });
 
+    // Act
     const { getByText } = render(<NextClassDirectionsBanner />);
+    // Assert
     expect(getByText(/Starting now/)).toBeTruthy();
   });
 
   it("calls dismiss when close button is pressed", () => {
+    // Arrange
     (useNextClassDirections as jest.Mock).mockReturnValue({
       nextClass: {
         id: "evt1",
@@ -203,13 +219,16 @@ describe("NextClassDirectionsBanner", () => {
       isConnected: true,
     });
 
+    // Act
     const { getByText } = render(<NextClassDirectionsBanner />);
 
     const closeButtons = getByText("SOEN 390").parent?.parent?.findAllByProps?.({});
+    // Assert
     expect(mockDismiss).not.toHaveBeenCalled();
   });
 
   it("navigates to directions when Get Directions is pressed", async () => {
+    // Arrange
     (useNextClassDirections as jest.Mock).mockReturnValue({
       nextClass: {
         id: "evt1",
@@ -229,10 +248,13 @@ describe("NextClassDirectionsBanner", () => {
       isConnected: true,
     });
 
+    // Act
     const { getByText } = render(<NextClassDirectionsBanner />);
 
+    // Act
     fireEvent.press(getByText("Directions"));
 
+    // Assert
     await waitFor(() => {
       expect(mockSetDestinationBuilding).toHaveBeenCalledWith(H_BUILDING);
       expect(mockSetStartBuilding).toHaveBeenCalledWith(null);
@@ -242,6 +264,7 @@ describe("NextClassDirectionsBanner", () => {
   });
 
   it("does not show directions button when building is not matched", () => {
+    // Arrange
     (useNextClassDirections as jest.Mock).mockReturnValue({
       nextClass: {
         id: "evt1",
@@ -261,7 +284,9 @@ describe("NextClassDirectionsBanner", () => {
       isConnected: true,
     });
 
+    // Act
     const { getByText, queryByText } = render(<NextClassDirectionsBanner />);
+    // Assert
     expect(getByText("Meeting")).toBeTruthy();
     expect(queryByText("Directions")).toBeNull();
   });

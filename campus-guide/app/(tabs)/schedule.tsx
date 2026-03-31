@@ -227,7 +227,8 @@ async function fetchGoogleCalendarEvents(
             end: new Date(item.end?.dateTime || item.end?.date),
             isAllDay,
             location: typeof item.location === "string" ? item.location : null,
-            description: typeof item.description === "string" ? item.description : null,
+            description:
+              typeof item.description === "string" ? item.description : null,
           };
         });
     }),
@@ -255,12 +256,10 @@ function NextClassCard({
   const minutesUntil = nextClass
     ? computeMinutesUntilClass(nextClass.start)
     : null;
+  const classHasNotStarted = minutesUntil !== null && minutesUntil > -5;
+  const isNoLimit = thresholdMinutes === NO_LIMIT_THRESHOLD;
   const withinThreshold =
-    thresholdMinutes === NO_LIMIT_THRESHOLD
-      ? minutesUntil !== null && minutesUntil > -5
-      : minutesUntil !== null &&
-        minutesUntil <= thresholdMinutes &&
-        minutesUntil > -5;
+    classHasNotStarted && (isNoLimit || minutesUntil! <= thresholdMinutes);
   const showDirectionsButton = matchedBuilding !== null && withinThreshold;
 
   return (
