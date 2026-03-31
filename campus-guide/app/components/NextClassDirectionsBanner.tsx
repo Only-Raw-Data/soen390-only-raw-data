@@ -12,6 +12,16 @@ import useNextClassDirections from "@hooks/useNextClassDirections";
 import { useDirections } from "@context/DirectionsContext";
 import useUserLocation from "@hooks/useUserLocation";
 
+function formatMinutesUntilClassLabel(minutesUntilClass: number | null): string {
+  if (minutesUntilClass != null && minutesUntilClass > 0) {
+    return `in ${Math.ceil(minutesUntilClass)} min`;
+  }
+  if (minutesUntilClass != null && minutesUntilClass <= 0) {
+    return "Starting now";
+  }
+  return "";
+}
+
 export default function NextClassDirectionsBanner() {
   const router = useRouter();
   const {
@@ -66,14 +76,33 @@ export default function NextClassDirectionsBanner() {
 
   if (!isConnected || !shouldNotify || dismissed) return null;
 
-  const minutesText =
-    minutesUntilClass !== null
-      ? minutesUntilClass <= 0
-        ? "Starting now"
-        : `in ${Math.ceil(minutesUntilClass)} min`
-      : "";
+  const minutesText = formatMinutesUntilClassLabel(minutesUntilClass);
 
   const hasDirections = matchedBuilding !== null;
+
+  let actionContent: React.ReactNode;
+  if (isLoading) {
+    actionContent = (
+      <ActivityIndicator color="#FFFFFF" size="small" />
+    );
+  } else if (hasDirections) {
+    actionContent = (
+      <TouchableOpacity
+        style={styles.directionsButton}
+        activeOpacity={0.8}
+        onPress={handleGetDirections}
+      >
+        <Ionicons name="navigate" size={14} color="#912338" />
+        <Text style={styles.directionsButtonText}>Directions</Text>
+      </TouchableOpacity>
+    );
+  } else {
+    actionContent = (
+      <View style={styles.noLocationBadge}>
+        <Ionicons name="location-outline" size={12} color="#FBBF24" />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -93,22 +122,7 @@ export default function NextClassDirectionsBanner() {
           </Text>
         </View>
 
-        {isLoading ? (
-          <ActivityIndicator color="#FFFFFF" size="small" />
-        ) : hasDirections ? (
-          <TouchableOpacity
-            style={styles.directionsButton}
-            activeOpacity={0.8}
-            onPress={handleGetDirections}
-          >
-            <Ionicons name="navigate" size={14} color="#912338" />
-            <Text style={styles.directionsButtonText}>Directions</Text>
-          </TouchableOpacity>
-        ) : (
-          <View style={styles.noLocationBadge}>
-            <Ionicons name="location-outline" size={12} color="#FBBF24" />
-          </View>
-        )}
+        {actionContent}
 
         <TouchableOpacity
           style={styles.dismissButton}

@@ -26,7 +26,7 @@ export interface UseNextClassDirectionsOptions {
 export default function useNextClassDirections(
   options?: UseNextClassDirectionsOptions,
 ) {
-  const [thresholdMinutes, setThresholdMinutesState] = useState(
+  const [thresholdMinutes, setThresholdMinutes] = useState(
     options?.thresholdMinutes ?? DEFAULT_THRESHOLD_MINUTES,
   );
 
@@ -43,12 +43,12 @@ export default function useNextClassDirections(
 
   useEffect(() => {
     if (options?.thresholdMinutes != null) return;
-    getStoredThresholdMinutes().then(setThresholdMinutesState);
+    getStoredThresholdMinutes().then(setThresholdMinutes);
   }, [options?.thresholdMinutes]);
 
-  const setThresholdMinutes = useCallback(
+  const persistThresholdMinutes = useCallback(
     async (minutes: number) => {
-      setThresholdMinutesState(minutes);
+      setThresholdMinutes(minutes);
       await saveThresholdMinutes(minutes);
     },
     [],
@@ -129,6 +129,6 @@ export default function useNextClassDirections(
     refresh,
     isConnected,
     thresholdMinutes,
-    setThresholdMinutes,
+    setThresholdMinutes: persistThresholdMinutes,
   };
 }

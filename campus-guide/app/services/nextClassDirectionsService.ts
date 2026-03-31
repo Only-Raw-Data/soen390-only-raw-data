@@ -13,8 +13,8 @@ export async function getStoredThresholdMinutes(): Promise<number> {
   try {
     const raw = await AsyncStorage.getItem(STORAGE_KEY_THRESHOLD);
     if (raw === null) return DEFAULT_THRESHOLD_MINUTES;
-    const parsed = parseInt(raw, 10);
-    if (isNaN(parsed)) return DEFAULT_THRESHOLD_MINUTES;
+    const parsed = Number.parseInt(raw, 10);
+    if (Number.isNaN(parsed)) return DEFAULT_THRESHOLD_MINUTES;
     if (parsed === NO_LIMIT_THRESHOLD) return NO_LIMIT_THRESHOLD;
     return Math.max(MIN_THRESHOLD_MINUTES, Math.min(MAX_THRESHOLD_MINUTES, parsed));
   } catch {
@@ -54,7 +54,10 @@ export function resolveLocationToBuilding(
 
   for (const building of All_BUILDINGS) {
     const code = building.code.toUpperCase();
-    const roomPattern = new RegExp(`\\b${escapeRegex(code)}[-\\s]?\\d`, "i");
+    const roomPattern = new RegExp(
+      String.raw`\b${escapeRegex(code)}[-\s]?\d`,
+      "i",
+    );
     if (roomPattern.test(location)) {
       return building;
     }
@@ -65,7 +68,7 @@ export function resolveLocationToBuilding(
   );
   for (const building of sortedByCodeLen) {
     const code = building.code.toUpperCase();
-    const codePattern = new RegExp(`\\b${escapeRegex(code)}\\b`, "i");
+    const codePattern = new RegExp(String.raw`\b${escapeRegex(code)}\b`, "i");
     if (codePattern.test(normalized)) {
       return building;
     }
@@ -88,7 +91,7 @@ export function resolveLocationToBuilding(
 }
 
 function escapeRegex(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return str.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
 }
 
 export function computeMinutesUntilClass(classStart: Date, now?: Date): number {

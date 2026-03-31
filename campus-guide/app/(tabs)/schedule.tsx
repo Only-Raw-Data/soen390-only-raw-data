@@ -237,6 +237,139 @@ async function fetchGoogleCalendarEvents(
   return allResults.flat();
 }
 
+function computeNextClassDirectionsVisibility(
+  nextClass: NextClassEvent | null,
+  thresholdMinutes: number,
+): {
+  minutesUntil: number | null;
+  showDirectionsButton: boolean;
+} {
+  if (!nextClass) {
+    return { minutesUntil: null, showDirectionsButton: false };
+  }
+
+  const matchedBuilding = resolveLocationToBuilding(nextClass.location);
+  const minutesUntil = computeMinutesUntilClass(nextClass.start);
+  const classHasNotStarted = minutesUntil > -5;
+  const isNoLimit = thresholdMinutes === NO_LIMIT_THRESHOLD;
+  const withinThreshold =
+    classHasNotStarted && (isNoLimit || minutesUntil <= thresholdMinutes);
+  const showDirectionsButton = matchedBuilding !== null && withinThreshold;
+
+  return { minutesUntil, showDirectionsButton };
+}
+
+function NextClassCardHeader({ isLoading }: { readonly isLoading: boolean }) {
+  return (
+    <View style={styles.nextClassHeader}>
+      <Ionicons name="school-outline" size={14} color="#912338" />
+      <Text style={styles.nextClassLabel}>Next Class</Text>
+      {isLoading ? (
+        <ActivityIndicator
+          size="small"
+          color="#912338"
+          style={styles.nextClassSpinner}
+        />
+      ) : null}
+    </View>
+  );
+}
+
+function NextClassLocationBlock({
+  location,
+}: {
+  readonly location: string | null;
+}) {
+  if (location) {
+    return (
+      <View style={styles.nextClassLocationRow}>
+        <Ionicons name="location-outline" size={13} color="#6B7280" />
+        <Text style={styles.nextClassLocation} numberOfLines={1}>
+          {location}
+        </Text>
+      </View>
+    );
+  }
+  return (
+    <Text style={styles.nextClassNoLocation}>No location specified</Text>
+  );
+}
+
+function getDirectionsMinutesSuffix(minutesUntil: number | null): string {
+  if (minutesUntil != null && minutesUntil > 0) {
+    return ` (${Math.ceil(minutesUntil)} min)`;
+  }
+  return "";
+}
+
+function NextClassDirectionsButton({
+  show,
+  onPress,
+  minutesUntil,
+}: {
+  readonly show: boolean;
+  readonly onPress?: () => void;
+  readonly minutesUntil: number | null;
+}) {
+  if (!show || !onPress) return null;
+
+  return (
+    <TouchableOpacity
+      testID="next-class-directions-btn"
+      style={styles.nextClassDirectionsButton}
+      activeOpacity={0.8}
+      onPress={onPress}
+    >
+      <Ionicons name="navigate" size={14} color="#FFFFFF" />
+      <Text style={styles.nextClassDirectionsText}>
+        Get Directions{getDirectionsMinutesSuffix(minutesUntil)}
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
+function NextClassScheduledBody({
+  nextClass,
+  showDirectionsButton,
+  onGetDirections,
+  minutesUntil,
+}: {
+  readonly nextClass: NextClassEvent;
+  readonly showDirectionsButton: boolean;
+  readonly onGetDirections?: () => void;
+  readonly minutesUntil: number | null;
+}) {
+  return (
+    <>
+      <Text style={styles.nextClassTitle} numberOfLines={1}>
+        {nextClass.title}
+      </Text>
+      <Text style={styles.nextClassTime}>
+        {nextClass.start.toLocaleDateString([], {
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+        })}{" "}
+        {nextClass.start.toLocaleTimeString([], {
+          hour: "numeric",
+          minute: "2-digit",
+        })}{" "}
+        –{" "}
+        {nextClass.end.toLocaleTimeString([], {
+          hour: "numeric",
+          minute: "2-digit",
+        })}
+      </Text>
+      <NextClassLocationBlock location={nextClass.location} />
+      <NextClassDirectionsButton
+        show={showDirectionsButton}
+        onPress={onGetDirections}
+        minutesUntil={minutesUntil}
+      />
+    </>
+  );
+}
+
 function NextClassCard({
   nextClass,
   isLoading,
@@ -250,81 +383,19 @@ function NextClassCard({
 }) {
   if (!isLoading && nextClass === null) return null;
 
-  const matchedBuilding = nextClass
-    ? resolveLocationToBuilding(nextClass.location)
-    : null;
-  const minutesUntil = nextClass
-    ? computeMinutesUntilClass(nextClass.start)
-    : null;
-  const classHasNotStarted = minutesUntil !== null && minutesUntil > -5;
-  const isNoLimit = thresholdMinutes === NO_LIMIT_THRESHOLD;
-  const withinThreshold =
-    classHasNotStarted && (isNoLimit || minutesUntil! <= thresholdMinutes);
-  const showDirectionsButton = matchedBuilding !== null && withinThreshold;
+  const { minutesUntil, showDirectionsButton } =
+    computeNextClassDirectionsVisibility(nextClass, thresholdMinutes);
 
   return (
     <View style={styles.nextClassCard}>
-      <View style={styles.nextClassHeader}>
-        <Ionicons name="school-outline" size={14} color="#912338" />
-        <Text style={styles.nextClassLabel}>Next Class</Text>
-        {isLoading ? (
-          <ActivityIndicator
-            size="small"
-            color="#912338"
-            style={styles.nextClassSpinner}
-          />
-        ) : null}
-      </View>
+      <NextClassCardHeader isLoading={isLoading} />
       {nextClass ? (
-        <>
-          <Text style={styles.nextClassTitle} numberOfLines={1}>
-            {nextClass.title}
-          </Text>
-          <Text style={styles.nextClassTime}>
-            {nextClass.start.toLocaleDateString([], {
-              weekday: "short",
-              month: "short",
-              day: "numeric",
-            })}{" "}
-            {nextClass.start.toLocaleTimeString([], {
-              hour: "numeric",
-              minute: "2-digit",
-            })}{" "}
-            –{" "}
-            {nextClass.end.toLocaleTimeString([], {
-              hour: "numeric",
-              minute: "2-digit",
-            })}
-          </Text>
-          {nextClass.location ? (
-            <View style={styles.nextClassLocationRow}>
-              <Ionicons name="location-outline" size={13} color="#6B7280" />
-              <Text style={styles.nextClassLocation} numberOfLines={1}>
-                {nextClass.location}
-              </Text>
-            </View>
-          ) : (
-            <Text style={styles.nextClassNoLocation}>
-              No location specified
-            </Text>
-          )}
-          {showDirectionsButton && onGetDirections ? (
-            <TouchableOpacity
-              testID="next-class-directions-btn"
-              style={styles.nextClassDirectionsButton}
-              activeOpacity={0.8}
-              onPress={onGetDirections}
-            >
-              <Ionicons name="navigate" size={14} color="#FFFFFF" />
-              <Text style={styles.nextClassDirectionsText}>
-                Get Directions
-                {minutesUntil !== null && minutesUntil > 0
-                  ? ` (${Math.ceil(minutesUntil)} min)`
-                  : ""}
-              </Text>
-            </TouchableOpacity>
-          ) : null}
-        </>
+        <NextClassScheduledBody
+          nextClass={nextClass}
+          showDirectionsButton={showDirectionsButton}
+          onGetDirections={onGetDirections}
+          minutesUntil={minutesUntil}
+        />
       ) : null}
     </View>
   );
@@ -410,36 +481,18 @@ function EventDetailModal({
   );
 }
 
-export default function ScheduleScreen() {
-  const { connectCalendar, disconnectCalendar, isLoading, isConnected, error } =
-    useCalendarAuth();
+function applyThresholdDelta(prev: number, delta: number): number {
+  if (prev === NO_LIMIT_THRESHOLD) {
+    return delta > 0 ? MIN_THRESHOLD_MINUTES : NO_LIMIT_THRESHOLD;
+  }
 
-  const router = useRouter();
-  const {
-    setDestinationBuilding,
-    setStartCoords,
-    setStartBuilding,
-    setTransportationMode,
-    fetchRoute,
-  } = useDirections();
-  const { getRawLocation } = useUserLocation();
+  const next = prev + delta;
+  if (next < MIN_THRESHOLD_MINUTES) return NO_LIMIT_THRESHOLD;
+  if (next > MAX_THRESHOLD_MINUTES) return MAX_THRESHOLD_MINUTES;
+  return next;
+}
 
-  const scrollRef = useRef<ScrollView>(null);
-
-  const [currentDate, setCurrentDate] = useState(() => new Date());
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [eventsLoading, setEventsLoading] = useState(false);
-  const [eventsError, setEventsError] = useState<string | null>(null);
-
-  const [calendars, setCalendars] = useState<CalendarInfo[]>([]);
-  const [selectedCalendarIds, setSelectedCalendarIds] = useState<Set<string>>(
-    new Set(),
-  );
-  const [showCalendarPicker, setShowCalendarPicker] = useState(false);
-
-  const [nextClass, setNextClass] = useState<NextClassEvent | null>(null);
-  const [nextClassLoading, setNextClassLoading] = useState(false);
-
+function useScheduleThreshold() {
   const [thresholdMinutes, setThresholdMinutes] = useState(
     DEFAULT_THRESHOLD_MINUTES,
   );
@@ -450,33 +503,23 @@ export default function ScheduleScreen() {
 
   const handleThresholdChange = useCallback((delta: number) => {
     setThresholdMinutes((prev) => {
-      let next: number;
-      if (prev === NO_LIMIT_THRESHOLD) {
-        next = delta > 0 ? MIN_THRESHOLD_MINUTES : NO_LIMIT_THRESHOLD;
-      } else {
-        next = prev + delta;
-        if (next < MIN_THRESHOLD_MINUTES) next = NO_LIMIT_THRESHOLD;
-        else if (next > MAX_THRESHOLD_MINUTES) next = MAX_THRESHOLD_MINUTES;
-      }
+      const next = applyThresholdDelta(prev, delta);
       saveThresholdMinutes(next);
       return next;
     });
   }, []);
 
-  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(
-    null,
-  );
-  const weekDays = useMemo(() => getWeekDays(currentDate), [currentDate]);
-  const weekRangeLabel = useMemo(
-    () => formatWeekRangeLabel(weekDays),
-    [weekDays],
-  );
+  return { thresholdMinutes, handleThresholdChange };
+}
 
-  const buttonLabel = useMemo(() => {
-    if (isLoading) return "Loading...";
-    if (isConnected) return "Disconnect Google Calendar";
-    return "Connect Google Calendar";
-  }, [isLoading, isConnected]);
+function useScheduleEventsLoad(
+  isConnected: boolean,
+  weekDays: WeekDay[],
+  selectedCalendarIds: Set<string>,
+) {
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [eventsLoading, setEventsLoading] = useState(false);
+  const [eventsError, setEventsError] = useState<string | null>(null);
 
   const loadEvents = useCallback(async () => {
     if (!isConnected || selectedCalendarIds.size === 0) {
@@ -507,19 +550,15 @@ export default function ScheduleScreen() {
     loadEvents().catch(() => {});
   }, [loadEvents]);
 
-  useEffect(() => {
-    const now = new Date();
-    const minutesFromStart =
-      (now.getHours() - SCHEDULE_START_HOUR_24) * 60 + now.getMinutes();
+  return { events, eventsLoading, eventsError };
+}
 
-    const y = Math.max((minutesFromStart / 60) * HOUR_ROW_HEIGHT - 120, 0);
-
-    const timeout = setTimeout(() => {
-      scrollRef.current?.scrollTo({ y, animated: false });
-    }, 250);
-
-    return () => clearTimeout(timeout);
-  }, [currentDate]);
+function useScheduleCalendarsAndSelection(isConnected: boolean) {
+  const [calendars, setCalendars] = useState<CalendarInfo[]>([]);
+  const [selectedCalendarIds, setSelectedCalendarIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const [showCalendarPicker, setShowCalendarPicker] = useState(false);
 
   useEffect(() => {
     if (!isConnected) {
@@ -548,6 +587,40 @@ export default function ScheduleScreen() {
     void loadCalendars();
   }, [isConnected]);
 
+  const handleCalendarToggle = useCallback((id: string) => {
+    setSelectedCalendarIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleSaveCalendarSelection = useCallback(async () => {
+    await saveSelectedCalendarIds([...selectedCalendarIds]);
+    setShowCalendarPicker(false);
+  }, [selectedCalendarIds]);
+
+  return {
+    calendars,
+    selectedCalendarIds,
+    showCalendarPicker,
+    setShowCalendarPicker,
+    handleCalendarToggle,
+    handleSaveCalendarSelection,
+  };
+}
+
+function useScheduleNextClassEvent(
+  isConnected: boolean,
+  selectedCalendarIds: Set<string>,
+) {
+  const [nextClass, setNextClass] = useState<NextClassEvent | null>(null);
+  const [nextClassLoading, setNextClassLoading] = useState(false);
+
   useEffect(() => {
     if (!isConnected || selectedCalendarIds.size === 0) {
       setNextClass(null);
@@ -573,33 +646,177 @@ export default function ScheduleScreen() {
     void loadNextClass();
   }, [isConnected, selectedCalendarIds]);
 
-  const handleCalendarToggle = useCallback((id: string) => {
-    setSelectedCalendarIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  }, []);
+  return { nextClass, nextClassLoading };
+}
 
-  const handleSaveCalendarSelection = useCallback(async () => {
-    await saveSelectedCalendarIds([...selectedCalendarIds]);
-    setShowCalendarPicker(false);
-  }, [selectedCalendarIds]);
+function useScheduleScrollToTime(currentDate: Date) {
+  const scrollRef = useRef<ScrollView>(null);
 
-  const onConnectPress = async () => {
-    if (isLoading) return;
+  useEffect(() => {
+    const now = new Date();
+    const minutesFromStart =
+      (now.getHours() - SCHEDULE_START_HOUR_24) * 60 + now.getMinutes();
 
-    if (isConnected) {
-      await disconnectCalendar();
-      return;
-    }
+    const y = Math.max((minutesFromStart / 60) * HOUR_ROW_HEIGHT - 120, 0);
 
-    await connectCalendar();
-  };
+    const timeout = setTimeout(() => {
+      scrollRef.current?.scrollTo({ y, animated: false });
+    }, 250);
+
+    return () => clearTimeout(timeout);
+  }, [currentDate]);
+
+  return scrollRef;
+}
+
+function ScheduleDayColumn({
+  day,
+  events,
+  onEventPress,
+}: {
+  readonly day: WeekDay;
+  readonly events: CalendarEvent[];
+  readonly onEventPress: (event: CalendarEvent) => void;
+}) {
+  const dayEvents = events.filter(
+    (event) => !event.isAllDay && isSameDay(event.start, day.date),
+  );
+
+  return (
+    <View
+      style={[
+        styles.dayGridColumn,
+        day.isActive && styles.activeGridColumn,
+      ]}
+    >
+      {HOURS.map((hour) => (
+        <View key={`${day.label}-${hour}`} style={styles.gridCell} />
+      ))}
+
+      {dayEvents.map((event) => {
+        const { clampedStart, clampedEnd } = clampEventToSchedule(
+          event.start,
+          event.end,
+        );
+
+        if (clampedEnd <= clampedStart) {
+          return null;
+        }
+
+        const { top, height } = getEventLayout(clampedStart, clampedEnd);
+
+        return (
+          <TouchableOpacity
+            key={event.id}
+            style={[
+              styles.eventBlock,
+              {
+                top,
+                height,
+              },
+            ]}
+            activeOpacity={0.8}
+            onPress={() => onEventPress(event)}
+          >
+            <Text style={styles.eventTitle} numberOfLines={2}>
+              {event.title}
+            </Text>
+            <Text style={styles.eventTime} numberOfLines={1}>
+              {clampedStart.toLocaleTimeString([], {
+                hour: "numeric",
+                minute: "2-digit",
+              })}{" "}
+              -{" "}
+              {clampedEnd.toLocaleTimeString([], {
+                hour: "numeric",
+                minute: "2-digit",
+              })}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
+async function runConnectOrDisconnect(
+  isLoading: boolean,
+  isConnected: boolean,
+  connectCalendar: () => Promise<void>,
+  disconnectCalendar: () => Promise<void>,
+) {
+  if (isLoading) return;
+  if (isConnected) {
+    await disconnectCalendar();
+    return;
+  }
+  await connectCalendar();
+}
+
+export default function ScheduleScreen() {
+  const { connectCalendar, disconnectCalendar, isLoading, isConnected, error } =
+    useCalendarAuth();
+
+  const router = useRouter();
+  const {
+    setDestinationBuilding,
+    setStartCoords,
+    setStartBuilding,
+    setTransportationMode,
+    fetchRoute,
+  } = useDirections();
+  const { getRawLocation } = useUserLocation();
+
+  const [currentDate, setCurrentDate] = useState(() => new Date());
+  const scrollRef = useScheduleScrollToTime(currentDate);
+
+  const {
+    calendars,
+    selectedCalendarIds,
+    showCalendarPicker,
+    setShowCalendarPicker,
+    handleCalendarToggle,
+    handleSaveCalendarSelection,
+  } = useScheduleCalendarsAndSelection(isConnected);
+
+  const { thresholdMinutes, handleThresholdChange } = useScheduleThreshold();
+
+  const weekDays = useMemo(() => getWeekDays(currentDate), [currentDate]);
+
+  const { events, eventsLoading, eventsError } = useScheduleEventsLoad(
+    isConnected,
+    weekDays,
+    selectedCalendarIds,
+  );
+
+  const { nextClass, nextClassLoading } = useScheduleNextClassEvent(
+    isConnected,
+    selectedCalendarIds,
+  );
+
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(
+    null,
+  );
+
+  const weekRangeLabel = useMemo(
+    () => formatWeekRangeLabel(weekDays),
+    [weekDays],
+  );
+
+  const buttonLabel = useMemo(() => {
+    if (isLoading) return "Loading...";
+    if (isConnected) return "Disconnect Google Calendar";
+    return "Connect Google Calendar";
+  }, [isLoading, isConnected]);
+
+  const onConnectPress = useCallback(async () => {
+    await runConnectOrDisconnect(
+      isLoading,
+      isConnected,
+      connectCalendar,
+      disconnectCalendar,
+    );
+  }, [isLoading, isConnected, connectCalendar, disconnectCalendar]);
 
   const goToPreviousWeek = () => {
     setCurrentDate((prev) => addDays(prev, -7));
@@ -742,75 +959,14 @@ export default function ScheduleScreen() {
             </View>
 
             <View style={styles.gridColumns}>
-              {weekDays.map((day) => {
-                const dayEvents = events.filter(
-                  (event) =>
-                    !event.isAllDay && isSameDay(event.start, day.date),
-                );
-
-                return (
-                  <View
-                    key={`grid-${day.label}`}
-                    style={[
-                      styles.dayGridColumn,
-                      day.isActive && styles.activeGridColumn,
-                    ]}
-                  >
-                    {HOURS.map((hour) => (
-                      <View
-                        key={`${day.label}-${hour}`}
-                        style={styles.gridCell}
-                      />
-                    ))}
-
-                    {dayEvents.map((event) => {
-                      const { clampedStart, clampedEnd } = clampEventToSchedule(
-                        event.start,
-                        event.end,
-                      );
-
-                      if (clampedEnd <= clampedStart) {
-                        return null;
-                      }
-
-                      const { top, height } = getEventLayout(
-                        clampedStart,
-                        clampedEnd,
-                      );
-
-                      return (
-                        <TouchableOpacity
-                          key={event.id}
-                          style={[
-                            styles.eventBlock,
-                            {
-                              top,
-                              height,
-                            },
-                          ]}
-                          activeOpacity={0.8}
-                          onPress={() => setSelectedEvent(event)}
-                        >
-                          <Text style={styles.eventTitle} numberOfLines={2}>
-                            {event.title}
-                          </Text>
-                          <Text style={styles.eventTime} numberOfLines={1}>
-                            {clampedStart.toLocaleTimeString([], {
-                              hour: "numeric",
-                              minute: "2-digit",
-                            })}{" "}
-                            -{" "}
-                            {clampedEnd.toLocaleTimeString([], {
-                              hour: "numeric",
-                              minute: "2-digit",
-                            })}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                );
-              })}
+              {weekDays.map((day) => (
+                <ScheduleDayColumn
+                  key={`grid-${day.label}`}
+                  day={day}
+                  events={events}
+                  onEventPress={setSelectedEvent}
+                />
+              ))}
             </View>
           </View>
 
