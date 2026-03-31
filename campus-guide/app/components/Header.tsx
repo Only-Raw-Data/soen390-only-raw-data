@@ -1,3 +1,4 @@
+import NextClassDirectionsBanner from "@app/components/NextClassDirectionsBanner";
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import { useRouter } from "expo-router";
 
@@ -18,6 +19,7 @@ export default function Header() {
       >
         <Text style={styles.headerTitle}>Concordia Campus Guide</Text>
       </Pressable>
+      <NextClassDirectionsBanner />
     </View>
   );
 }
