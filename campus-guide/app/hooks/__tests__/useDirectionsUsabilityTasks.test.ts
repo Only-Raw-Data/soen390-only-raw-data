@@ -46,6 +46,8 @@ describe("useDirectionsUsabilityTasks", () => {
     mockUseDirections.mockReturnValue({
       route: null,
       transportationMode: "walk",
+      startBuilding: null,
+      destinationBuilding: null,
     });
     const { result } = renderHook(() => useDirectionsUsabilityTasks());
     result.current.onGetDirectionsCta();
@@ -59,6 +61,8 @@ describe("useDirectionsUsabilityTasks", () => {
     mockUseDirections.mockReturnValue({
       route: { id: "r1" },
       transportationMode: "walk",
+      startBuilding: null,
+      destinationBuilding: null,
     });
     renderHook(() => useDirectionsUsabilityTasks());
     expect(taskSessions.explore_transport_modes.beginTask).toHaveBeenCalled();
@@ -68,6 +72,8 @@ describe("useDirectionsUsabilityTasks", () => {
     mockUseDirections.mockReturnValue({
       route: { id: "r1" },
       transportationMode: "walk",
+      startBuilding: null,
+      destinationBuilding: null,
     });
     const { rerender } = renderHook(() => useDirectionsUsabilityTasks());
     expect(taskSessions.explore_transport_modes.beginTask).toHaveBeenCalled();
@@ -75,10 +81,37 @@ describe("useDirectionsUsabilityTasks", () => {
     mockUseDirections.mockReturnValue({
       route: { id: "r1" },
       transportationMode: "car",
+      startBuilding: null,
+      destinationBuilding: null,
     });
     rerender({});
     expect(
       taskSessions.explore_transport_modes.completeTask,
     ).toHaveBeenCalledWith(true, "transport_mode_switched_after_route");
+  });
+
+  it("begins T5 when shuttle cross-campus is selected", () => {
+    mockUseDirections.mockReturnValue({
+      route: null,
+      transportationMode: "shuttle",
+      startBuilding: { campus: "SGW" },
+      destinationBuilding: { campus: "Loyola" },
+    });
+    renderHook(() => useDirectionsUsabilityTasks());
+    expect(taskSessions.T5.beginTask).toHaveBeenCalled();
+  });
+
+  it("completes T5 when shuttle cross-campus route is shown", () => {
+    mockUseDirections.mockReturnValue({
+      route: { id: "shuttle-route" },
+      transportationMode: "shuttle",
+      startBuilding: { campus: "SGW" },
+      destinationBuilding: { campus: "Loyola" },
+    });
+    renderHook(() => useDirectionsUsabilityTasks());
+    expect(taskSessions.T5.completeTask).toHaveBeenCalledWith(
+      true,
+      "shuttle_cross_campus_route_displayed",
+    );
   });
 });

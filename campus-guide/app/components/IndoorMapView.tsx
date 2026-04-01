@@ -42,6 +42,7 @@ import {
   STAIRCASE_LABEL,
   AMENITY_CONFIG,
 } from "@app/utils/indoorMapUtils";
+import { useIndoorUsabilityTasks } from "@hooks/useIndoorUsabilityTasks";
 
 type Direction = "up" | "down" | null;
 
@@ -533,6 +534,8 @@ export default function IndoorMapView() {
     togglePOIs,
     isCrossBuilding,
   } = useIndoorMap();
+
+  useIndoorUsabilityTasks();
 
   const posthog = usePostHog();
 

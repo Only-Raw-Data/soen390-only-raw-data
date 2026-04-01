@@ -25,6 +25,26 @@ describe("useTaskSession", () => {
     );
   });
 
+  it("merges analyticsProps into task_started and task_completed", () => {
+    const extra = { epic: "E2", user_stories: "US 2.6" };
+    jest.spyOn(Date, "now")
+      .mockReturnValueOnce(1000)
+      .mockReturnValueOnce(3000);
+    const { result } = renderHook(() =>
+      useTaskSession("tx", "Task X", { analyticsProps: extra }),
+    );
+    act(() => result.current.completeTask(true, "done"));
+    expect(jest.mocked(usePostHog)().capture).toHaveBeenCalledWith(
+      "task_started",
+      expect.objectContaining({ ...extra, task_id: "tx" }),
+    );
+    expect(jest.mocked(usePostHog)().capture).toHaveBeenCalledWith(
+      "task_completed",
+      expect.objectContaining({ ...extra, task_id: "tx", success: true }),
+    );
+    jest.restoreAllMocks();
+  });
+
   it("does not begin when disabled", () => {
     renderHook(() =>
       useTaskSession("t2", "Task two", { enabled: false }),

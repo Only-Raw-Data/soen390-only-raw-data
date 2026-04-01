@@ -41,6 +41,7 @@ import {
 } from "@services/nextClassDirectionsService";
 import { useDirections } from "@context/DirectionsContext";
 import useUserLocation from "@hooks/useUserLocation";
+import { useScheduleUsabilityTask } from "@hooks/useScheduleUsabilityTask";
 import { Building } from "@/constants/buildings";
 import type { TransportationMode } from "@app/types/transportation";
 
@@ -1040,6 +1041,14 @@ export default function ScheduleScreen() {
   const { nextClass, nextClassLoading } = useScheduleNextClassEvent(
     isConnected,
     selectedCalendarIds,
+  );
+
+  useScheduleUsabilityTask(
+    isConnected,
+    eventsLoading,
+    selectedCalendarIds,
+    events.length,
+    nextClass !== null,
   );
 
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(

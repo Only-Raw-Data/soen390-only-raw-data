@@ -8,6 +8,8 @@
     "start": "expo start",
     "android": "expo run:android",
     "android:native": "expo run:android",
+    "android:phone": "expo run:android -- -PreactNativeArchitectures=arm64-v8a",
+    "android:emu": "expo run:android -- -PreactNativeArchitectures=x86_64",
     "ios": "expo run:ios",
     "ios:native": "expo run:ios",
     "web": "expo start --web",
