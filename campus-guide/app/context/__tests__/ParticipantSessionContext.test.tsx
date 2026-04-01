@@ -11,6 +11,7 @@ import {
 beforeEach(async () => {
   await AsyncStorage.clear();
   (jest.mocked(usePostHog)().identify as jest.Mock).mockClear();
+  (jest.mocked(usePostHog)().reset as jest.Mock).mockClear();
 });
 
 function HydrationProbe() {
@@ -103,6 +104,7 @@ describe("ParticipantSessionContext", () => {
 
     expect(await AsyncStorage.getItem("posthog_participant_id")).toBe("P99");
     expect(await AsyncStorage.getItem("posthog_task_set")).toBe("setB");
+    expect(jest.mocked(usePostHog)().reset).toHaveBeenCalled();
     expect(jest.mocked(usePostHog)().identify).toHaveBeenCalledWith(
       "participant_P99",
       expect.objectContaining({
@@ -110,6 +112,46 @@ describe("ParticipantSessionContext", () => {
         task_set: "setB",
         session_date: expect.any(String),
       }),
+    );
+    const ph = jest.mocked(usePostHog)();
+    expect((ph.reset as jest.Mock).mock.invocationCallOrder[0]).toBeLessThan(
+      (ph.identify as jest.Mock).mock.invocationCallOrder[0],
+    );
+  });
+
+  it("startSession calls reset before identify on each new session", async () => {
+    function Starter() {
+      const { startSession, isHydrated } = useParticipantSession();
+      if (!isHydrated) return <Text testID="pid">loading</Text>;
+      return (
+        <Pressable testID="start" onPress={() => void startSession("A", "")}>
+          <Text>Go</Text>
+        </Pressable>
+      );
+    }
+
+    render(
+      <ParticipantSessionProvider>
+        <Starter />
+      </ParticipantSessionProvider>,
+    );
+    await waitFor(() => expect(screen.getByTestId("start")).toBeTruthy());
+
+    fireEvent.press(screen.getByTestId("start"));
+    await waitFor(() => {
+      expect(jest.mocked(usePostHog)().reset).toHaveBeenCalledTimes(1);
+    });
+
+    (jest.mocked(usePostHog)().reset as jest.Mock).mockClear();
+    (jest.mocked(usePostHog)().identify as jest.Mock).mockClear();
+
+    fireEvent.press(screen.getByTestId("start"));
+    await waitFor(() => {
+      expect(jest.mocked(usePostHog)().reset).toHaveBeenCalledTimes(1);
+    });
+    expect(jest.mocked(usePostHog)().identify).toHaveBeenCalledWith(
+      "participant_A",
+      expect.any(Object),
     );
   });
 });

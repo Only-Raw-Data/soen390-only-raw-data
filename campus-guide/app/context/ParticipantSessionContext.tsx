@@ -61,6 +61,9 @@ export function ParticipantSessionProvider({ children }: { readonly children: Re
     async (id: string, tasks: string) => {
       const trimmed = id.trim() || `anon_${Date.now()}`;
       const ts = tasks.trim();
+      // New participant on a shared device: clear PostHog identity so insights
+      // count each Start Session as a distinct person (not merged with prior identify).
+      posthog.reset();
       await AsyncStorage.multiSet([
         [PARTICIPANT_STORAGE_KEY, trimmed],
         [TASK_SET_STORAGE_KEY, ts],

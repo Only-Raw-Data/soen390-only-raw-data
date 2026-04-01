@@ -10,7 +10,6 @@ import 'react-native-reanimated';
 import { PostHogProvider, PostHogSurveyProvider } from 'posthog-react-native';
 
 import { useColorScheme } from '@/components/useColorScheme';
-import ParticipantIdentifier from '@components/ParticipantIdentifier';
 import { ParticipantSessionProvider } from '@context/ParticipantSessionContext';
 
 const isExpoGo = Constants.appOwnership === 'expo';
@@ -65,18 +64,16 @@ function RootLayoutNav() {
 
   const appTree = (
     <ParticipantSessionProvider>
-      <ParticipantIdentifier>
-        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-          <Stack>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
-            <Stack.Screen
-              name="moderator"
-              options={{ presentation: 'modal', title: 'Session setup' }}
-            />
-          </Stack>
-        </ThemeProvider>
-      </ParticipantIdentifier>
+      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+        <Stack>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+          <Stack.Screen
+            name="moderator"
+            options={{ presentation: 'modal', title: 'Session setup' }}
+          />
+        </Stack>
+      </ThemeProvider>
     </ParticipantSessionProvider>
   );
 
