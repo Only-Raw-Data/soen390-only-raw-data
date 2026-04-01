@@ -18,6 +18,23 @@ import { useParticipantSession } from "@context/ParticipantSessionContext";
 /** After closing the native modal, wait so the stack animation finishes before firing the survey trigger. */
 const COMPLETE_CAPTURE_DELAY_MS = 520;
 
+function captureSessionEvent(
+  posthog: ReturnType<typeof usePostHog>,
+  participantId: string,
+  taskSet: string,
+) {
+  const payload = {
+    participant_id: participantId,
+    task_set: taskSet,
+  };
+  const doCapture = async () => {
+    await posthog.ready();
+    posthog.capture("usability_session_completed", payload);
+    await posthog.flush();
+  };
+  doCapture().catch(() => {});
+}
+
 export default function ModeratorScreen() {
   const router = useRouter();
   const posthog = usePostHog();
@@ -44,17 +61,12 @@ export default function ModeratorScreen() {
       return;
     }
     router.back();
-    const payload = {
-      participant_id: sessionParticipantId,
-      task_set: sessionTaskSet,
-    };
+
     InteractionManager.runAfterInteractions(() => {
-      setTimeout(() => {
-        void posthog.ready().then(() => {
-          posthog.capture("usability_session_completed", payload);
-          void posthog.flush();
-        });
-      }, COMPLETE_CAPTURE_DELAY_MS);
+      setTimeout(
+        () => captureSessionEvent(posthog, sessionParticipantId, sessionTaskSet),
+        COMPLETE_CAPTURE_DELAY_MS,
+      );
     });
   }, [sessionParticipantId, sessionTaskSet, posthog, router]);
 

@@ -370,21 +370,32 @@ describe("ScheduleScreen", () => {
     mockGetFreshCalendarAccessToken.mockResolvedValue("token");
     mockFetchCalendars.mockResolvedValue([{ id: "cal1", name: "Work" }]);
     mockGetSelectedCalendarIds.mockResolvedValue(["cal1"]);
+    mockSaveSelectedCalendarIds.mockResolvedValue(undefined);
     mockFetchNextClassEvent.mockResolvedValue(null);
 
     // Act
     render(<ScheduleScreen />);
 
     await waitFor(() => {
-      // Act
-      fireEvent.press(screen.getByText("Manage Calendars"));
+      expect(screen.getByText("Manage Calendars")).toBeTruthy();
     });
 
-    // Act
-    fireEvent.press(screen.getByText("Save"));
+    fireEvent.press(screen.getByText("Manage Calendars"));
 
-    // Assert
+    await waitFor(() => {
+      expect(screen.getByText("Save")).toBeTruthy();
+    });
+
+    await waitFor(() => {
+      // Act
+    fireEvent.press(screen.getByText("Save"));
+    });
+
+    await waitFor(() => {
+      // Assert
     expect(mockSaveSelectedCalendarIds).toHaveBeenCalledWith(["cal1"]);
+    });
+
     // Assert
     await waitFor(() => {
       expect(screen.queryByText("Select Calendars")).toBeNull();
