@@ -10,9 +10,10 @@ import {
 import type { TaskSessionAnalyticsProps } from "@hooks/useTaskSession";
 import { useTaskSession } from "@hooks/useTaskSession";
 
-function pathTouchesUpperFloor(path: GraphNode[]): boolean {
+/** Exported for unit tests (path / floor logic). */
+export function pathTouchesUpperFloor(path: GraphNode[]): boolean {
   if (path.length === 0) return false;
-  let maxFloor = path[0]!.floor;
+  let maxFloor = path[0].floor;
   let minFloor = maxFloor;
   for (const n of path) {
     maxFloor = Math.max(maxFloor, n.floor);
