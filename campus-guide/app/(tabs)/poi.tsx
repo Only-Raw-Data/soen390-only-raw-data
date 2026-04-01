@@ -22,6 +22,12 @@ import { CAMPUS_REGIONS, Campus } from "@constants/buildings";
 import { PointOfInterest } from "@app/types/poi";
 import InfoModal from "@app/components/InfoModal";
 import { useScreenTimer } from "@hooks/useScreenTimer";
+import type { TaskSessionAnalyticsProps } from "@hooks/useTaskSession";
+import { useTaskSession } from "@hooks/useTaskSession";
+import {
+  USABILITY_ANALYTICS_T9,
+  USABILITY_TASK_T9_POI,
+} from "@/constants/usabilityTasks";
 
 // ─── Radius options ──────────────────────────────────────────────────────────
 
@@ -140,6 +146,15 @@ export default function POIScreen() {
   useScreenTimer("Points of Interest");
   const router = useRouter();
   const posthog = usePostHog();
+
+  const t9 = useTaskSession(
+    USABILITY_TASK_T9_POI.id,
+    USABILITY_TASK_T9_POI.name,
+    {
+      analyticsProps: USABILITY_ANALYTICS_T9 as TaskSessionAnalyticsProps,
+    },
+  );
+  const { completeTask: completeT9 } = t9;
   const { setDestinationBuilding, setStartBuilding, startBuilding } =
     useDirections();
 
@@ -217,6 +232,7 @@ export default function POIScreen() {
         poi_type: poi.type,
         distance_meters: poi.distance ?? null,
       });
+      completeT9(true, "poi_directions_opened");
       const building = poiToBuildingAdapter(poi, selectedCampus);
       if (startBuilding) {
         setDestinationBuilding(building);
@@ -232,6 +248,7 @@ export default function POIScreen() {
       startBuilding,
       selectedCampus,
       posthog,
+      completeT9,
     ],
   );
 

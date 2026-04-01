@@ -4,15 +4,28 @@ import { useParticipantSession } from "@context/ParticipantSessionContext";
 
 export type TaskSessionStartMode = "mount" | "manual";
 
+export type TaskSessionAnalyticsProps = Record<
+  string,
+  string | number | boolean
+>;
+
+const EMPTY_TASK_ANALYTICS: TaskSessionAnalyticsProps = {};
+
 export function useTaskSession(
   taskId: string,
   taskName: string,
-  options?: { startWhen?: TaskSessionStartMode; enabled?: boolean },
+  options?: {
+    startWhen?: TaskSessionStartMode;
+    enabled?: boolean;
+    /** Extra PostHog properties on task_started / task_completed (e.g. epic, user_stories). */
+    analyticsProps?: TaskSessionAnalyticsProps;
+  },
 ) {
   const posthog = usePostHog();
   const { participantId } = useParticipantSession();
   const startWhen = options?.startWhen ?? "mount";
   const enabled = options?.enabled !== false;
+  const analyticsProps = options?.analyticsProps ?? EMPTY_TASK_ANALYTICS;
   const startTimeRef = useRef(Date.now());
   const hasBegunRef = useRef(false);
   const completedRef = useRef(false);
@@ -23,11 +36,12 @@ export function useTaskSession(
     hasBegunRef.current = true;
     startTimeRef.current = Date.now();
     posthog.capture("task_started", {
+      ...analyticsProps,
       task_id: taskId,
       task_name: taskName,
       participant_id: participantId ?? "",
     });
-  }, [enabled, taskId, taskName, participantId, posthog]);
+  }, [enabled, taskId, taskName, participantId, posthog, analyticsProps]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -43,6 +57,7 @@ export function useTaskSession(
       completedRef.current = true;
       const duration_seconds = (Date.now() - startTimeRef.current) / 1000;
       posthog.capture("task_completed", {
+        ...analyticsProps,
         task_id: taskId,
         task_name: taskName,
         success,
@@ -51,7 +66,7 @@ export function useTaskSession(
         participant_id: participantId ?? "",
       });
     },
-    [enabled, taskId, taskName, participantId, posthog],
+    [enabled, taskId, taskName, participantId, posthog, analyticsProps],
   );
 
   const failTask = useCallback(

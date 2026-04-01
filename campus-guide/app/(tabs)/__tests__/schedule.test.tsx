@@ -40,6 +40,16 @@ jest.mock("@context/CalendarAuthContext", () => ({
   useCalendarAuth: jest.fn(),
 }));
 
+jest.mock("@context/ParticipantSessionContext", () => ({
+  ParticipantSessionProvider: ({ children }: { children: unknown }) => children,
+  useParticipantSession: jest.fn(() => ({
+    participantId: "test-p",
+    taskSet: "",
+    isHydrated: true,
+    startSession: jest.fn(() => Promise.resolve()),
+  })),
+}));
+
 jest.mock("@services/calendarAuthService", () => ({
   fetchCalendars: jest.fn(),
   fetchNextClassEvent: jest.fn(),

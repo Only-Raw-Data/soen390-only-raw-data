@@ -20,6 +20,16 @@ jest.mock("@app/context/DirectionsContext", () => ({
   useDirections: jest.fn(),
 }));
 
+jest.mock("@context/ParticipantSessionContext", () => ({
+  ParticipantSessionProvider: ({ children }: { children: unknown }) => children,
+  useParticipantSession: jest.fn(() => ({
+    participantId: "test-p",
+    taskSet: "",
+    isHydrated: true,
+    startSession: jest.fn(() => Promise.resolve()),
+  })),
+}));
+
 import { planCrossBuildingRoute } from "@app/services/crossBuildingRouteService";
 const mockPlanRoute = planCrossBuildingRoute as jest.MockedFunction<typeof planCrossBuildingRoute>;
 
