@@ -15,12 +15,11 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { usePostHog } from "posthog-react-native";
 import Header from "@app/components/Header";
 import { useCalendarAuth } from "@context/CalendarAuthContext";
-import { useScreenTimer } from "@hooks/useScreenTimer";
 import { formatHourLabel } from "@utils/timeFormat";
 import { buildHourSlots } from "@utils/timeSlots";
+import { useRouter } from "expo-router";
 import {
   type CalendarInfo,
   type NextClassEvent,
@@ -30,6 +29,21 @@ import {
   getSelectedCalendarIds,
   saveSelectedCalendarIds,
 } from "@services/calendarAuthService";
+import {
+  resolveLocationToBuilding,
+  computeMinutesUntilClass,
+  DEFAULT_THRESHOLD_MINUTES,
+  MIN_THRESHOLD_MINUTES,
+  MAX_THRESHOLD_MINUTES,
+  NO_LIMIT_THRESHOLD,
+  getStoredThresholdMinutes,
+  saveThresholdMinutes,
+} from "@services/nextClassDirectionsService";
+import { useDirections } from "@context/DirectionsContext";
+import useUserLocation from "@hooks/useUserLocation";
+import { useScheduleUsabilityTask } from "@hooks/useScheduleUsabilityTask";
+import { Building } from "@/constants/buildings";
+import type { TransportationMode } from "@app/types/transportation";
 
 type WeekDay = {
   label: string;
@@ -203,7 +217,9 @@ async function fetchGoogleCalendarEvents(
       const items = Array.isArray(data.items) ? data.items : [];
 
       return items
-        .filter((item: any) => typeof item.id === "string" && item.start && item.end)
+        .filter(
+          (item: any) => typeof item.id === "string" && item.start && item.end,
+        )
         .map((item: any) => {
           const isAllDay = Boolean(item.start?.date && item.end?.date);
 
@@ -214,7 +230,8 @@ async function fetchGoogleCalendarEvents(
             end: new Date(item.end?.dateTime || item.end?.date),
             isAllDay,
             location: typeof item.location === "string" ? item.location : null,
-            description: typeof item.description === "string" ? item.description : null,
+            description:
+              typeof item.description === "string" ? item.description : null,
           };
         });
     }),
@@ -223,56 +240,165 @@ async function fetchGoogleCalendarEvents(
   return allResults.flat();
 }
 
+function computeNextClassDirectionsVisibility(
+  nextClass: NextClassEvent | null,
+  thresholdMinutes: number,
+): {
+  minutesUntil: number | null;
+  showDirectionsButton: boolean;
+} {
+  if (!nextClass) {
+    return { minutesUntil: null, showDirectionsButton: false };
+  }
+
+  const matchedBuilding = resolveLocationToBuilding(nextClass.location);
+  const minutesUntil = computeMinutesUntilClass(nextClass.start);
+  const classHasNotStarted = minutesUntil > -5;
+  const isNoLimit = thresholdMinutes === NO_LIMIT_THRESHOLD;
+  const withinThreshold =
+    classHasNotStarted && (isNoLimit || minutesUntil <= thresholdMinutes);
+  const showDirectionsButton = matchedBuilding !== null && withinThreshold;
+
+  return { minutesUntil, showDirectionsButton };
+}
+
+function NextClassCardHeader({ isLoading }: { readonly isLoading: boolean }) {
+  return (
+    <View style={styles.nextClassHeader}>
+      <Ionicons name="school-outline" size={14} color="#912338" />
+      <Text style={styles.nextClassLabel}>Next Class</Text>
+      {isLoading ? (
+        <ActivityIndicator
+          size="small"
+          color="#912338"
+          style={styles.nextClassSpinner}
+        />
+      ) : null}
+    </View>
+  );
+}
+
+function NextClassLocationBlock({
+  location,
+}: {
+  readonly location: string | null;
+}) {
+  if (location) {
+    return (
+      <View style={styles.nextClassLocationRow}>
+        <Ionicons name="location-outline" size={13} color="#6B7280" />
+        <Text style={styles.nextClassLocation} numberOfLines={1}>
+          {location}
+        </Text>
+      </View>
+    );
+  }
+  return (
+    <Text style={styles.nextClassNoLocation}>No location specified</Text>
+  );
+}
+
+function getDirectionsMinutesSuffix(minutesUntil: number | null): string {
+  if (minutesUntil != null && minutesUntil > 0) {
+    return ` (${Math.ceil(minutesUntil)} min)`;
+  }
+  return "";
+}
+
+function NextClassDirectionsButton({
+  show,
+  onPress,
+  minutesUntil,
+}: {
+  readonly show: boolean;
+  readonly onPress?: () => void;
+  readonly minutesUntil: number | null;
+}) {
+  if (!show || !onPress) return null;
+
+  return (
+    <TouchableOpacity
+      testID="next-class-directions-btn"
+      style={styles.nextClassDirectionsButton}
+      activeOpacity={0.8}
+      onPress={onPress}
+    >
+      <Ionicons name="navigate" size={14} color="#FFFFFF" />
+      <Text style={styles.nextClassDirectionsText}>
+        Get Directions{getDirectionsMinutesSuffix(minutesUntil)}
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
+function NextClassScheduledBody({
+  nextClass,
+  showDirectionsButton,
+  onGetDirections,
+  minutesUntil,
+}: {
+  readonly nextClass: NextClassEvent;
+  readonly showDirectionsButton: boolean;
+  readonly onGetDirections?: () => void;
+  readonly minutesUntil: number | null;
+}) {
+  return (
+    <>
+      <Text style={styles.nextClassTitle} numberOfLines={1}>
+        {nextClass.title}
+      </Text>
+      <Text style={styles.nextClassTime}>
+        {nextClass.start.toLocaleDateString([], {
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+        })}{" "}
+        {nextClass.start.toLocaleTimeString([], {
+          hour: "numeric",
+          minute: "2-digit",
+        })}{" "}
+        –{" "}
+        {nextClass.end.toLocaleTimeString([], {
+          hour: "numeric",
+          minute: "2-digit",
+        })}
+      </Text>
+      <NextClassLocationBlock location={nextClass.location} />
+      <NextClassDirectionsButton
+        show={showDirectionsButton}
+        onPress={onGetDirections}
+        minutesUntil={minutesUntil}
+      />
+    </>
+  );
+}
+
 function NextClassCard({
   nextClass,
   isLoading,
+  onGetDirections,
+  thresholdMinutes,
 }: {
   readonly nextClass: NextClassEvent | null;
   readonly isLoading: boolean;
+  readonly onGetDirections?: () => void;
+  readonly thresholdMinutes: number;
 }) {
   if (!isLoading && nextClass === null) return null;
 
+  const { minutesUntil, showDirectionsButton } =
+    computeNextClassDirectionsVisibility(nextClass, thresholdMinutes);
+
   return (
     <View style={styles.nextClassCard}>
-      <View style={styles.nextClassHeader}>
-        <Ionicons name="school-outline" size={14} color="#912338" />
-        <Text style={styles.nextClassLabel}>Next Class</Text>
-        {isLoading ? (
-          <ActivityIndicator size="small" color="#912338" style={styles.nextClassSpinner} />
-        ) : null}
-      </View>
+      <NextClassCardHeader isLoading={isLoading} />
       {nextClass ? (
-        <>
-          <Text style={styles.nextClassTitle} numberOfLines={1}>
-            {nextClass.title}
-          </Text>
-          <Text style={styles.nextClassTime}>
-            {nextClass.start.toLocaleDateString([], {
-              weekday: "short",
-              month: "short",
-              day: "numeric",
-            })}{" "}
-            {nextClass.start.toLocaleTimeString([], {
-              hour: "numeric",
-              minute: "2-digit",
-            })}{" "}
-            –{" "}
-            {nextClass.end.toLocaleTimeString([], {
-              hour: "numeric",
-              minute: "2-digit",
-            })}
-          </Text>
-          {nextClass.location ? (
-            <View style={styles.nextClassLocationRow}>
-              <Ionicons name="location-outline" size={13} color="#6B7280" />
-              <Text style={styles.nextClassLocation} numberOfLines={1}>
-                {nextClass.location}
-              </Text>
-            </View>
-          ) : (
-            <Text style={styles.nextClassNoLocation}>No location specified</Text>
-          )}
-        </>
+        <NextClassScheduledBody
+          nextClass={nextClass}
+          showDirectionsButton={showDirectionsButton}
+          onGetDirections={onGetDirections}
+          minutesUntil={minutesUntil}
+        />
       ) : null}
     </View>
   );
@@ -358,43 +484,45 @@ function EventDetailModal({
   );
 }
 
-export default function ScheduleScreen() {
-  useScreenTimer("Schedule");
-  const posthog = usePostHog();
-  const {
-    connectCalendar,
-    disconnectCalendar,
-    isLoading,
-    isConnected,
-    error,
-  } = useCalendarAuth();
+function applyThresholdDelta(prev: number, delta: number): number {
+  if (prev === NO_LIMIT_THRESHOLD) {
+    return delta > 0 ? MIN_THRESHOLD_MINUTES : NO_LIMIT_THRESHOLD;
+  }
 
-  const scrollRef = useRef<ScrollView>(null);
+  const next = prev + delta;
+  if (next < MIN_THRESHOLD_MINUTES) return NO_LIMIT_THRESHOLD;
+  if (next > MAX_THRESHOLD_MINUTES) return MAX_THRESHOLD_MINUTES;
+  return next;
+}
 
-  const [currentDate, setCurrentDate] = useState(() => new Date());
+function useScheduleThreshold() {
+  const [thresholdMinutes, setThresholdMinutes] = useState(
+    DEFAULT_THRESHOLD_MINUTES,
+  );
+
+  useEffect(() => {
+    getStoredThresholdMinutes().then(setThresholdMinutes);
+  }, []);
+
+  const handleThresholdChange = useCallback((delta: number) => {
+    setThresholdMinutes((prev) => {
+      const next = applyThresholdDelta(prev, delta);
+      saveThresholdMinutes(next);
+      return next;
+    });
+  }, []);
+
+  return { thresholdMinutes, handleThresholdChange };
+}
+
+function useScheduleEventsLoad(
+  isConnected: boolean,
+  weekDays: WeekDay[],
+  selectedCalendarIds: Set<string>,
+) {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
   const [eventsError, setEventsError] = useState<string | null>(null);
-
-  const [calendars, setCalendars] = useState<CalendarInfo[]>([]);
-  const [selectedCalendarIds, setSelectedCalendarIds] = useState<Set<string>>(
-    new Set(),
-  );
-  const [showCalendarPicker, setShowCalendarPicker] = useState(false);
-
-  const [nextClass, setNextClass] = useState<NextClassEvent | null>(null);
-  const [nextClassLoading, setNextClassLoading] = useState(false);
-
-  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
-
-  const weekDays = useMemo(() => getWeekDays(currentDate), [currentDate]);
-  const weekRangeLabel = useMemo(() => formatWeekRangeLabel(weekDays), [weekDays]);
-
-  const buttonLabel = useMemo(() => {
-    if (isLoading) return "Loading...";
-    if (isConnected) return "Disconnect Google Calendar";
-    return "Connect Google Calendar";
-  }, [isLoading, isConnected]);
 
   const loadEvents = useCallback(async () => {
     if (!isConnected || selectedCalendarIds.size === 0) {
@@ -425,19 +553,15 @@ export default function ScheduleScreen() {
     loadEvents().catch(() => {});
   }, [loadEvents]);
 
-  useEffect(() => {
-    const now = new Date();
-    const minutesFromStart =
-      (now.getHours() - SCHEDULE_START_HOUR_24) * 60 + now.getMinutes();
+  return { events, eventsLoading, eventsError };
+}
 
-    const y = Math.max((minutesFromStart / 60) * HOUR_ROW_HEIGHT - 120, 0);
-
-    const timeout = setTimeout(() => {
-      scrollRef.current?.scrollTo({ y, animated: false });
-    }, 250);
-
-    return () => clearTimeout(timeout);
-  }, [currentDate]);
+function useScheduleCalendarsAndSelection(isConnected: boolean) {
+  const [calendars, setCalendars] = useState<CalendarInfo[]>([]);
+  const [selectedCalendarIds, setSelectedCalendarIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const [showCalendarPicker, setShowCalendarPicker] = useState(false);
 
   useEffect(() => {
     if (!isConnected) {
@@ -455,7 +579,9 @@ export default function ScheduleScreen() {
 
       const saved = await getSelectedCalendarIds();
       if (saved === null) {
-        setSelectedCalendarIds(new Set(fetched.map((c) => c.id)));
+        const allIds = fetched.map((c) => c.id);
+        setSelectedCalendarIds(new Set(allIds));
+        await saveSelectedCalendarIds(allIds);
       } else {
         setSelectedCalendarIds(new Set(saved));
       }
@@ -463,29 +589,6 @@ export default function ScheduleScreen() {
 
     void loadCalendars();
   }, [isConnected]);
-
-  useEffect(() => {
-    if (!isConnected || selectedCalendarIds.size === 0) {
-      setNextClass(null);
-      return;
-    }
-
-    async function loadNextClass() {
-      setNextClassLoading(true);
-      try {
-        const token = await getFreshCalendarAccessToken();
-        if (!token) return;
-        const event = await fetchNextClassEvent(token, [...selectedCalendarIds]);
-        setNextClass(event);
-      } catch {
-        setNextClass(null);
-      } finally {
-        setNextClassLoading(false);
-      }
-    }
-
-    void loadNextClass();
-  }, [isConnected, selectedCalendarIds]);
 
   const handleCalendarToggle = useCallback((id: string) => {
     setSelectedCalendarIds((prev) => {
@@ -504,32 +607,501 @@ export default function ScheduleScreen() {
     setShowCalendarPicker(false);
   }, [selectedCalendarIds]);
 
-  const onConnectPress = async () => {
-    if (isLoading) return;
+  return {
+    calendars,
+    selectedCalendarIds,
+    showCalendarPicker,
+    setShowCalendarPicker,
+    handleCalendarToggle,
+    handleSaveCalendarSelection,
+  };
+}
 
-    if (isConnected) {
-      posthog.capture('calendar_disconnected');
-      await disconnectCalendar();
+function useScheduleNextClassEvent(
+  isConnected: boolean,
+  selectedCalendarIds: Set<string>,
+) {
+  const [nextClass, setNextClass] = useState<NextClassEvent | null>(null);
+  const [nextClassLoading, setNextClassLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isConnected || selectedCalendarIds.size === 0) {
+      setNextClass(null);
       return;
     }
 
-    posthog.capture('calendar_connected');
-    await connectCalendar();
-  };
+    async function loadNextClass() {
+      setNextClassLoading(true);
+      try {
+        const token = await getFreshCalendarAccessToken();
+        if (!token) return;
+        const event = await fetchNextClassEvent(token, [
+          ...selectedCalendarIds,
+        ]);
+        setNextClass(event);
+      } catch {
+        setNextClass(null);
+      } finally {
+        setNextClassLoading(false);
+      }
+    }
+
+    void loadNextClass();
+  }, [isConnected, selectedCalendarIds]);
+
+  return { nextClass, nextClassLoading };
+}
+
+function useScheduleScrollToTime(currentDate: Date) {
+  const scrollRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    const now = new Date();
+    const minutesFromStart =
+      (now.getHours() - SCHEDULE_START_HOUR_24) * 60 + now.getMinutes();
+
+    const y = Math.max((minutesFromStart / 60) * HOUR_ROW_HEIGHT - 120, 0);
+
+    const timeout = setTimeout(() => {
+      scrollRef.current?.scrollTo({ y, animated: false });
+    }, 250);
+
+    return () => clearTimeout(timeout);
+  }, [currentDate]);
+
+  return scrollRef;
+}
+
+function ScheduleDayColumn({
+  day,
+  events,
+  onEventPress,
+}: {
+  readonly day: WeekDay;
+  readonly events: CalendarEvent[];
+  readonly onEventPress: (event: CalendarEvent) => void;
+}) {
+  const dayEvents = events.filter(
+    (event) => !event.isAllDay && isSameDay(event.start, day.date),
+  );
+
+  return (
+    <View
+      style={[
+        styles.dayGridColumn,
+        day.isActive && styles.activeGridColumn,
+      ]}
+    >
+      {HOURS.map((hour) => (
+        <View key={`${day.label}-${hour}`} style={styles.gridCell} />
+      ))}
+
+      {dayEvents.map((event) => {
+        const { clampedStart, clampedEnd } = clampEventToSchedule(
+          event.start,
+          event.end,
+        );
+
+        if (clampedEnd <= clampedStart) {
+          return null;
+        }
+
+        const { top, height } = getEventLayout(clampedStart, clampedEnd);
+
+        return (
+          <TouchableOpacity
+            key={event.id}
+            style={[
+              styles.eventBlock,
+              {
+                top,
+                height,
+              },
+            ]}
+            activeOpacity={0.8}
+            onPress={() => onEventPress(event)}
+          >
+            <Text style={styles.eventTitle} numberOfLines={2}>
+              {event.title}
+            </Text>
+            <Text style={styles.eventTime} numberOfLines={1}>
+              {clampedStart.toLocaleTimeString([], {
+                hour: "numeric",
+                minute: "2-digit",
+              })}{" "}
+              -{" "}
+              {clampedEnd.toLocaleTimeString([], {
+                hour: "numeric",
+                minute: "2-digit",
+              })}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
+function getConnectButtonLabel(isLoading: boolean, isConnected: boolean): string {
+  if (isLoading) return "Loading...";
+  if (isConnected) return "Disconnect Google Calendar";
+  return "Connect Google Calendar";
+}
+
+async function navigateScheduleToNextClassDirections(
+  nextClass: NextClassEvent | null,
+  router: ReturnType<typeof useRouter>,
+  setDestinationBuilding: (building: Building | null) => void,
+  setStartBuilding: (building: Building | null) => void,
+  setTransportationMode: (mode: TransportationMode) => void,
+  setStartCoords: (coords: { lat: number; lng: number } | null) => void,
+  fetchRoute: () => void | Promise<void>,
+  getRawLocation: () => Promise<{ lat: number; lng: number } | null>,
+): Promise<void> {
+  if (!nextClass) return;
+  const building = resolveLocationToBuilding(nextClass.location);
+  if (!building) return;
+
+  setDestinationBuilding(building);
+  setStartBuilding(null);
+  setTransportationMode("walk");
+
+  const coords = await getRawLocation();
+  if (coords) {
+    setStartCoords(coords);
+  }
+
+  router.push("/(tabs)/two");
+  setTimeout(() => {
+    void fetchRoute();
+  }, 300);
+}
+
+function ScheduleWeekDaysHeader({ weekDays }: { readonly weekDays: WeekDay[] }) {
+  return (
+    <View style={styles.weekHeader}>
+      <View style={styles.weekHeaderTimeSpacer} />
+      <View style={styles.weekHeaderDays}>
+        {weekDays.map((day) => (
+          <View key={day.label} style={styles.weekDayColumn}>
+            <Text style={styles.weekDayLabel}>{day.label}</Text>
+            {day.isActive ? (
+              <View style={styles.activeDayCircle}>
+                <Text style={styles.activeDayText}>{day.dayNumber}</Text>
+              </View>
+            ) : (
+              <Text style={styles.weekDayNumber}>{day.dayNumber}</Text>
+            )}
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function ScheduleCalendarScrollMessages({
+  eventsLoading,
+  error,
+  eventsError,
+}: {
+  readonly eventsLoading: boolean;
+  readonly error: string | null;
+  readonly eventsError: string | null;
+}) {
+  return (
+    <>
+      {eventsLoading ? (
+        <Text style={styles.infoText}>Loading calendar events...</Text>
+      ) : null}
+
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+      {eventsError ? (
+        <Text style={styles.errorText}>{eventsError}</Text>
+      ) : null}
+    </>
+  );
+}
+
+function ScheduleScreenBottomBar({
+  isConnected,
+  isLoading,
+  connectButtonLabel,
+  onConnectPress,
+  calendars,
+  onOpenCalendarPicker,
+  thresholdMinutes,
+  handleThresholdChange,
+}: {
+  readonly isConnected: boolean;
+  readonly isLoading: boolean;
+  readonly connectButtonLabel: string;
+  readonly onConnectPress: () => void;
+  readonly calendars: CalendarInfo[];
+  readonly onOpenCalendarPicker: () => void;
+  readonly thresholdMinutes: number;
+  readonly handleThresholdChange: (delta: number) => void;
+}) {
+  const showManageCalendars = isConnected && calendars.length > 0;
+
+  return (
+    <View style={styles.bottomBar}>
+      {isConnected ? (
+        <View style={styles.connectedBadge}>
+          <Ionicons name="checkmark-circle" size={16} color="#16A34A" />
+          <Text style={styles.connectedBadgeText}>
+            Connected to Google Calendar
+          </Text>
+        </View>
+      ) : null}
+
+      <TouchableOpacity
+        style={[styles.connectButton, isConnected && styles.connectedButton]}
+        activeOpacity={0.85}
+        onPress={onConnectPress}
+        disabled={isLoading}
+      >
+        {isLoading ? (
+          <ActivityIndicator color="#FFFFFF" />
+        ) : (
+          <>
+            <Ionicons name="calendar-outline" size={18} color="#FFFFFF" />
+            <Text style={styles.connectButtonText}>{connectButtonLabel}</Text>
+          </>
+        )}
+      </TouchableOpacity>
+
+      {showManageCalendars ? (
+        <TouchableOpacity
+          style={styles.manageCalendarsButton}
+          activeOpacity={0.8}
+          onPress={onOpenCalendarPicker}
+        >
+          <Ionicons name="list-outline" size={16} color="#912338" />
+          <Text style={styles.manageCalendarsText}>Manage Calendars</Text>
+        </TouchableOpacity>
+      ) : null}
+
+      {isConnected ? (
+        <View style={styles.thresholdRow}>
+          <Ionicons name="notifications-outline" size={14} color="#6B7280" />
+          <Text style={styles.thresholdLabel}>Remind me</Text>
+          <TouchableOpacity
+            testID="threshold-minus"
+            style={styles.thresholdStepButton}
+            activeOpacity={0.7}
+            onPress={() => handleThresholdChange(-5)}
+          >
+            <Ionicons name="remove" size={14} color="#912338" />
+          </TouchableOpacity>
+          <Text style={styles.thresholdValue}>
+            {thresholdMinutes === NO_LIMIT_THRESHOLD
+              ? "Always"
+              : `${thresholdMinutes} min`}
+          </Text>
+          <TouchableOpacity
+            testID="threshold-plus"
+            style={styles.thresholdStepButton}
+            activeOpacity={0.7}
+            onPress={() => handleThresholdChange(5)}
+            disabled={thresholdMinutes >= MAX_THRESHOLD_MINUTES}
+          >
+            <Ionicons
+              name="add"
+              size={14}
+              color={
+                thresholdMinutes >= MAX_THRESHOLD_MINUTES
+                  ? "#D1D5DB"
+                  : "#912338"
+              }
+            />
+          </TouchableOpacity>
+          <Text style={styles.thresholdLabel}>
+            {thresholdMinutes === NO_LIMIT_THRESHOLD
+              ? "(no limit)"
+              : "before class"}
+          </Text>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function ScheduleCalendarPickerModal({
+  visible,
+  calendars,
+  selectedCalendarIds,
+  onRequestClose,
+  onToggleCalendar,
+  onSave,
+}: {
+  readonly visible: boolean;
+  readonly calendars: CalendarInfo[];
+  readonly selectedCalendarIds: Set<string>;
+  readonly onRequestClose: () => void;
+  readonly onToggleCalendar: (id: string) => void;
+  readonly onSave: () => void;
+}) {
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onRequestClose}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalSheet}>
+          <Text style={styles.modalTitle}>Select Calendars</Text>
+
+          <ScrollView style={styles.modalList}>
+            {calendars.map((cal) => {
+              const selected = selectedCalendarIds.has(cal.id);
+              return (
+                <TouchableOpacity
+                  key={cal.id}
+                  style={styles.calendarRow}
+                  activeOpacity={0.7}
+                  onPress={() => onToggleCalendar(cal.id)}
+                >
+                  <Ionicons
+                    name={selected ? "checkmark-circle" : "ellipse-outline"}
+                    size={22}
+                    color={selected ? "#912338" : "#9CA3AF"}
+                  />
+                  <Text style={styles.calendarRowText} numberOfLines={1}>
+                    {cal.name}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+
+          <TouchableOpacity
+            style={styles.modalSaveButton}
+            activeOpacity={0.85}
+            onPress={onSave}
+          >
+            <Text style={styles.modalSaveButtonText}>Save</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+async function runConnectOrDisconnect(
+  isLoading: boolean,
+  isConnected: boolean,
+  connectCalendar: () => Promise<void>,
+  disconnectCalendar: () => Promise<void>,
+) {
+  if (isLoading) return;
+  if (isConnected) {
+    await disconnectCalendar();
+    return;
+  }
+  await connectCalendar();
+}
+
+export default function ScheduleScreen() {
+  const { connectCalendar, disconnectCalendar, isLoading, isConnected, error } =
+    useCalendarAuth();
+
+  const router = useRouter();
+  const {
+    setDestinationBuilding,
+    setStartCoords,
+    setStartBuilding,
+    setTransportationMode,
+    fetchRoute,
+  } = useDirections();
+  const { getRawLocation } = useUserLocation();
+
+  const [currentDate, setCurrentDate] = useState(() => new Date());
+  const scrollRef = useScheduleScrollToTime(currentDate);
+
+  const {
+    calendars,
+    selectedCalendarIds,
+    showCalendarPicker,
+    setShowCalendarPicker,
+    handleCalendarToggle,
+    handleSaveCalendarSelection,
+  } = useScheduleCalendarsAndSelection(isConnected);
+
+  const { thresholdMinutes, handleThresholdChange } = useScheduleThreshold();
+
+  const weekDays = useMemo(() => getWeekDays(currentDate), [currentDate]);
+
+  const { events, eventsLoading, eventsError } = useScheduleEventsLoad(
+    isConnected,
+    weekDays,
+    selectedCalendarIds,
+  );
+
+  const { nextClass, nextClassLoading } = useScheduleNextClassEvent(
+    isConnected,
+    selectedCalendarIds,
+  );
+
+  useScheduleUsabilityTask(
+    isConnected,
+    eventsLoading,
+    selectedCalendarIds,
+    events.length,
+    nextClass !== null,
+  );
+
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(
+    null,
+  );
+
+  const weekRangeLabel = useMemo(
+    () => formatWeekRangeLabel(weekDays),
+    [weekDays],
+  );
+
+  const onConnectPress = useCallback(async () => {
+    await runConnectOrDisconnect(
+      isLoading,
+      isConnected,
+      connectCalendar,
+      disconnectCalendar,
+    );
+  }, [isLoading, isConnected, connectCalendar, disconnectCalendar]);
 
   const goToPreviousWeek = () => {
-    posthog.capture('schedule_week_navigated', { direction: 'previous' });
     setCurrentDate((prev) => addDays(prev, -7));
   };
 
   const goToNextWeek = () => {
-    posthog.capture('schedule_week_navigated', { direction: 'next' });
     setCurrentDate((prev) => addDays(prev, 7));
   };
 
   const goToCurrentWeek = () => {
     setCurrentDate(new Date());
   };
+
+  const handleNextClassDirections = useCallback(() => {
+    return navigateScheduleToNextClassDirections(
+      nextClass,
+      router,
+      setDestinationBuilding,
+      setStartBuilding,
+      setTransportationMode,
+      setStartCoords,
+      fetchRoute,
+      getRawLocation,
+    );
+  }, [
+    nextClass,
+    router,
+    setDestinationBuilding,
+    setStartBuilding,
+    setTransportationMode,
+    setStartCoords,
+    fetchRoute,
+    getRawLocation,
+  ]);
 
   const allDayEvents = useMemo(
     () => events.filter((event) => event.isAllDay),
@@ -570,26 +1142,15 @@ export default function ScheduleScreen() {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.weekHeader}>
-        <View style={styles.weekHeaderTimeSpacer} />
-        <View style={styles.weekHeaderDays}>
-          {weekDays.map((day) => (
-            <View key={day.label} style={styles.weekDayColumn}>
-              <Text style={styles.weekDayLabel}>{day.label}</Text>
-              {day.isActive ? (
-                <View style={styles.activeDayCircle}>
-                  <Text style={styles.activeDayText}>{day.dayNumber}</Text>
-                </View>
-              ) : (
-                <Text style={styles.weekDayNumber}>{day.dayNumber}</Text>
-              )}
-            </View>
-          ))}
-        </View>
-      </View>
+      <ScheduleWeekDaysHeader weekDays={weekDays} />
 
       {isConnected ? (
-        <NextClassCard nextClass={nextClass} isLoading={nextClassLoading} />
+        <NextClassCard
+          nextClass={nextClass}
+          isLoading={nextClassLoading}
+          onGetDirections={handleNextClassDirections}
+          thresholdMinutes={thresholdMinutes}
+        />
       ) : null}
 
       {allDayEvents.length > 0 ? (
@@ -626,169 +1187,49 @@ export default function ScheduleScreen() {
             </View>
 
             <View style={styles.gridColumns}>
-              {weekDays.map((day) => {
-                const dayEvents = events.filter(
-                  (event) => !event.isAllDay && isSameDay(event.start, day.date),
-                );
-
-                return (
-                  <View
-                    key={`grid-${day.label}`}
-                    style={[
-                      styles.dayGridColumn,
-                      day.isActive && styles.activeGridColumn,
-                    ]}
-                  >
-                    {HOURS.map((hour) => (
-                      <View key={`${day.label}-${hour}`} style={styles.gridCell} />
-                    ))}
-
-                    {dayEvents.map((event) => {
-                      const { clampedStart, clampedEnd } = clampEventToSchedule(
-                        event.start,
-                        event.end,
-                      );
-
-                      if (clampedEnd <= clampedStart) {
-                        return null;
-                      }
-
-                      const { top, height } = getEventLayout(
-                        clampedStart,
-                        clampedEnd,
-                      );
-
-                      return (
-                        <TouchableOpacity
-                          key={event.id}
-                          style={[
-                            styles.eventBlock,
-                            {
-                              top,
-                              height,
-                            },
-                          ]}
-                          activeOpacity={0.8}
-                          onPress={() => setSelectedEvent(event)}
-                        >
-                          <Text style={styles.eventTitle} numberOfLines={2}>
-                            {event.title}
-                          </Text>
-                          <Text style={styles.eventTime} numberOfLines={1}>
-                            {clampedStart.toLocaleTimeString([], {
-                              hour: "numeric",
-                              minute: "2-digit",
-                            })}{" "}
-                            -{" "}
-                            {clampedEnd.toLocaleTimeString([], {
-                              hour: "numeric",
-                              minute: "2-digit",
-                            })}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                );
-              })}
+              {weekDays.map((day) => (
+                <ScheduleDayColumn
+                  key={`grid-${day.label}`}
+                  day={day}
+                  events={events}
+                  onEventPress={setSelectedEvent}
+                />
+              ))}
             </View>
           </View>
 
-          {eventsLoading ? (
-            <Text style={styles.infoText}>Loading calendar events...</Text>
-          ) : null}
-
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
-          {eventsError ? <Text style={styles.errorText}>{eventsError}</Text> : null}
+          <ScheduleCalendarScrollMessages
+            eventsLoading={eventsLoading}
+            error={error}
+            eventsError={eventsError}
+          />
         </ScrollView>
       </View>
 
-      <View style={styles.bottomBar}>
-        {isConnected ? (
-          <View style={styles.connectedBadge}>
-            <Ionicons name="checkmark-circle" size={16} color="#16A34A" />
-            <Text style={styles.connectedBadgeText}>
-              Connected to Google Calendar
-            </Text>
-          </View>
-        ) : null}
-
-        <TouchableOpacity
-          style={[styles.connectButton, isConnected && styles.connectedButton]}
-          activeOpacity={0.85}
-          onPress={onConnectPress}
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <ActivityIndicator color="#FFFFFF" />
-          ) : (
-            <>
-              <Ionicons name="calendar-outline" size={18} color="#FFFFFF" />
-              <Text style={styles.connectButtonText}>{buttonLabel}</Text>
-            </>
-          )}
-        </TouchableOpacity>
-
-        {isConnected && calendars.length > 0 ? (
-          <TouchableOpacity
-            style={styles.manageCalendarsButton}
-            activeOpacity={0.8}
-            onPress={() => setShowCalendarPicker(true)}
-          >
-            <Ionicons name="list-outline" size={16} color="#912338" />
-            <Text style={styles.manageCalendarsText}>Manage Calendars</Text>
-          </TouchableOpacity>
-        ) : null}
-      </View>
+      <ScheduleScreenBottomBar
+        isConnected={isConnected}
+        isLoading={isLoading}
+        connectButtonLabel={getConnectButtonLabel(isLoading, isConnected)}
+        onConnectPress={onConnectPress}
+        calendars={calendars}
+        onOpenCalendarPicker={() => setShowCalendarPicker(true)}
+        thresholdMinutes={thresholdMinutes}
+        handleThresholdChange={handleThresholdChange}
+      />
 
       <EventDetailModal
         event={selectedEvent}
         onClose={() => setSelectedEvent(null)}
       />
 
-      <Modal
+      <ScheduleCalendarPickerModal
         visible={showCalendarPicker}
-        transparent
-        animationType="slide"
+        calendars={calendars}
+        selectedCalendarIds={selectedCalendarIds}
         onRequestClose={() => setShowCalendarPicker(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalSheet}>
-            <Text style={styles.modalTitle}>Select Calendars</Text>
-
-            <ScrollView style={styles.modalList}>
-              {calendars.map((cal) => {
-                const selected = selectedCalendarIds.has(cal.id);
-                return (
-                  <TouchableOpacity
-                    key={cal.id}
-                    style={styles.calendarRow}
-                    activeOpacity={0.7}
-                    onPress={() => handleCalendarToggle(cal.id)}
-                  >
-                    <Ionicons
-                      name={selected ? "checkmark-circle" : "ellipse-outline"}
-                      size={22}
-                      color={selected ? "#912338" : "#9CA3AF"}
-                    />
-                    <Text style={styles.calendarRowText} numberOfLines={1}>
-                      {cal.name}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-
-            <TouchableOpacity
-              style={styles.modalSaveButton}
-              activeOpacity={0.85}
-              onPress={handleSaveCalendarSelection}
-            >
-              <Text style={styles.modalSaveButtonText}>Save</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+        onToggleCalendar={handleCalendarToggle}
+        onSave={handleSaveCalendarSelection}
+      />
     </View>
   );
 }
@@ -940,6 +1381,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#9CA3AF",
     fontStyle: "italic",
+  },
+  nextClassDirectionsButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    marginTop: 8,
+    backgroundColor: "#912338",
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+  },
+  nextClassDirectionsText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "700",
   },
   allDaySection: {
     backgroundColor: "#FFFFFF",
@@ -1101,6 +1558,36 @@ const styles = StyleSheet.create({
     color: "#912338",
     fontSize: 13,
     fontWeight: "600",
+  },
+  thresholdRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#F3F4F6",
+  },
+  thresholdLabel: {
+    fontSize: 12,
+    color: "#6B7280",
+  },
+  thresholdValue: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#111827",
+    minWidth: 46,
+    textAlign: "center",
+  },
+  thresholdStepButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    justifyContent: "center",
+    alignItems: "center",
   },
   modalOverlay: {
     flex: 1,

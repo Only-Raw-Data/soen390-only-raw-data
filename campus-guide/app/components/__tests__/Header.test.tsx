@@ -3,6 +3,8 @@ import { render, screen, fireEvent } from "@testing-library/react-native";
 import * as expoRouter from "expo-router";
 import Header from "../Header";
 
+jest.mock("@app/components/NextClassDirectionsBanner", () => "NextClassDirectionsBanner");
+
 describe("Header", () => {
   it("navigates to /moderator on long press of the title", () => {
     const mockPush = jest.fn();
