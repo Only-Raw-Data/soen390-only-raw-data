@@ -81,6 +81,12 @@ export default function ModeratorScreen() {
         showsVerticalScrollIndicator
       >
       <View style={styles.card}>
+        <Text style={styles.hintShort}>
+          Tip: long-press &quot;Concordia Campus Guide&quot; in the app header to open this
+          screen anytime.
+        </Text>
+        <View style={styles.divider} />
+
         <Text style={styles.sectionTitle}>After tasks — exit survey</Text>
         <Text style={styles.hintShort}>
           Tap when the participant is done. PostHog: event usability_session_completed — survey
