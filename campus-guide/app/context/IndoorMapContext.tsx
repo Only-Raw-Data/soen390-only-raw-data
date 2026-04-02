@@ -243,6 +243,29 @@ export function findRoomInBuildings(
 
 const MAX_SUGGESTIONS = 6;
 
+function collectRoomPrefixMatches(
+  geoJson: IndoorGeoJSON,
+  normalized: string,
+  seen: Set<string>,
+  results: string[],
+  max: number,
+): boolean {
+  for (const feature of geoJson.features) {
+    if (feature.properties?.indoor !== "room" || !feature.properties?.ref)
+      continue;
+    const ref = feature.properties.ref;
+
+    const refNormalized = ref.replaceAll(/[\s-]/g, "").toUpperCase();
+    if (!refNormalized.startsWith(normalized)) continue;
+    if (seen.has(refNormalized)) continue;
+
+    seen.add(refNormalized);
+    results.push(ref);
+    if (results.length >= max) return true;
+  }
+  return false;
+}
+
 export function getRoomSuggestions(query: string): string[] {
   const normalized = query.replaceAll(/[\s-]/g, "").toUpperCase();
   if (normalized.length < 1) return [];
@@ -253,19 +276,16 @@ export function getRoomSuggestions(query: string): string[] {
   for (const building of INDOOR_BUILDINGS) {
     const geoJson = getGeoJsonForBuilding(building);
     if (!geoJson) continue;
-
-    for (const feature of geoJson.features) {
-      const props = feature.properties;
-      if (!props || props.indoor !== "room" || !props.ref) continue;
-      const ref = props.ref;
-
-      const refNormalized = ref.replaceAll(/[\s-]/g, "").toUpperCase();
-      if (!refNormalized.startsWith(normalized)) continue;
-      if (seen.has(refNormalized)) continue;
-
-      seen.add(refNormalized);
-      results.push(ref);
-      if (results.length >= MAX_SUGGESTIONS) return results;
+    if (
+      collectRoomPrefixMatches(
+        geoJson,
+        normalized,
+        seen,
+        results,
+        MAX_SUGGESTIONS,
+      )
+    ) {
+      return results;
     }
   }
 
