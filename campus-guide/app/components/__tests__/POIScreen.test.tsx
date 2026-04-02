@@ -53,11 +53,27 @@ jest.mock("@app/hooks/usePOIs", () => ({
   default: (...args: any[]) => mockUsePOIs(...args),
 }));
 
+// Mutable state so tests can cover branches in handleDirections
+const mockUserLocationState: {
+  location: {
+    coords: {
+      latitude: number;
+      longitude: number;
+      altitude: null;
+      accuracy: number;
+      altitudeAccuracy: null;
+      heading: null;
+      speed: null;
+    };
+    timestamp: number;
+  } | null;
+} = { location: null };
+
 // Mock useUserLocation hook
 jest.mock("@app/hooks/useUserLocation", () => ({
   __esModule: true,
   default: () => ({
-    location: null,
+    location: mockUserLocationState.location,
     isLoading: false,
     errorMsg: null,
     nearestBuilding: null,
@@ -71,11 +87,20 @@ jest.mock("@app/hooks/useUserLocation", () => ({
 const mockSetDestinationBuilding = jest.fn();
 const mockSetStartBuilding = jest.fn();
 const mockSetStartCoords = jest.fn();
+
+const mockDirectionsState: {
+  startBuilding: { id: string; name?: string } | null;
+  startCoords: { lat: number; lng: number } | null;
+} = {
+  startBuilding: null,
+  startCoords: null,
+};
+
 jest.mock("@app/context/DirectionsContext", () => ({
   useDirections: () => ({
-    startBuilding: null,
+    startBuilding: mockDirectionsState.startBuilding,
     destinationBuilding: null,
-    startCoords: null,
+    startCoords: mockDirectionsState.startCoords,
     setStartBuilding: mockSetStartBuilding,
     setDestinationBuilding: mockSetDestinationBuilding,
     setStartCoords: mockSetStartCoords,
@@ -159,6 +184,9 @@ describe("POIScreen", () => {
   beforeEach(() => {
     // Arrange: Reset mocks and set default return value for usePOIs
     jest.clearAllMocks();
+    mockDirectionsState.startBuilding = null;
+    mockDirectionsState.startCoords = null;
+    mockUserLocationState.location = null;
     mockUsePOIs.mockReturnValue({
       pois: SAMPLE_POIS,
       loading: false,
@@ -446,6 +474,48 @@ describe("POIScreen", () => {
         expect(mockSetStartCoords).not.toHaveBeenCalled();
         expect(mockPush).toHaveBeenCalledWith("/(tabs)/two");
       });
+    });
+
+    it("clears start when that building is the same POI being opened for directions", async () => {
+      mockDirectionsState.startBuilding = {
+        id: "poi-1",
+        name: "Starbucks",
+      };
+      const { getByTestId } = renderWithProvider(<POIScreen />);
+
+      fireEvent.press(getByTestId("directions-btn-1"));
+
+      await waitFor(() => {
+        expect(mockSetStartBuilding).toHaveBeenCalledWith(null);
+        expect(mockSetDestinationBuilding).toHaveBeenCalled();
+      });
+    });
+
+    it("sets start from device coords when no origin is set and location is available", async () => {
+      mockUserLocationState.location = {
+        coords: {
+          latitude: 45.501,
+          longitude: -73.577,
+          altitude: null,
+          accuracy: 10,
+          altitudeAccuracy: null,
+          heading: null,
+          speed: null,
+        },
+        timestamp: 1_700_000_000_000,
+      };
+      const { getByTestId } = renderWithProvider(<POIScreen />);
+
+      fireEvent.press(getByTestId("directions-btn-1"));
+
+      await waitFor(() => {
+        expect(mockSetStartCoords).toHaveBeenCalledWith({
+          lat: 45.501,
+          lng: -73.577,
+        });
+        expect(mockSetDestinationBuilding).toHaveBeenCalled();
+      });
+      expect(mockSetStartBuilding).not.toHaveBeenCalled();
     });
   });
 
