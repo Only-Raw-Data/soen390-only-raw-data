@@ -8,6 +8,7 @@ import React, {
   useCallback,
   ReactNode,
 } from "react";
+import { usePostHog } from "posthog-react-native";
 import {
   IndoorBuildingConfig,
   IndoorFeature,
@@ -314,6 +315,7 @@ export default function IndoorMapProvider({
 }: {
   readonly children: ReactNode;
 }) {
+  const posthog = usePostHog();
   const [selectedBuilding, setSelectedBuilding] =
     useState<IndoorBuildingConfig | null>(null);
   const [selectedFloor, setSelectedFloor] = useState<number | null>(null);
@@ -373,18 +375,20 @@ export default function IndoorMapProvider({
   }, [searchRoomFor]);
 
   const searchStartRoom = useCallback((query: string) => {
+    posthog.capture('indoor_room_searched', { query, role: 'start' });
     searchRoomFor(query, setStartSearchError, (result) => {
       setSelectedBuilding(result.building);
       setSelectedFloor(result.floor);
       setStartRoomRef(result.ref);
     });
-  }, [searchRoomFor]);
+  }, [searchRoomFor, posthog]);
 
   const searchDestinationRoom = useCallback((query: string) => {
+    posthog.capture('indoor_room_searched', { query, role: 'destination' });
     searchRoomFor(query, setDestinationSearchError, (result) => {
       setDestinationRoomRef(result.ref);
     });
-  }, [searchRoomFor]);
+  }, [searchRoomFor, posthog]);
 
   const clearStartRoom = useCallback(() => {
     setStartRoomRef(null);
@@ -438,19 +442,35 @@ export default function IndoorMapProvider({
       if (path) {
         setCurrentPath(path);
         setPathError(null);
+        posthog.capture('indoor_path_calculated', {
+          building_code: selectedBuilding.code,
+          start_room: startRoomRef,
+          destination_room: destinationRoomRef,
+          accessible,
+          success: true,
+          steps: path.length,
+        });
       } else {
         const msg = accessible
           ? "No accessible route found (no elevator/ramp between these rooms)"
           : "No path found between these rooms";
         setCurrentPath(null);
         setPathError(msg);
+        posthog.capture('indoor_path_calculated', {
+          building_code: selectedBuilding.code,
+          start_room: startRoomRef,
+          destination_room: destinationRoomRef,
+          accessible,
+          success: false,
+          error: msg,
+        });
       }
     } catch (err) {
       console.error("[IndoorMapContext] ERROR in path computation:", err);
       setCurrentPath(null);
       setPathError("Error computing path");
     }
-  }, [startRoomRef, destinationRoomRef, selectedBuilding, accessible, clearPath]);
+  }, [startRoomRef, destinationRoomRef, selectedBuilding, accessible, clearPath, posthog]);
 
   const value = useMemo(
     () => ({

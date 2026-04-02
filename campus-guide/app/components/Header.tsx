@@ -1,25 +1,41 @@
-import { View, Text, StyleSheet} from 'react-native';
+import NextClassDirectionsBanner from "@app/components/NextClassDirectionsBanner";
+import { View, Text, StyleSheet, Pressable } from "react-native";
+import { useRouter } from "expo-router";
 
 export default function Header() {
-    return (
+  const router = useRouter();
+
+  const openModerator = () => {
+    router.push("/moderator");
+  };
+
+  return (
     <View style={styles.header}>
-    <Text style={styles.headerTitle}>Concordia Campus Guide</Text>
-    </View> 
-    );
+      <Pressable
+        onLongPress={openModerator}
+        delayLongPress={700}
+        hitSlop={12}
+        accessibilityLabel="Concordia Campus Guide"
+      >
+        <Text style={styles.headerTitle}>Concordia Campus Guide</Text>
+      </Pressable>
+      <NextClassDirectionsBanner />
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-    header: {
-        backgroundColor: '#912338',
-        paddingTop: 48,
-        paddingBottom: 16,
-        paddingHorizontal: 20,
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
-    },
-    headerTitle: {
-        color: '#FFFFFF',
-        fontSize: 18,
-        fontWeight: 'bold',
-    }
+  header: {
+    backgroundColor: "#912338",
+    paddingTop: 48,
+    paddingBottom: 16,
+    paddingHorizontal: 20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+  },
+  headerTitle: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "bold",
+  },
 });

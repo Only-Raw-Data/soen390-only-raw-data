@@ -17,6 +17,16 @@ jest.mock("expo-router", () => ({
   useRouter: () => ({ push: mockPush }),
 }));
 
+jest.mock("@context/ParticipantSessionContext", () => ({
+  ParticipantSessionProvider: ({ children }: { children: unknown }) => children,
+  useParticipantSession: jest.fn(() => ({
+    participantId: "test-p",
+    taskSet: "",
+    isHydrated: true,
+    startSession: jest.fn(() => Promise.resolve()),
+  })),
+}));
+
 // Mock Header component
 jest.mock("@app/components/Header", () => {
   const { View } = require("react-native");
