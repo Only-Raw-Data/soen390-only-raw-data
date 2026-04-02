@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import { usePostHog } from "posthog-react-native";
 import Header from "@app/components/Header";
@@ -155,8 +156,13 @@ export default function POIScreen() {
     },
   );
   const { completeTask: completeT9 } = t9;
-  const { setDestinationBuilding, setStartBuilding, startBuilding } =
-    useDirections();
+  const {
+    setDestinationBuilding,
+    setStartBuilding,
+    setStartCoords,
+    startBuilding,
+    startCoords,
+  } = useDirections();
 
   // POI context (shared state across tabs)
   const {
@@ -165,7 +171,16 @@ export default function POIScreen() {
     searchRadius,
     setSearchRadius,
     updateSearchCenter,
+    setShowPOIs,
   } = usePOIContext();
+
+  // POI fetches are gated by showPOIs in POIContext (map toggle). The POI tab
+  // must opt in so Overpass runs when this screen is used on its own.
+  useFocusEffect(
+    useCallback(() => {
+      setShowPOIs(true);
+    }, [setShowPOIs]),
+  );
 
   // Campus selector
   const [selectedCampus, setSelectedCampus] = useState<Campus>("SGW");
@@ -234,18 +249,33 @@ export default function POIScreen() {
       });
       completeT9(true, "poi_directions_opened");
       const building = poiToBuildingAdapter(poi, selectedCampus);
-      if (startBuilding) {
-        setDestinationBuilding(building);
-      } else {
-        setStartBuilding(building);
+
+      // Same behavior as map POI directions: place is always the destination.
+      if (startBuilding?.id === building.id) {
+        setStartBuilding(null);
       }
+      setDestinationBuilding(building);
+
+      const hasOrigin =
+        startCoords ||
+        (!!startBuilding && startBuilding.id !== building.id);
+      if (!hasOrigin && userLocation?.coords) {
+        setStartCoords({
+          lat: userLocation.coords.latitude,
+          lng: userLocation.coords.longitude,
+        });
+      }
+
       router.push("/(tabs)/two");
     },
     [
       router,
       setStartBuilding,
       setDestinationBuilding,
+      setStartCoords,
       startBuilding,
+      startCoords,
+      userLocation,
       selectedCampus,
       posthog,
       completeT9,

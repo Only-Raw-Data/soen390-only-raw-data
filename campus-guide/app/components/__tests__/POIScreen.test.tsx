@@ -17,6 +17,17 @@ jest.mock("expo-router", () => ({
   useRouter: () => ({ push: mockPush }),
 }));
 
+jest.mock("@react-navigation/native", () => {
+  const React = require("react");
+  return {
+    useFocusEffect: (cb: () => void) => {
+      React.useEffect(() => {
+        cb();
+      }, []);
+    },
+  };
+});
+
 jest.mock("@context/ParticipantSessionContext", () => ({
   ParticipantSessionProvider: ({ children }: { children: unknown }) => children,
   useParticipantSession: jest.fn(() => ({
@@ -59,19 +70,22 @@ jest.mock("@app/hooks/useUserLocation", () => ({
 // Mock useDirections context
 const mockSetDestinationBuilding = jest.fn();
 const mockSetStartBuilding = jest.fn();
+const mockSetStartCoords = jest.fn();
 jest.mock("@app/context/DirectionsContext", () => ({
   useDirections: () => ({
     startBuilding: null,
-    setStartBuilding: mockSetDestinationBuilding,
+    destinationBuilding: null,
+    startCoords: null,
+    setStartBuilding: mockSetStartBuilding,
     setDestinationBuilding: mockSetDestinationBuilding,
+    setStartCoords: mockSetStartCoords,
     route: null,
     isLoadingRoute: false,
   }),
 }));
 
-// Mock poiToBuildingAdapter
 jest.mock("@app/utils/poiUtils", () => ({
-  poiToBuildingAdapter: jest.fn((poi, campus) => ({
+  poiToBuildingAdapter: jest.fn((poi: { id: number; name: string }, campus: string) => ({
     id: `poi-${poi.id}`,
     name: poi.name,
     campus,
@@ -427,6 +441,9 @@ describe("POIScreen", () => {
           SAMPLE_POIS[0],
           "SGW",
         );
+        expect(mockSetDestinationBuilding).toHaveBeenCalled();
+        expect(mockSetStartBuilding).not.toHaveBeenCalled();
+        expect(mockSetStartCoords).not.toHaveBeenCalled();
         expect(mockPush).toHaveBeenCalledWith("/(tabs)/two");
       });
     });
