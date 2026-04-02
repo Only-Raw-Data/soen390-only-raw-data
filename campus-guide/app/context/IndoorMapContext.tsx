@@ -3,7 +3,6 @@ import React, {
   useContext,
   useState,
   useEffect,
-
   useMemo,
   useCallback,
   ReactNode,
@@ -242,6 +241,57 @@ export function findRoomInBuildings(
   return null;
 }
 
+const MAX_SUGGESTIONS = 6;
+
+function collectRoomPrefixMatches(
+  geoJson: IndoorGeoJSON,
+  normalized: string,
+  seen: Set<string>,
+  results: string[],
+  max: number,
+): boolean {
+  for (const feature of geoJson.features) {
+    if (feature.properties?.indoor !== "room" || !feature.properties?.ref)
+      continue;
+    const ref = feature.properties.ref;
+
+    const refNormalized = ref.replaceAll(/[\s-]/g, "").toUpperCase();
+    if (!refNormalized.startsWith(normalized)) continue;
+    if (seen.has(refNormalized)) continue;
+
+    seen.add(refNormalized);
+    results.push(ref);
+    if (results.length >= max) return true;
+  }
+  return false;
+}
+
+export function getRoomSuggestions(query: string): string[] {
+  const normalized = query.replaceAll(/[\s-]/g, "").toUpperCase();
+  if (normalized.length < 1) return [];
+
+  const seen = new Set<string>();
+  const results: string[] = [];
+
+  for (const building of INDOOR_BUILDINGS) {
+    const geoJson = getGeoJsonForBuilding(building);
+    if (!geoJson) continue;
+    if (
+      collectRoomPrefixMatches(
+        geoJson,
+        normalized,
+        seen,
+        results,
+        MAX_SUGGESTIONS,
+      )
+    ) {
+      return results;
+    }
+  }
+
+  return results;
+}
+
 interface IndoorMapContextType {
   selectedBuilding: IndoorBuildingConfig | null;
   selectedFloor: number | null;
@@ -294,11 +344,15 @@ export default function IndoorMapProvider({
   );
   const [searchError, setSearchError] = useState<string | null>(null);
   const [startRoomRef, setStartRoomRef] = useState<string | null>(null);
-  const [destinationRoomRef, setDestinationRoomRef] = useState<string | null>(null);
+  const [destinationRoomRef, setDestinationRoomRef] = useState<string | null>(
+    null,
+  );
   const [startSearchQuery, setStartSearchQuery] = useState("");
   const [destinationSearchQuery, setDestinationSearchQuery] = useState("");
   const [startSearchError, setStartSearchError] = useState<string | null>(null);
-  const [destinationSearchError, setDestinationSearchError] = useState<string | null>(null);
+  const [destinationSearchError, setDestinationSearchError] = useState<
+    string | null
+  >(null);
   const [currentPath, setCurrentPath] = useState<GraphNode[] | null>(null);
   const [pathError, setPathError] = useState<string | null>(null);
   const [accessible, setAccessible] = useState(false);
@@ -318,46 +372,62 @@ export default function IndoorMapProvider({
     setSearchError(null);
   }, []);
 
-  const searchRoomFor = useCallback((
-    query: string,
-    setError: (msg: string | null) => void,
-    onFound: (result: { building: IndoorBuildingConfig; floor: number; ref: string }) => void,
-  ) => {
-    setError(null);
-    const normalized = query.replaceAll(/[\s-]/g, "").toUpperCase();
-    if (!normalized) return;
-    const result = findRoomInBuildings(normalized);
-    if (result) {
-      onFound(result);
-    } else {
-      setError("Room not found");
-    }
-  }, []);
+  const searchRoomFor = useCallback(
+    (
+      query: string,
+      setError: (msg: string | null) => void,
+      onFound: (result: {
+        building: IndoorBuildingConfig;
+        floor: number;
+        ref: string;
+      }) => void,
+    ) => {
+      setError(null);
+      const normalized = query.replaceAll(/[\s-]/g, "").toUpperCase();
+      if (!normalized) return;
+      const result = findRoomInBuildings(normalized);
+      if (result) {
+        onFound(result);
+      } else {
+        setError("Room not found");
+      }
+    },
+    [],
+  );
 
-  const searchRoom = useCallback((query: string) => {
-    setHighlightedRoomRef(null);
-    searchRoomFor(query, setSearchError, (result) => {
-      setSelectedBuilding(result.building);
-      setSelectedFloor(result.floor);
-      setHighlightedRoomRef(result.ref);
-    });
-  }, [searchRoomFor]);
+  const searchRoom = useCallback(
+    (query: string) => {
+      setHighlightedRoomRef(null);
+      searchRoomFor(query, setSearchError, (result) => {
+        setSelectedBuilding(result.building);
+        setSelectedFloor(result.floor);
+        setHighlightedRoomRef(result.ref);
+      });
+    },
+    [searchRoomFor],
+  );
 
-  const searchStartRoom = useCallback((query: string) => {
-    posthog.capture('indoor_room_searched', { query, role: 'start' });
-    searchRoomFor(query, setStartSearchError, (result) => {
-      setSelectedBuilding(result.building);
-      setSelectedFloor(result.floor);
-      setStartRoomRef(result.ref);
-    });
-  }, [searchRoomFor, posthog]);
+  const searchStartRoom = useCallback(
+    (query: string) => {
+      posthog.capture("indoor_room_searched", { query, role: "start" });
+      searchRoomFor(query, setStartSearchError, (result) => {
+        setSelectedBuilding(result.building);
+        setSelectedFloor(result.floor);
+        setStartRoomRef(result.ref);
+      });
+    },
+    [searchRoomFor, posthog],
+  );
 
-  const searchDestinationRoom = useCallback((query: string) => {
-    posthog.capture('indoor_room_searched', { query, role: 'destination' });
-    searchRoomFor(query, setDestinationSearchError, (result) => {
-      setDestinationRoomRef(result.ref);
-    });
-  }, [searchRoomFor, posthog]);
+  const searchDestinationRoom = useCallback(
+    (query: string) => {
+      posthog.capture("indoor_room_searched", { query, role: "destination" });
+      searchRoomFor(query, setDestinationSearchError, (result) => {
+        setDestinationRoomRef(result.ref);
+      });
+    },
+    [searchRoomFor, posthog],
+  );
 
   const clearStartRoom = useCallback(() => {
     setStartRoomRef(null);
@@ -388,9 +458,14 @@ export default function IndoorMapProvider({
     }
 
     // Detect cross-building: check if destination room belongs to a different building
-    const destNormalized = destinationRoomRef.replaceAll(/[\s-]/g, "").toUpperCase();
+    const destNormalized = destinationRoomRef
+      .replaceAll(/[\s-]/g, "")
+      .toUpperCase();
     const destResult = findRoomInBuildings(destNormalized);
-    if (destResult && destResult.building.dataFile !== selectedBuilding.dataFile) {
+    if (
+      destResult &&
+      destResult.building.dataFile !== selectedBuilding.dataFile
+    ) {
       setIsCrossBuilding(true);
       setCurrentPath(null);
       setPathError(null);
@@ -406,12 +481,17 @@ export default function IndoorMapProvider({
     try {
       const graph = getOrBuildGraph(selectedBuilding.dataFile, geoJson);
 
-      const path = findIndoorPath(graph, startRoomRef, destinationRoomRef, accessible);
+      const path = findIndoorPath(
+        graph,
+        startRoomRef,
+        destinationRoomRef,
+        accessible,
+      );
 
       if (path) {
         setCurrentPath(path);
         setPathError(null);
-        posthog.capture('indoor_path_calculated', {
+        posthog.capture("indoor_path_calculated", {
           building_code: selectedBuilding.code,
           start_room: startRoomRef,
           destination_room: destinationRoomRef,
@@ -425,7 +505,7 @@ export default function IndoorMapProvider({
           : "No path found between these rooms";
         setCurrentPath(null);
         setPathError(msg);
-        posthog.capture('indoor_path_calculated', {
+        posthog.capture("indoor_path_calculated", {
           building_code: selectedBuilding.code,
           start_room: startRoomRef,
           destination_room: destinationRoomRef,
@@ -439,7 +519,14 @@ export default function IndoorMapProvider({
       setCurrentPath(null);
       setPathError("Error computing path");
     }
-  }, [startRoomRef, destinationRoomRef, selectedBuilding, accessible, clearPath, posthog]);
+  }, [
+    startRoomRef,
+    destinationRoomRef,
+    selectedBuilding,
+    accessible,
+    clearPath,
+    posthog,
+  ]);
 
   const value = useMemo(
     () => ({
