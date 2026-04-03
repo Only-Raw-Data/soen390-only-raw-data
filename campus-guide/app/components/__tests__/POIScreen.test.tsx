@@ -477,14 +477,17 @@ describe("POIScreen", () => {
     });
 
     it("clears start when that building is the same POI being opened for directions", async () => {
+      // Arrange
       mockDirectionsState.startBuilding = {
         id: "poi-1",
         name: "Starbucks",
       };
       const { getByTestId } = renderWithProvider(<POIScreen />);
 
+      // Act
       fireEvent.press(getByTestId("directions-btn-1"));
 
+      // Assert
       await waitFor(() => {
         expect(mockSetStartBuilding).toHaveBeenCalledWith(null);
         expect(mockSetDestinationBuilding).toHaveBeenCalled();
@@ -492,6 +495,7 @@ describe("POIScreen", () => {
     });
 
     it("sets start from device coords when no origin is set and location is available", async () => {
+      // Arrange
       mockUserLocationState.location = {
         coords: {
           latitude: 45.501,
@@ -506,8 +510,10 @@ describe("POIScreen", () => {
       };
       const { getByTestId } = renderWithProvider(<POIScreen />);
 
+      // Act
       fireEvent.press(getByTestId("directions-btn-1"));
 
+      // Assert
       await waitFor(() => {
         expect(mockSetStartCoords).toHaveBeenCalledWith({
           lat: 45.501,
