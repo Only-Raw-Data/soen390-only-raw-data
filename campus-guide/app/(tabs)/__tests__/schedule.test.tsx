@@ -79,6 +79,13 @@ jest.mock("@hooks/useUserLocation", () => ({
   })),
 }));
 
+jest.mock("@context/IndoorMapContext", () => ({
+  useIndoorMap: jest.fn(() => ({
+    searchDestinationRoom: jest.fn(),
+    setDestinationSearchQuery: jest.fn(),
+  })),
+}));
+
 jest.mock("@services/nextClassDirectionsService", () => ({
   ...jest.requireActual("@services/nextClassDirectionsService"),
   getStoredThresholdMinutes: jest.fn().mockResolvedValue(15),
