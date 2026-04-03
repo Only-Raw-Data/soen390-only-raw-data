@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useMemo, useState } from "react";
+import React, { useRef, useEffect, useMemo, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import MapView, { Marker, Polygon, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
+import { Ionicons } from "@expo/vector-icons";
 import { usePostHog } from "posthog-react-native";
 import { NodeType, GraphNode } from "@app/services/indoorGraphService";
 import { CAMPUS_MAP_STYLE } from "@/constants/mapStyle";
@@ -21,6 +22,7 @@ import {
   getFeaturesForFloor,
   getRoomSuggestions,
 } from "@app/context/IndoorMapContext";
+import useUserLocation from "@app/hooks/useUserLocation";
 import { IndoorFeature } from "@app/types/indoorMap";
 import { IndoorStep, NavigationStep} from "@app/types/navigation";
 import { planCrossBuildingRoute } from "@app/services/crossBuildingRouteService";
@@ -425,6 +427,7 @@ function BottomInfoSection({
   accessible,
   pathCoordinates,
   selectedFloor,
+  useCurrentLocation,
 }: {
   readonly selectedPOI: { amenity: string; ref?: string; name?: string } | null;
   readonly onDismissPOI: () => void;
@@ -435,7 +438,10 @@ function BottomInfoSection({
   readonly accessible: boolean;
   readonly pathCoordinates: { latitude: number; longitude: number }[];
   readonly selectedFloor: number | null;
+  readonly useCurrentLocation: boolean;
 }) {
+  const hasStart = startRoomRef || useCurrentLocation;
+
   if (selectedPOI) {
     return (
       <View style={styles.infoBar} testID="poi-info-bar">
@@ -470,34 +476,36 @@ function BottomInfoSection({
     );
   }
 
-  if (!startRoomRef && !destinationRoomRef && !highlightedFeature) {
+  if (!hasStart && !destinationRoomRef && !highlightedFeature) {
     return null;
   }
 
   return (
     <View style={styles.infoBar}>
-      {startRoomRef && (
+      {hasStart && (
         <View style={styles.infoRow}>
           <View style={[styles.infoDot, styles.infoDotStart]} />
           <Text style={styles.infoLabel}>From: </Text>
-          <Text style={styles.infoValue} testID="start-room-label">{startRoomRef}</Text>
+          <Text style={styles.infoValue} testID="start-room-label">
+            {useCurrentLocation ? "Your Location" : startRoomRef}
+          </Text>
         </View>
       )}
       {destinationRoomRef && (
-        <View style={[styles.infoRow, startRoomRef ? { marginTop: 4 } : undefined]}>
+        <View style={[styles.infoRow, hasStart ? { marginTop: 4 } : undefined]}>
           <View style={[styles.infoDot, styles.infoDotDestination]} />
           <Text style={styles.infoLabel}>To: </Text>
           <Text style={styles.infoValue} testID="destination-room-label">{destinationRoomRef}</Text>
         </View>
       )}
-      {startRoomRef && destinationRoomRef && (
+      {hasStart && destinationRoomRef && (
         <RouteInfo
           currentPath={currentPath}
           accessible={accessible}
           pathCoordinates={pathCoordinates}
         />
       )}
-      {highlightedFeature && !startRoomRef && !destinationRoomRef && (
+      {highlightedFeature && !hasStart && !destinationRoomRef && (
         <HighlightedRoomInfo
           highlightedFeature={highlightedFeature}
           selectedFloor={selectedFloor}
@@ -534,7 +542,13 @@ export default function IndoorMapView() {
     showPOIs,
     togglePOIs,
     isCrossBuilding,
+    useCurrentLocation,
+    currentLocationError,
+    setStartFromCurrentLocation,
+    clearCurrentLocationStart,
   } = useIndoorMap();
+
+  const { getCurrentLocation, location, isLoading: locationLoading } = useUserLocation();
 
   useIndoorUsabilityTasks();
 
@@ -547,8 +561,8 @@ export default function IndoorMapView() {
   const [storyError, setStoryError] = useState<string | null>(null);
 
   const startSuggestions = useMemo(
-    () => (startRoomRef ? [] : getRoomSuggestions(startSearchQuery)),
-    [startSearchQuery, startRoomRef],
+    () => (startRoomRef || useCurrentLocation ? [] : getRoomSuggestions(startSearchQuery)),
+    [startSearchQuery, startRoomRef, useCurrentLocation],
   );
 
   const destinationSuggestions = useMemo(
@@ -557,6 +571,7 @@ export default function IndoorMapView() {
   );
 
   const handleSelectStartSuggestion = (room: string) => {
+    clearCurrentLocationStart();
     setStartSearchQuery(room);
     searchStartRoom(room);
   };
@@ -678,10 +693,49 @@ export default function IndoorMapView() {
     clearStartRoom();
   };
 
+  const handleClearCurrentLocation = () => {
+    clearCurrentLocationStart();
+  };
+
   const handleClearDestinationSearch = () => {
     setDestinationSearchQuery("");
     clearDestinationRoom();
   };
+
+  const [locationRequested, setLocationRequested] = useState(false);
+
+  const handleUseMyLocation = useCallback(async () => {
+    // Clear any manually entered start room
+    setStartSearchQuery("");
+    clearStartRoom();
+    setLocationRequested(true);
+    await getCurrentLocation();
+  }, [getCurrentLocation, setStartSearchQuery, clearStartRoom]);
+
+  // When location updates after user requested it, set it in context
+  useEffect(() => {
+    if (locationRequested && location && selectedBuilding && selectedFloor !== null) {
+      setStartFromCurrentLocation(
+        location.coords.latitude,
+        location.coords.longitude,
+        selectedFloor,
+      );
+    }
+  }, [locationRequested, location, selectedBuilding, selectedFloor, setStartFromCurrentLocation]);
+
+  const handleStartRoomSubmit = useCallback((query: string) => {
+    clearCurrentLocationStart();
+    setLocationRequested(false);
+    searchStartRoom(query);
+  }, [clearCurrentLocationStart, searchStartRoom]);
+
+  const handleStartRoomChange = useCallback((text: string) => {
+    if (useCurrentLocation) {
+      clearCurrentLocationStart();
+      setLocationRequested(false);
+    }
+    setStartSearchQuery(text);
+  }, [useCurrentLocation, clearCurrentLocationStart, setStartSearchQuery]);
 
   const handleStartStoryMode = async () => {
     setStoryLoading(true);
@@ -832,23 +886,66 @@ export default function IndoorMapView() {
 
   return (
     <View style={styles.container}>
-      {/* Start Room Search Bar */}
+      {/* Start: Current Location or Room Search */}
       <View style={styles.searchRow}>
         <View style={[styles.searchDot, styles.searchDotStart]} />
-        <View style={styles.searchBarFlex}>
-          <RoomSearchBar
-            value={startSearchQuery}
-            onChangeText={setStartSearchQuery}
-            onSubmit={searchStartRoom}
-            onClear={handleClearStartSearch}
-            error={startSearchError}
-            placeholder="Start room (e.g., H-820)"
-            testIDPrefix="room-search-start"
-            suggestions={startSuggestions}
-            onSelectSuggestion={handleSelectStartSuggestion}
-          />
-        </View>
+        {useCurrentLocation ? (
+          <View style={styles.currentLocationRow}>
+            <View style={[styles.currentLocationButton, styles.currentLocationButtonActive]}>
+              {locationLoading ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Ionicons name="navigate" size={18} color="#FFFFFF" />
+              )}
+              <Text style={[styles.currentLocationText, styles.currentLocationTextActive]}>
+                Your Location
+              </Text>
+              <TouchableOpacity
+                onPress={handleClearCurrentLocation}
+                style={styles.currentLocationClear}
+                testID="clear-current-location"
+              >
+                <Ionicons name="close-circle" size={18} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+            {currentLocationError && (
+              <Text style={styles.currentLocationError}>{currentLocationError}</Text>
+            )}
+          </View>
+        ) : (
+          <View style={styles.searchBarFlex}>
+            <RoomSearchBar
+              value={startSearchQuery}
+              onChangeText={handleStartRoomChange}
+              onSubmit={handleStartRoomSubmit}
+              onClear={handleClearStartSearch}
+              error={startSearchError}
+              placeholder="Start room (e.g., H-820)"
+              testIDPrefix="room-search-start"
+              suggestions={startSuggestions}
+              onSelectSuggestion={handleSelectStartSuggestion}
+            />
+          </View>
+        )}
       </View>
+      {/* Use My Location Button */}
+      {!useCurrentLocation && (
+        <View style={styles.locationButtonRow}>
+          <TouchableOpacity
+            style={styles.useMyLocationButton}
+            onPress={handleUseMyLocation}
+            testID="use-my-location-button"
+            disabled={locationLoading}
+          >
+            {locationLoading ? (
+              <ActivityIndicator size="small" color="#912338" />
+            ) : (
+              <Ionicons name="navigate" size={16} color="#912338" />
+            )}
+            <Text style={styles.useMyLocationText}>Use My Location</Text>
+          </TouchableOpacity>
+        </View>
+      )}
       {/* Destination Room Search Bar */}
       <View style={styles.searchRow}>
         <View style={[styles.searchDot, styles.searchDotDestination]} />
@@ -1137,6 +1234,7 @@ export default function IndoorMapView() {
           accessible={accessible}
           pathCoordinates={pathCoordinates}
           selectedFloor={selectedFloor}
+          useCurrentLocation={useCurrentLocation}
         />
       )}
     </View>
@@ -1235,6 +1333,62 @@ const styles = StyleSheet.create({
   },
   searchBarFlex: {
     flex: 1,
+  },
+  currentLocationRow: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  currentLocationButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F3F4F6",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    height: 44,
+    gap: 8,
+  },
+  currentLocationButtonActive: {
+    backgroundColor: "#912338",
+  },
+  currentLocationText: {
+    fontSize: 16,
+    color: "#912338",
+    fontWeight: "500",
+    flex: 1,
+  },
+  currentLocationTextActive: {
+    color: "#FFFFFF",
+  },
+  currentLocationClear: {
+    padding: 4,
+  },
+  currentLocationError: {
+    color: "#DC2626",
+    fontSize: 13,
+    marginTop: 6,
+    marginLeft: 4,
+  },
+  locationButtonRow: {
+    flexDirection: "row",
+    paddingHorizontal: 40,
+    paddingBottom: 4,
+    backgroundColor: "#FFFFFF",
+  },
+  useMyLocationButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#912338",
+  },
+  useMyLocationText: {
+    fontSize: 13,
+    color: "#912338",
+    fontWeight: "600",
   },
   buildingSelectorContainer: {
     backgroundColor: "#FFFFFF",

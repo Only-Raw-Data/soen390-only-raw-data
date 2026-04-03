@@ -13,8 +13,8 @@ import {
   IndoorFeature,
   IndoorGeoJSON,
 } from "@app/types/indoorMap";
-import { GraphNode, getOrBuildGraph } from "@app/services/indoorGraphService";
-import { findIndoorPath } from "@app/services/indoorPathService";
+import { GraphNode, getOrBuildGraph, findNearestGraphNode } from "@app/services/indoorGraphService";
+import { findIndoorPath, findIndoorPathFromNodeId } from "@app/services/indoorPathService";
 
 import hallData from "@/constants/indoorData/hall.json";
 import jmsbData from "@/constants/indoorData/jmsb.json";
@@ -309,6 +309,8 @@ interface IndoorMapContextType {
   accessible: boolean;
   showPOIs: boolean;
   isCrossBuilding: boolean;
+  useCurrentLocation: boolean;
+  currentLocationError: string | null;
   setSelectedBuilding: (building: IndoorBuildingConfig | null) => void;
   setSelectedFloor: (floor: number | null) => void;
   setSearchQuery: (query: string) => void;
@@ -323,6 +325,8 @@ interface IndoorMapContextType {
   clearPath: () => void;
   toggleAccessible: () => void;
   togglePOIs: () => void;
+  setStartFromCurrentLocation: (lat: number, lng: number, floor: number) => void;
+  clearCurrentLocationStart: () => void;
 }
 
 const IndoorMapContext = createContext<IndoorMapContextType | undefined>(
@@ -358,6 +362,9 @@ export default function IndoorMapProvider({
   const [accessible, setAccessible] = useState(false);
   const [showPOIs, setShowPOIs] = useState(true);
   const [isCrossBuilding, setIsCrossBuilding] = useState(false);
+  const [useCurrentLocation, setUseCurrentLocation] = useState(false);
+  const [currentLocationNodeId, setCurrentLocationNodeId] = useState<string | null>(null);
+  const [currentLocationError, setCurrentLocationError] = useState<string | null>(null);
 
   const toggleAccessible = useCallback(() => {
     setAccessible((prev) => !prev);
@@ -448,11 +455,47 @@ export default function IndoorMapProvider({
     setPathError(null);
   }, []);
 
-  // Auto-compute shortest path whenever both rooms are set
+  const setStartFromCurrentLocation = useCallback(
+    (lat: number, lng: number, floor: number) => {
+      setCurrentLocationError(null);
+      if (!selectedBuilding) {
+        setCurrentLocationError("Please select a building first");
+        return;
+      }
+      const geoJson = getGeoJsonForBuilding(selectedBuilding);
+      if (!geoJson) {
+        setCurrentLocationError("No map data for this building");
+        return;
+      }
+      const graph = getOrBuildGraph(selectedBuilding.dataFile, geoJson);
+      const nearest = findNearestGraphNode(graph, lat, lng, floor);
+      if (!nearest) {
+        setCurrentLocationError("Could not determine your position indoors");
+        return;
+      }
+      setUseCurrentLocation(true);
+      setCurrentLocationNodeId(nearest.id);
+      setStartRoomRef(null);
+      setStartSearchQuery("");
+      setStartSearchError(null);
+    },
+    [selectedBuilding],
+  );
+
+  const clearCurrentLocationStart = useCallback(() => {
+    setUseCurrentLocation(false);
+    setCurrentLocationNodeId(null);
+    setCurrentLocationError(null);
+    setCurrentPath(null);
+    setPathError(null);
+  }, []);
+
+  // Auto-compute shortest path whenever start and destination are set
   useEffect(() => {
     setIsCrossBuilding(false);
 
-    if (!startRoomRef || !destinationRoomRef || !selectedBuilding) {
+    const hasStart = startRoomRef || (useCurrentLocation && currentLocationNodeId);
+    if (!hasStart || !destinationRoomRef || !selectedBuilding) {
       clearPath();
       return;
     }
@@ -481,19 +524,32 @@ export default function IndoorMapProvider({
     try {
       const graph = getOrBuildGraph(selectedBuilding.dataFile, geoJson);
 
-      const path = findIndoorPath(
-        graph,
-        startRoomRef,
-        destinationRoomRef,
-        accessible,
-      );
+      let path: GraphNode[] | null = null;
+
+      if (useCurrentLocation && currentLocationNodeId) {
+        // Start from current GPS location (nearest node)
+        path = findIndoorPathFromNodeId(
+          graph,
+          currentLocationNodeId,
+          destinationRoomRef,
+          accessible,
+        );
+      } else if (startRoomRef) {
+        // Start from a searched room
+        path = findIndoorPath(
+          graph,
+          startRoomRef,
+          destinationRoomRef,
+          accessible,
+        );
+      }
 
       if (path) {
         setCurrentPath(path);
         setPathError(null);
         posthog.capture("indoor_path_calculated", {
           building_code: selectedBuilding.code,
-          start_room: startRoomRef,
+          start_room: useCurrentLocation ? "current_location" : startRoomRef,
           destination_room: destinationRoomRef,
           accessible,
           success: true,
@@ -507,7 +563,7 @@ export default function IndoorMapProvider({
         setPathError(msg);
         posthog.capture("indoor_path_calculated", {
           building_code: selectedBuilding.code,
-          start_room: startRoomRef,
+          start_room: useCurrentLocation ? "current_location" : startRoomRef,
           destination_room: destinationRoomRef,
           accessible,
           success: false,
@@ -526,6 +582,8 @@ export default function IndoorMapProvider({
     accessible,
     clearPath,
     posthog,
+    useCurrentLocation,
+    currentLocationNodeId,
   ]);
 
   const value = useMemo(
@@ -545,6 +603,8 @@ export default function IndoorMapProvider({
       pathError,
       accessible,
       isCrossBuilding,
+      useCurrentLocation,
+      currentLocationError,
       setSelectedBuilding,
       setSelectedFloor,
       setSearchQuery,
@@ -560,6 +620,8 @@ export default function IndoorMapProvider({
       toggleAccessible,
       showPOIs,
       togglePOIs,
+      setStartFromCurrentLocation,
+      clearCurrentLocationStart,
     }),
     [
       selectedBuilding,
@@ -577,6 +639,8 @@ export default function IndoorMapProvider({
       pathError,
       accessible,
       isCrossBuilding,
+      useCurrentLocation,
+      currentLocationError,
       showPOIs,
       searchRoom,
       clearHighlight,
@@ -587,6 +651,8 @@ export default function IndoorMapProvider({
       clearPath,
       toggleAccessible,
       togglePOIs,
+      setStartFromCurrentLocation,
+      clearCurrentLocationStart,
     ],
   );
 

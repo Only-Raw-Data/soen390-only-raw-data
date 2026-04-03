@@ -104,6 +104,48 @@ export function findIndoorPath(
 }
 
 /**
+ * Finds the shortest path from a start node (by ID) to a destination room (by ref).
+ * Used when the start point is the user's current GPS location mapped to the nearest node.
+ */
+export function findIndoorPathFromNodeId(
+  graph: IndoorGraph,
+  startNodeId: string,
+  destRef: string,
+  accessible = false,
+): GraphNode[] | null {
+  const startNode = graph.nodes.get(startNodeId);
+  const destNode = findNodeByRef(graph, destRef);
+  if (!startNode || !destNode) return null;
+  if (startNode.id === destNode.id) return [startNode];
+
+  const dist = new Map<string, number>();
+  const prev = new Map<string, string | null>();
+  const visited = new Set<string>();
+
+  for (const id of graph.nodes.keys()) {
+    dist.set(id, Infinity);
+    prev.set(id, null);
+  }
+  dist.set(startNode.id, 0);
+
+  const queue: Array<{ id: string; cost: number }> = [
+    { id: startNode.id, cost: 0 },
+  ];
+
+  while (queue.length > 0) {
+    const currentId = extractMin(queue);
+    if (visited.has(currentId)) continue;
+    visited.add(currentId);
+    if (currentId === destNode.id) break;
+    relaxNeighbors(currentId, graph, dist, prev, visited, queue, accessible);
+  }
+
+  if ((dist.get(destNode.id) ?? Infinity) === Infinity) return null;
+
+  return reconstructPath(destNode.id, graph, prev);
+}
+
+/**
  * Finds the shortest path from a room (by ref) to the nearest entrance node.
  * Uses Dijkstra, terminating when any Entrance node is reached.
  */

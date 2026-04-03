@@ -3,11 +3,11 @@ import * as Location from "expo-location";
 import { Building, Campus } from "@/constants/buildings";
 import { findNearestBuilding } from "../utils/locationUtils";
 
-const DEV_MODE_ENABLED = false;
+const DEV_MODE_ENABLED = true;
 
 const DEV_MOCK_LOCATION = {
-  latitude: 45.497092,
-  longitude: -73.5788,
+  latitude: 45.49689679688509,
+  longitude: -73.57762257808744,
 };
 
 async function getMockPosition(): Promise<Location.LocationObject> {

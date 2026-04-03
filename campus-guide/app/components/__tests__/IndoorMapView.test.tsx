@@ -49,6 +49,27 @@ jest.mock("@/constants/mapStyle", () => ({
   CAMPUS_MAP_STYLE: [],
 }));
 
+// Mock useUserLocation
+jest.mock("@app/hooks/useUserLocation", () => ({
+  __esModule: true,
+  default: jest.fn(() => ({
+    location: null,
+    errorMsg: null,
+    permissionStatus: null,
+    isLoading: false,
+    nearestBuilding: null,
+    isOnCampus: false,
+    currentCampus: null,
+    getCurrentLocation: jest.fn(),
+    getNearestBuilding: jest.fn(),
+    getRawLocation: jest.fn(),
+    resetLoadingState: jest.fn(),
+    startLocationTracking: jest.fn(),
+    stopLocationTracking: jest.fn(),
+    requestLocationPermission: jest.fn(),
+  })),
+}));
+
 const mockUseIndoorMap = useIndoorMap as jest.MockedFunction<
   typeof useIndoorMap
 >;
@@ -166,6 +187,10 @@ const defaultContextValue = {
   clearPath: jest.fn(),
   toggleAccessible: jest.fn(),
   togglePOIs: jest.fn(),
+  useCurrentLocation: false,
+  currentLocationError: null,
+  setStartFromCurrentLocation: jest.fn(),
+  clearCurrentLocationStart: jest.fn(),
 };
 
 const renderWithProvider = (ui: React.ReactElement) =>
@@ -182,12 +207,13 @@ describe("IndoorMapView", () => {
     (useDirections as jest.Mock).mockReturnValue({ route: null });
   });
 
-  it("renders start and destination search bars", () => {
+  it("renders start search, use my location button, and destination search bar", () => {
     // Arrange + Act
     const { getByTestId } = renderWithProvider(<IndoorMapView />);
 
     // Assert
     expect(getByTestId("room-search-start-input")).toBeTruthy();
+    expect(getByTestId("use-my-location-button")).toBeTruthy();
     expect(getByTestId("room-search-destination-input")).toBeTruthy();
   });
 
@@ -335,10 +361,11 @@ describe("IndoorMapView", () => {
     expect(setSelectedFloor).toHaveBeenCalledWith(8);
   });
 
-  it("calls searchStartRoom on start search submit", () => {
+  it("calls searchStartRoom on start search submit and clears current location", () => {
     // Arrange
     const searchStartRoom = jest.fn();
-    mockUseIndoorMap.mockReturnValue({ ...defaultContextValue, searchStartRoom });
+    const clearCurrentLocationStart = jest.fn();
+    mockUseIndoorMap.mockReturnValue({ ...defaultContextValue, searchStartRoom, clearCurrentLocationStart });
 
     // Act
     const { getByTestId } = renderWithProvider(<IndoorMapView />);
@@ -346,7 +373,8 @@ describe("IndoorMapView", () => {
       nativeEvent: { text: "H-851" },
     });
 
-    // Assert — text comes from nativeEvent, not React state
+    // Assert
+    expect(clearCurrentLocationStart).toHaveBeenCalled();
     expect(searchStartRoom).toHaveBeenCalledWith("H-851");
   });
 
@@ -365,24 +393,18 @@ describe("IndoorMapView", () => {
     expect(searchDestinationRoom).toHaveBeenCalledWith("MB1.210");
   });
 
-  it("clears start room on start clear button press", () => {
+  it("shows 'Your Location' when current location is active", () => {
     // Arrange
-    const setStartSearchQuery = jest.fn();
-    const clearStartRoom = jest.fn();
     mockUseIndoorMap.mockReturnValue({
       ...defaultContextValue,
-      startSearchQuery: "H-851",
-      setStartSearchQuery,
-      clearStartRoom,
+      useCurrentLocation: true,
     });
 
     // Act
-    const { getByTestId } = renderWithProvider(<IndoorMapView />);
-    fireEvent.press(getByTestId("room-search-start-clear"));
+    const { getAllByText } = renderWithProvider(<IndoorMapView />);
 
     // Assert
-    expect(setStartSearchQuery).toHaveBeenCalledWith("");
-    expect(clearStartRoom).toHaveBeenCalled();
+    expect(getAllByText("Your Location").length).toBeGreaterThan(0);
   });
 
   it("clears destination room on destination clear button press", () => {
@@ -405,18 +427,19 @@ describe("IndoorMapView", () => {
     expect(clearDestinationRoom).toHaveBeenCalled();
   });
 
-  it("displays start search error", () => {
+  it("displays current location error", () => {
     // Arrange
     mockUseIndoorMap.mockReturnValue({
       ...defaultContextValue,
-      startSearchError: "Room not found",
+      useCurrentLocation: true,
+      currentLocationError: "Could not determine your position indoors",
     });
 
     // Act
-    const { getAllByText } = renderWithProvider(<IndoorMapView />);
+    const { getByText } = renderWithProvider(<IndoorMapView />);
 
     // Assert
-    expect(getAllByText("Room not found").length).toBeGreaterThan(0);
+    expect(getByText("Could not determine your position indoors")).toBeTruthy();
   });
 
   it("displays destination search error", () => {
