@@ -7,6 +7,9 @@ import {
   statusCodes,
 } from "@react-native-google-signin/google-signin";
 import { GOOGLE_CALENDAR_SCOPES } from "@constants/calendarAuth";
+import { CLASS_PREFIXES, isClassEvent } from "@utils/classEventFilter";
+
+export { CLASS_PREFIXES, isClassEvent };
 
 const STORAGE_KEY_CONNECTED = "calendar_connected";
 const STORAGE_KEY_CONNECTED_AT = "calendar_connected_at";
@@ -162,7 +165,8 @@ export async function fetchNextClassEvent(
           (item) =>
             typeof item.id === "string" &&
             typeof item.start?.dateTime === "string" &&
-            typeof item.end?.dateTime === "string",
+            typeof item.end?.dateTime === "string" &&
+            isClassEvent(typeof item.summary === "string" ? item.summary : ""),
         )
         .map((item) => ({
           id: `${calendarId}_${item.id}`,
