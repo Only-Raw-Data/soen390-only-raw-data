@@ -7,10 +7,6 @@ appId: com.soen390.campusguide
 
 - assertVisible: "SGW Campus"
 
-- tapOn:
-    point: "90%,93%"
-- waitForAnimationToEnd
-
 - tapOn: "Schedule"
 - waitForAnimationToEnd
 
@@ -19,7 +15,7 @@ appId: com.soen390.campusguide
 
 - assertVisible: "Choose an account"
 
-- tapOn: ".*@gmail.com"
+- tapOn: "nativereacttest1234.*@gmail.com"
 - waitForAnimationToEnd
 
 - tapOn: "Continue"
@@ -35,10 +31,31 @@ appId: com.soen390.campusguide
 - tapOn: ".*see.*"
 - waitForAnimationToEnd
 
+- swipe:
+    direction: UP
+    duration: 500
+- waitForAnimationToEnd
+
 - tapOn: "Continue"
 - waitForAnimationToEnd
 
 - assertVisible: ".*Connected to Google Calendar"
+
+- tapOn: ".*Manage Calendars"
+- waitForAnimationToEnd
+
+- assertVisible: "Select Calendars"
+
+- tapOn: ".*Holidays in Canada"
+- waitForAnimationToEnd
+
+- tapOn: "Save"
+- waitForAnimationToEnd
+
+- swipe:
+    direction: UP
+    duration: 500
+- waitForAnimationToEnd
 
 - assertVisible: ".*NEXT CLASS"
 
