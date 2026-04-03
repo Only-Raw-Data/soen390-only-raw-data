@@ -41,6 +41,7 @@ import {
   saveThresholdMinutes,
 } from "@services/nextClassDirectionsService";
 import { useDirections } from "@context/DirectionsContext";
+import { useIndoorMap } from "@context/IndoorMapContext";
 import useUserLocation from "@hooks/useUserLocation";
 import { useScheduleUsabilityTask } from "@hooks/useScheduleUsabilityTask";
 import { Building } from "@/constants/buildings";
@@ -267,9 +268,20 @@ function computeNextClassDirectionsVisibility(
   return { minutesUntil, showDirectionsButton };
 }
 
-function NextClassCardHeader({ isLoading }: { readonly isLoading: boolean }) {
+function NextClassCardHeader({
+  isLoading,
+  onPress,
+}: {
+  readonly isLoading: boolean;
+  readonly onPress?: () => void;
+}) {
   return (
-    <View style={styles.nextClassHeader}>
+    <TouchableOpacity
+      style={styles.nextClassHeader}
+      onPress={onPress}
+      disabled={!onPress}
+      activeOpacity={onPress ? 0.7 : 1}
+    >
       <Ionicons name="school-outline" size={14} color="#912338" />
       <Text style={styles.nextClassLabel}>Next Class</Text>
       {isLoading ? (
@@ -279,7 +291,15 @@ function NextClassCardHeader({ isLoading }: { readonly isLoading: boolean }) {
           style={styles.nextClassSpinner}
         />
       ) : null}
-    </View>
+      {onPress ? (
+        <Ionicons
+          name="chevron-forward"
+          size={14}
+          color="#912338"
+          style={styles.nextClassHeaderChevron}
+        />
+      ) : null}
+    </TouchableOpacity>
   );
 }
 
@@ -382,11 +402,13 @@ function NextClassCard({
   nextClass,
   isLoading,
   onGetDirections,
+  onIndoorDirections,
   thresholdMinutes,
 }: {
   readonly nextClass: NextClassEvent | null;
   readonly isLoading: boolean;
   readonly onGetDirections?: () => void;
+  readonly onIndoorDirections?: () => void;
   readonly thresholdMinutes: number;
 }) {
   if (!isLoading && nextClass === null) return null;
@@ -394,9 +416,12 @@ function NextClassCard({
   const { minutesUntil, showDirectionsButton } =
     computeNextClassDirectionsVisibility(nextClass, thresholdMinutes);
 
+  const headerOnPress =
+    nextClass?.location != null ? onIndoorDirections : undefined;
+
   return (
     <View style={styles.nextClassCard}>
-      <NextClassCardHeader isLoading={isLoading} />
+      <NextClassCardHeader isLoading={isLoading} onPress={headerOnPress} />
       {nextClass ? (
         <NextClassScheduledBody
           nextClass={nextClass}
@@ -1108,6 +1133,15 @@ export default function ScheduleScreen() {
     getRawLocation,
   ]);
 
+  const { searchDestinationRoom, setDestinationSearchQuery } = useIndoorMap();
+
+  const handleNextClassIndoorDirections = useCallback(() => {
+    if (!nextClass?.location) return;
+    setDestinationSearchQuery(nextClass.location);
+    searchDestinationRoom(nextClass.location);
+    router.push("/(tabs)/indoor");
+  }, [nextClass, router, searchDestinationRoom, setDestinationSearchQuery]);
+
   const allDayEvents = useMemo(
     () => events.filter((event) => event.isAllDay),
     [events],
@@ -1154,6 +1188,7 @@ export default function ScheduleScreen() {
           nextClass={nextClass}
           isLoading={nextClassLoading}
           onGetDirections={handleNextClassDirections}
+          onIndoorDirections={handleNextClassIndoorDirections}
           thresholdMinutes={thresholdMinutes}
         />
       ) : null}
@@ -1359,6 +1394,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   nextClassSpinner: {
+    marginLeft: 4,
+  },
+  nextClassHeaderChevron: {
     marginLeft: 4,
   },
   nextClassTitle: {
