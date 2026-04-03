@@ -74,7 +74,7 @@ const createMockLocation = (
 
 // Test coordinates
 const COORDS = {
-  H_BUILDING: { lat: 45.49689679688509, lng: -73.57762257808744 },
+  H_BUILDING: { lat: 45.497092, lng: -73.5788 },
   CC_BUILDING: { lat: 45.458204, lng: -73.6403 },
   OFF_CAMPUS: { lat: 45.5017, lng: -73.5673 },
 };
@@ -248,6 +248,9 @@ describe("useUserLocation", () => {
     //Arrange
     mockPermission("granted");
     mockFindOffCampus();
+    (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValue(
+      createMockLocation(COORDS.OFF_CAMPUS.lat, COORDS.OFF_CAMPUS.lng),
+    );
     const { result } = renderHook(() => useUserLocation());
 
     //Act

@@ -3,7 +3,7 @@ import * as Location from "expo-location";
 import { Building, Campus } from "@/constants/buildings";
 import { findNearestBuilding } from "../utils/locationUtils";
 
-const DEV_MODE_ENABLED = true;
+const DEV_MODE_ENABLED = process.env.DEV_MODE_ENABLED === "true";
 
 const DEV_MOCK_LOCATION = {
   latitude: 45.49689679688509,
