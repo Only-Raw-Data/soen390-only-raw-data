@@ -547,6 +547,19 @@ function computeTransitionPoints(
   });
 }
 
+function computeRoomStyle(
+  feature: IndoorFeature,
+  startRoomRef: string | null,
+  destinationRoomRef: string | null,
+  highlightedRoomRef: string | null,
+) {
+  const roomRef = feature.properties?.ref;
+  if (roomRef && roomRef === startRoomRef) return ROOM_STYLE_START;
+  if (roomRef && roomRef === destinationRoomRef) return ROOM_STYLE_DESTINATION;
+  if (highlightedRoomRef !== null && roomRef === highlightedRoomRef) return ROOM_STYLE_HIGHLIGHTED;
+  return ROOM_STYLE_DEFAULT;
+}
+
 export default function IndoorMapView() {
   const {
     selectedBuilding,
@@ -825,19 +838,8 @@ export default function IndoorMapView() {
     );
   };
 
-  const getRoomStyle = (feature: IndoorFeature) => {
-    const roomRef = feature.properties?.ref;
-    if (roomRef && roomRef === startRoomRef) {
-      return ROOM_STYLE_START;
-    }
-    if (roomRef && roomRef === destinationRoomRef) {
-      return ROOM_STYLE_DESTINATION;
-    }
-    if (isHighlighted(feature)) {
-      return ROOM_STYLE_HIGHLIGHTED;
-    }
-    return ROOM_STYLE_DEFAULT;
-  };
+  const getRoomStyle = (feature: IndoorFeature) =>
+    computeRoomStyle(feature, startRoomRef, destinationRoomRef, highlightedRoomRef);
 
   // Find the highlighted feature for the info bar
   const highlightedFeature = highlightedRoomRef
