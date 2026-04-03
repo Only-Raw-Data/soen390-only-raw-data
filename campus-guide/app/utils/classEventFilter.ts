@@ -1,6 +1,6 @@
-import { CLASS_PREFIXES } from "@/constants/classPrefixes";
+export { CLASS_PREFIXES } from "@/constants/classPrefixes";
 
-export { CLASS_PREFIXES };
+import { CLASS_PREFIXES } from "@/constants/classPrefixes";
 
 export function isClassEvent(title: string): boolean {
   const upper = title.toUpperCase();
