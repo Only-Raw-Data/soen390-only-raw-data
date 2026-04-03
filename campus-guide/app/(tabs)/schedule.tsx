@@ -29,7 +29,6 @@ import {
   getSelectedCalendarIds,
   saveSelectedCalendarIds,
 } from "@services/calendarAuthService";
-import { isClassEvent } from "@utils/classEventFilter";
 import {
   resolveLocationToBuilding,
   computeMinutesUntilClass,
@@ -223,8 +222,7 @@ async function fetchGoogleCalendarEvents(
           (item: any) =>
             typeof item.id === "string" &&
             item.start &&
-            item.end &&
-            isClassEvent(typeof item.summary === "string" ? item.summary : ""),
+            item.end,
         )
         .map((item: any) => {
           const isAllDay = Boolean(item.start?.date && item.end?.date);
