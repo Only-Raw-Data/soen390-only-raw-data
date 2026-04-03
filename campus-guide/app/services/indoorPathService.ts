@@ -57,23 +57,15 @@ function reconstructPath(
 }
 
 /**
- * Finds the shortest path between two rooms in an indoor graph using Dijkstra's algorithm.
- *
- * @param graph - The indoor navigation graph built from GeoJSON data
- * @param startRef - The room reference of the start room (e.g. "H851.02")
- * @param destRef  - The room reference of the destination room (e.g. "H820")
- * @param accessible - When true, excludes staircase edges (uses elevators/ramps only)
- * @returns Ordered array of GraphNodes from start to destination, or null if no path exists
+ * Core Dijkstra: finds the shortest path between two resolved nodes.
+ * Shared by findIndoorPath and findIndoorPathFromNodeId.
  */
-export function findIndoorPath(
+function dijkstraPath(
   graph: IndoorGraph,
-  startRef: string,
-  destRef: string,
-  accessible = false,
+  startNode: GraphNode,
+  destNode: GraphNode,
+  accessible: boolean,
 ): GraphNode[] | null {
-  const startNode = findNodeByRef(graph, startRef);
-  const destNode = findNodeByRef(graph, destRef);
-  if (!startNode || !destNode) return null;
   if (startNode.id === destNode.id) return [startNode];
 
   const dist = new Map<string, number>();
@@ -104,6 +96,27 @@ export function findIndoorPath(
 }
 
 /**
+ * Finds the shortest path between two rooms in an indoor graph using Dijkstra's algorithm.
+ *
+ * @param graph - The indoor navigation graph built from GeoJSON data
+ * @param startRef - The room reference of the start room (e.g. "H851.02")
+ * @param destRef  - The room reference of the destination room (e.g. "H820")
+ * @param accessible - When true, excludes staircase edges (uses elevators/ramps only)
+ * @returns Ordered array of GraphNodes from start to destination, or null if no path exists
+ */
+export function findIndoorPath(
+  graph: IndoorGraph,
+  startRef: string,
+  destRef: string,
+  accessible = false,
+): GraphNode[] | null {
+  const startNode = findNodeByRef(graph, startRef);
+  const destNode = findNodeByRef(graph, destRef);
+  if (!startNode || !destNode) return null;
+  return dijkstraPath(graph, startNode, destNode, accessible);
+}
+
+/**
  * Finds the shortest path from a start node (by ID) to a destination room (by ref).
  * Used when the start point is the user's current GPS location mapped to the nearest node.
  */
@@ -116,33 +129,7 @@ export function findIndoorPathFromNodeId(
   const startNode = graph.nodes.get(startNodeId);
   const destNode = findNodeByRef(graph, destRef);
   if (!startNode || !destNode) return null;
-  if (startNode.id === destNode.id) return [startNode];
-
-  const dist = new Map<string, number>();
-  const prev = new Map<string, string | null>();
-  const visited = new Set<string>();
-
-  for (const id of graph.nodes.keys()) {
-    dist.set(id, Infinity);
-    prev.set(id, null);
-  }
-  dist.set(startNode.id, 0);
-
-  const queue: Array<{ id: string; cost: number }> = [
-    { id: startNode.id, cost: 0 },
-  ];
-
-  while (queue.length > 0) {
-    const currentId = extractMin(queue);
-    if (visited.has(currentId)) continue;
-    visited.add(currentId);
-    if (currentId === destNode.id) break;
-    relaxNeighbors(currentId, graph, dist, prev, visited, queue, accessible);
-  }
-
-  if ((dist.get(destNode.id) ?? Infinity) === Infinity) return null;
-
-  return reconstructPath(destNode.id, graph, prev);
+  return dijkstraPath(graph, startNode, destNode, accessible);
 }
 
 /**

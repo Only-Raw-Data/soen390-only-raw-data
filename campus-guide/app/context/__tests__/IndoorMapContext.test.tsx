@@ -744,4 +744,132 @@ describe("IndoorMapContext", () => {
       expect(features.length).toBe(1);
     });
   });
+
+  describe("current location as start", () => {
+    it("should initialize useCurrentLocation as false", () => {
+      const { result } = renderHook(() => useIndoorMap(), { wrapper });
+      expect(result.current.useCurrentLocation).toBe(false);
+      expect(result.current.currentLocationError).toBeNull();
+    });
+
+    it("setStartFromCurrentLocation sets error when no building selected", () => {
+      const { result } = renderHook(() => useIndoorMap(), { wrapper });
+
+      act(() => {
+        result.current.setStartFromCurrentLocation(45.497, -73.578, 8);
+      });
+
+      expect(result.current.currentLocationError).toBe("Please select a building first");
+      expect(result.current.useCurrentLocation).toBe(false);
+    });
+
+    it("setStartFromCurrentLocation enables current location mode for valid building/floor", () => {
+      const { result } = renderHook(() => useIndoorMap(), { wrapper });
+      const hallBuilding = INDOOR_BUILDINGS.find((b) => b.code === "H")!;
+
+      act(() => {
+        result.current.setSelectedBuilding(hallBuilding);
+        result.current.setSelectedFloor(8);
+      });
+
+      act(() => {
+        result.current.setStartFromCurrentLocation(45.497, -73.578, 8);
+      });
+
+      expect(result.current.useCurrentLocation).toBe(true);
+      expect(result.current.currentLocationError).toBeNull();
+      expect(result.current.startRoomRef).toBeNull();
+    });
+
+    it("setStartFromCurrentLocation sets error for floor with no nodes", () => {
+      const { result } = renderHook(() => useIndoorMap(), { wrapper });
+      const hallBuilding = INDOOR_BUILDINGS.find((b) => b.code === "H")!;
+
+      act(() => {
+        result.current.setSelectedBuilding(hallBuilding);
+        result.current.setSelectedFloor(99);
+      });
+
+      act(() => {
+        // Floor 99 doesn't exist in hall data
+        result.current.setStartFromCurrentLocation(45.497, -73.578, 99);
+      });
+
+      expect(result.current.currentLocationError).toBe("Could not determine your position indoors");
+      expect(result.current.useCurrentLocation).toBe(false);
+    });
+
+    it("clearCurrentLocationStart resets current location state", () => {
+      const { result } = renderHook(() => useIndoorMap(), { wrapper });
+      const hallBuilding = INDOOR_BUILDINGS.find((b) => b.code === "H")!;
+
+      act(() => {
+        result.current.setSelectedBuilding(hallBuilding);
+        result.current.setSelectedFloor(8);
+      });
+
+      act(() => {
+        result.current.setStartFromCurrentLocation(45.497, -73.578, 8);
+      });
+
+      expect(result.current.useCurrentLocation).toBe(true);
+
+      act(() => {
+        result.current.clearCurrentLocationStart();
+      });
+
+      expect(result.current.useCurrentLocation).toBe(false);
+      expect(result.current.currentLocationError).toBeNull();
+    });
+
+    it("computes path from current location to destination room", () => {
+      const { result } = renderHook(() => useIndoorMap(), { wrapper });
+      const hallBuilding = INDOOR_BUILDINGS.find((b) => b.code === "H")!;
+
+      act(() => {
+        result.current.setSelectedBuilding(hallBuilding);
+        result.current.setSelectedFloor(8);
+      });
+
+      // Set current location as start (near Hall building floor 8)
+      act(() => {
+        result.current.setStartFromCurrentLocation(45.4971, -73.5789, 8);
+      });
+
+      // Set destination room
+      act(() => {
+        result.current.searchDestinationRoom("H820");
+      });
+
+      // Path should be computed
+      expect(result.current.currentPath).not.toBeNull();
+      expect(result.current.pathError).toBeNull();
+    });
+
+    it("clears path when current location start is cleared", () => {
+      const { result } = renderHook(() => useIndoorMap(), { wrapper });
+      const hallBuilding = INDOOR_BUILDINGS.find((b) => b.code === "H")!;
+
+      act(() => {
+        result.current.setSelectedBuilding(hallBuilding);
+        result.current.setSelectedFloor(8);
+      });
+
+      act(() => {
+        result.current.setStartFromCurrentLocation(45.4971, -73.5789, 8);
+      });
+
+      act(() => {
+        result.current.searchDestinationRoom("H820");
+      });
+
+      expect(result.current.currentPath).not.toBeNull();
+
+      act(() => {
+        result.current.clearCurrentLocationStart();
+      });
+
+      expect(result.current.currentPath).toBeNull();
+    });
+  });
 });
