@@ -136,6 +136,11 @@ jest.mock("@constants/buildings", () => ({
 }));
 
 jest.mock("@/constants/poi", () => ({
+  POI_COOLDOWN_MS: 3000,
+  POI_INITIAL_SEARCH_CENTER: { lat: 45.4972, lon: -73.5792 },
+  POI_INITIAL_SEARCH_RADIUS: 1000,
+  POI_LIMIT: 15,
+  POI_RADIUS: 500,
   getPoiInfo: (type: string) => {
     if (type === "cafe") return { icon: "cafe", color: "#D97706" };
     if (type === "restaurant") return { icon: "restaurant", color: "#EF4444" };
