@@ -11,7 +11,7 @@ import { PointOfInterest } from "../types/poi";
 import usePOIs from "../hooks/usePOIs";
 import { useDirections } from "./DirectionsContext";
 import {
-  POI_POI_COOLDOWN_MS,
+  POI_COOLDOWN_MS,
   POI_INITIAL_SEARCH_CENTER,
   POI_INITIAL_SEARCH_RADIUS,
 } from "../../constants/poi";
