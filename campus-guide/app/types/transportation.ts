@@ -1,6 +1,6 @@
 export type TransportationMode = 'walk' | 'car' | 'transit' | 'shuttle';
 
-export type SegmentMode = 'WALK' | 'BUS' | 'SUBWAY' | 'TRAM' | 'RAIL';
+export type SegmentMode = 'WALK' | 'BUS' | 'SUBWAY' | 'TRAM' | 'RAIL' | 'SHUTTLE';
 
 export interface TransitSegment {
   mode: SegmentMode;

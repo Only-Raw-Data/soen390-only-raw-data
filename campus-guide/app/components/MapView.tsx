@@ -166,6 +166,7 @@ const SEGMENT_COLORS: Record<SegmentMode, string> = {
   SUBWAY: "#F97316",
   TRAM: "#DC2626",
   RAIL: "#DC2626",
+  SHUTTLE: "#EC4899",
 };
 
 interface MapViewAppProps {
@@ -217,8 +218,10 @@ export default function MapViewApp({
   // State for building info modal
   const [infoBuilding, setInfoBuilding] = useState<Building | null>(null);
 
-  // Fetch building polygons for the current campus
-  const { polygons: buildingPolygons } = useBuildingPolygons(selectedCampus);
+  // Always load both campuses so all building tags and polygons are visible together
+  const { polygons: sgwPolygons } = useBuildingPolygons("SGW");
+  const { polygons: loyolaPolygons } = useBuildingPolygons("Loyola");
+  const buildingPolygons = [...sgwPolygons, ...loyolaPolygons];
 
   // User location hook
   const {
@@ -499,7 +502,7 @@ export default function MapViewApp({
           })}
 
           {/* Marker Rendering */}
-          {(selectedCampus === "SGW" ? SGW_BUILDINGS : LOYOLA_BUILDINGS)
+          {allBuildingsList
             .filter(
               (b) =>
                 b.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -584,16 +587,32 @@ export default function MapViewApp({
                     />
                   )}
 
-              {/* Shuttle — dotted */}
-              {transportationMode === "shuttle" && (
-                <Polyline
-                  coordinates={route.coordinates}
-                  strokeWidth={4}
-                  strokeColor="#EC4899"
-                  lineDashPattern={[2, 6]}
-                  zIndex={10}
-                />
-              )}
+              {/* Shuttle — walk-to-stop (orange dashed) + shuttle bus (pink solid) + walk-from-stop (orange dashed) */}
+              {transportationMode === "shuttle" &&
+                (route.segments && route.segments.length > 0
+                  ? route.segments.map((seg, i) => {
+                      const isShuttle = seg.mode === "SHUTTLE";
+                      const segKey = `shuttle-seg-${seg.mode}-${i}-${seg.coordinates[0]?.latitude ?? i}`;
+                      return (
+                        <Polyline
+                          // @ts-ignore
+                          key={segKey}
+                          coordinates={seg.coordinates}
+                          strokeWidth={isShuttle ? 5 : 3}
+                          strokeColor={isShuttle ? "#EC4899" : "#F97316"}
+                          lineDashPattern={isShuttle ? undefined : [8, 6]}
+                          zIndex={10}
+                        />
+                      );
+                    })
+                  : (
+                    <Polyline
+                      coordinates={route.coordinates}
+                      strokeWidth={5}
+                      strokeColor="#EC4899"
+                      zIndex={10}
+                    />
+                  ))}
             </>
           )}
 
@@ -623,6 +642,7 @@ export default function MapViewApp({
                 />
               </>
             )}
+
         </MapView>
 
         {/* Clear Selection Button */}

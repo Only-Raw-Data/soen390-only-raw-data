@@ -105,9 +105,19 @@ export default function DirectionsHeader() {
     posthog.capture('directions_transport_mode_changed', { mode });
     setTransportationMode(mode);
     if (mode === 'shuttle' && shuttleDefaultStart && shuttleDefaultDest) {
-      setStartBuilding(shuttleDefaultStart);
-      setStartCoords(null);
-      setDestinationBuilding(shuttleDefaultDest);
+      // Keep the user's buildings if they already have a building-to-building cross-campus
+      // route set up — the shuttle will add walking legs to/from the stops automatically.
+      // In every other case (no selection, same campus, or current-location start without
+      // a known campus), fall back to the canonical Hall ↔ Vanier defaults.
+      const hasCrossCampusRoute =
+        startBuilding &&
+        destinationBuilding &&
+        startBuilding.campus !== destinationBuilding.campus;
+      if (!hasCrossCampusRoute) {
+        setStartBuilding(shuttleDefaultStart);
+        setStartCoords(null);
+        setDestinationBuilding(shuttleDefaultDest);
+      }
     }
   };
 

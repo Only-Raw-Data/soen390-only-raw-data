@@ -1,4 +1,5 @@
 import type { Campus } from "@/constants/buildings";
+import { SGW_BUILDINGS, LOYOLA_BUILDINGS } from "@/constants/buildings";
 import {
   SHUTTLE_DISTANCE,
   SHUTTLE_DURATION,
@@ -7,11 +8,18 @@ import {
 import { TransportationMode, TransitSegment, SegmentMode } from "@app/types/transportation";
 import { decode } from "@googlemaps/polyline-codec";
 
+export interface ShuttleStop {
+  latitude: number;
+  longitude: number;
+  name: string;
+}
+
 export interface RouteData {
   coordinates: { latitude: number; longitude: number }[];
   duration: string;
   distance: string;
   segments?: TransitSegment[];
+  shuttleStops?: { departure: ShuttleStop; arrival: ShuttleStop };
 }
 
 export interface FetchDirectionsOptions {
@@ -34,21 +42,98 @@ export const fetchDirections = async (
 ): Promise<RouteData | null> => {
   const { startCampus, destinationCampus } = options ?? {};
 
-  // Shuttle: use fixed route when cross-campus; no API call
+  // When startCampus is unknown (e.g. "Current Location"), infer it from destinationCampus.
+  const effectiveStartCampus: Campus | undefined =
+    startCampus ??
+    (destinationCampus === "Loyola"
+      ? "SGW"
+      : destinationCampus === "SGW"
+        ? "Loyola"
+        : undefined);
+
+  // Shuttle: cross-campus route → walk to boarding stop + shuttle bus + walk to destination
   if (
     mode === "shuttle" &&
-    startCampus &&
+    effectiveStartCampus &&
     destinationCampus &&
-    startCampus !== destinationCampus
+    effectiveStartCampus !== destinationCampus
   ) {
-    const coordinates =
-      startCampus === "SGW"
+    const hallBuilding = SGW_BUILDINGS.find(b => b.id === 'h');
+    const vanierBuilding = LOYOLA_BUILDINGS.find(b => b.id === 'vl');
+
+    if (!hallBuilding || !vanierBuilding) {
+      // Fallback: bare shuttle polyline only
+      const coordinates = effectiveStartCampus === "SGW"
         ? [...SHUTTLE_ROUTE_SGW_TO_LOYOLA]
         : [...SHUTTLE_ROUTE_SGW_TO_LOYOLA].reverse();
+      return { coordinates, duration: SHUTTLE_DURATION, distance: SHUTTLE_DISTANCE };
+    }
+
+    const departureStop = effectiveStartCampus === "SGW"
+      ? { lat: hallBuilding.lat, lng: hallBuilding.lng }
+      : { lat: vanierBuilding.lat, lng: vanierBuilding.lng };
+    const arrivalStop = effectiveStartCampus === "SGW"
+      ? { lat: vanierBuilding.lat, lng: vanierBuilding.lng }
+      : { lat: hallBuilding.lat, lng: hallBuilding.lng };
+
+    const shuttleCoords = effectiveStartCampus === "SGW"
+      ? [...SHUTTLE_ROUTE_SGW_TO_LOYOLA]
+      : [...SHUTTLE_ROUTE_SGW_TO_LOYOLA].reverse();
+
+    // Straight-line helper used when the walking-leg API call is unavailable
+    const straightLine = (
+      from: { lat: number; lng: number },
+      to: { lat: number; lng: number },
+    ): { latitude: number; longitude: number }[] => [
+      { latitude: from.lat, longitude: from.lng },
+      { latitude: to.lat, longitude: to.lng },
+    ];
+
+    // Try to fetch real walking legs; fall back to straight lines on network failure
+    let walkToStop: RouteData | null = null;
+    let walkFromStop: RouteData | null = null;
+    try {
+      [walkToStop, walkFromStop] = await Promise.all([
+        fetchDirections(origin, departureStop, "walk"),
+        fetchDirections(arrivalStop, destination, "walk"),
+      ]);
+    } catch {
+      // network unavailable — straight-line fallback applied below
+    }
+
+    const walkToCoords =
+      walkToStop && walkToStop.coordinates.length > 0
+        ? walkToStop.coordinates
+        : straightLine(origin, departureStop);
+
+    const walkFromCoords =
+      walkFromStop && walkFromStop.coordinates.length > 0
+        ? walkFromStop.coordinates
+        : straightLine(arrivalStop, destination);
+
+    const segments: TransitSegment[] = [
+      { mode: 'WALK', coordinates: walkToCoords },
+      { mode: 'SHUTTLE', coordinates: shuttleCoords },
+      { mode: 'WALK', coordinates: walkFromCoords },
+    ];
+
     return {
-      coordinates,
+      coordinates: segments.flatMap(s => s.coordinates),
       duration: SHUTTLE_DURATION,
       distance: SHUTTLE_DISTANCE,
+      segments,
+      shuttleStops: {
+        departure: {
+          latitude: departureStop.lat,
+          longitude: departureStop.lng,
+          name: effectiveStartCampus === "SGW" ? hallBuilding.name : vanierBuilding.name,
+        },
+        arrival: {
+          latitude: arrivalStop.lat,
+          longitude: arrivalStop.lng,
+          name: effectiveStartCampus === "SGW" ? vanierBuilding.name : hallBuilding.name,
+        },
+      },
     };
   }
 
