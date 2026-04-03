@@ -730,12 +730,8 @@ export default function IndoorMapView() {
   }, [clearCurrentLocationStart, searchStartRoom]);
 
   const handleStartRoomChange = useCallback((text: string) => {
-    if (useCurrentLocation) {
-      clearCurrentLocationStart();
-      setLocationRequested(false);
-    }
     setStartSearchQuery(text);
-  }, [useCurrentLocation, clearCurrentLocationStart, setStartSearchQuery]);
+  }, [setStartSearchQuery]);
 
   const handleStartStoryMode = async () => {
     setStoryLoading(true);
