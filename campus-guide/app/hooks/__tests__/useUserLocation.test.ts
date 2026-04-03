@@ -74,7 +74,7 @@ const createMockLocation = (
 
 // Test coordinates
 const COORDS = {
-  H_BUILDING: { lat: 45.497092, lng: -73.5788 },
+  H_BUILDING: { lat: 45.49689679688509, lng: -73.57762257808744 },
   CC_BUILDING: { lat: 45.458204, lng: -73.6403 },
   OFF_CAMPUS: { lat: 45.5017, lng: -73.5673 },
 };
@@ -244,12 +244,10 @@ describe("useUserLocation", () => {
     expect(mockRemove).toHaveBeenCalled();
   });
 
-  it("handles location error gracefully", async () => {
+  it("handles off-campus location gracefully", async () => {
     //Arrange
     mockPermission("granted");
-    (Location.getCurrentPositionAsync as jest.Mock).mockRejectedValue(
-      new Error("Location unavailable"),
-    );
+    mockFindOffCampus();
     const { result } = renderHook(() => useUserLocation());
 
     //Act
@@ -258,7 +256,7 @@ describe("useUserLocation", () => {
     });
 
     //Assert
-    expect(result.current.errorMsg).toContain("Failed to get your location");
+    expect(result.current.errorMsg).toContain("don't appear to be on campus");
     expect(result.current.isLoading).toBe(false);
   });
 

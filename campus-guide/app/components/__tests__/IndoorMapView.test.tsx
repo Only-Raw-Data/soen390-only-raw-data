@@ -142,8 +142,8 @@ function makeStaircaseFeature(): any {
 
 // Helper: set up context with a path on a given floor
 function setupPathContext(
-    pathNodes: any[],
-    overrides: { selectedFloor?: number; startRoomRef?: string; destinationRoomRef?: string } = {},
+  pathNodes: any[],
+  overrides: { selectedFloor?: number; startRoomRef?: string; destinationRoomRef?: string } = {},
 ) {
   const hallBuilding = INDOOR_BUILDINGS.find((b) => b.code === "H")!;
   mockUseIndoorMap.mockReturnValue({
@@ -361,11 +361,10 @@ describe("IndoorMapView", () => {
     expect(setSelectedFloor).toHaveBeenCalledWith(8);
   });
 
-  it("calls searchStartRoom on start search submit and clears current location", () => {
+  it("calls searchStartRoom on start search submit", () => {
     // Arrange
     const searchStartRoom = jest.fn();
-    const clearCurrentLocationStart = jest.fn();
-    mockUseIndoorMap.mockReturnValue({ ...defaultContextValue, searchStartRoom, clearCurrentLocationStart });
+    mockUseIndoorMap.mockReturnValue({ ...defaultContextValue, searchStartRoom });
 
     // Act
     const { getByTestId } = renderWithProvider(<IndoorMapView />);
@@ -373,8 +372,7 @@ describe("IndoorMapView", () => {
       nativeEvent: { text: "H-851" },
     });
 
-    // Assert
-    expect(clearCurrentLocationStart).toHaveBeenCalled();
+    // Assert — text comes from nativeEvent, not React state
     expect(searchStartRoom).toHaveBeenCalledWith("H-851");
   });
 
@@ -393,18 +391,24 @@ describe("IndoorMapView", () => {
     expect(searchDestinationRoom).toHaveBeenCalledWith("MB1.210");
   });
 
-  it("shows 'Your Location' when current location is active", () => {
+  it("clears start room on start clear button press", () => {
     // Arrange
+    const setStartSearchQuery = jest.fn();
+    const clearStartRoom = jest.fn();
     mockUseIndoorMap.mockReturnValue({
       ...defaultContextValue,
-      useCurrentLocation: true,
+      startSearchQuery: "H-851",
+      setStartSearchQuery,
+      clearStartRoom,
     });
 
     // Act
-    const { getAllByText } = renderWithProvider(<IndoorMapView />);
+    const { getByTestId } = renderWithProvider(<IndoorMapView />);
+    fireEvent.press(getByTestId("room-search-start-clear"));
 
     // Assert
-    expect(getAllByText("Your Location").length).toBeGreaterThan(0);
+    expect(setStartSearchQuery).toHaveBeenCalledWith("");
+    expect(clearStartRoom).toHaveBeenCalled();
   });
 
   it("clears destination room on destination clear button press", () => {
@@ -427,19 +431,18 @@ describe("IndoorMapView", () => {
     expect(clearDestinationRoom).toHaveBeenCalled();
   });
 
-  it("displays current location error", () => {
+  it("displays start search error", () => {
     // Arrange
     mockUseIndoorMap.mockReturnValue({
       ...defaultContextValue,
-      useCurrentLocation: true,
-      currentLocationError: "Could not determine your position indoors",
+      startSearchError: "Room not found",
     });
 
     // Act
-    const { getByText } = renderWithProvider(<IndoorMapView />);
+    const { getAllByText } = renderWithProvider(<IndoorMapView />);
 
     // Assert
-    expect(getByText("Could not determine your position indoors")).toBeTruthy();
+    expect(getAllByText("Room not found").length).toBeGreaterThan(0);
   });
 
   it("displays destination search error", () => {
@@ -544,8 +547,8 @@ describe("IndoorMapView", () => {
     // Arrange
     setupPathContext([
       { id: "room:H851.02:8", lat: 45.497, lng: -73.578, floor: 8, type: "room" as any, ref: "H851.02" },
-      { id: "wp:1",           lat: 45.497, lng: -73.579, floor: 8, type: "waypoint" as any },
-      { id: "room:H857:8",   lat: 45.498, lng: -73.579, floor: 8, type: "room" as any, ref: "H857" },
+      { id: "wp:1", lat: 45.497, lng: -73.579, floor: 8, type: "waypoint" as any },
+      { id: "room:H857:8", lat: 45.498, lng: -73.579, floor: 8, type: "room" as any, ref: "H857" },
     ]);
 
     // Act
@@ -592,8 +595,8 @@ describe("IndoorMapView", () => {
       // Arrange — path goes from floor 8 room → staircase on floor 8 → room on floor 9
       setupPathContext([
         { id: "room:H851.02:8", lat: 45.497, lng: -73.578, floor: 8, type: "room" as any, ref: "H851.02" },
-        { id: "stair:1",        lat: 45.497, lng: -73.579, floor: 8, type: "staircase" as any },
-        { id: "room:H961:9",    lat: 45.498, lng: -73.579, floor: 9, type: "room" as any, ref: "H961" },
+        { id: "stair:1", lat: 45.497, lng: -73.579, floor: 8, type: "staircase" as any },
+        { id: "room:H961:9", lat: 45.498, lng: -73.579, floor: 9, type: "room" as any, ref: "H961" },
       ], { destinationRoomRef: "H961" });
 
       // Act
@@ -607,10 +610,10 @@ describe("IndoorMapView", () => {
     it("renders elevator transition marker with down arrow and target floor", () => {
       // Arrange — path goes from room on floor 1 → elevator on floor 1 → room on floor -2
       setupPathContext([
-        { id: "room:start:1",   lat: 45.497, lng: -73.578, floor: 1, type: "room" as any, ref: "H110" },
-        { id: "room:prev:1",    lat: 45.497, lng: -73.578, floor: 1, type: "waypoint" as any },
-        { id: "elev:1",         lat: 45.497, lng: -73.579, floor: 1, type: "elevator" as any },
-        { id: "room:dest:-2",   lat: 45.498, lng: -73.579, floor: -2, type: "room" as any, ref: "MBS2.437" },
+        { id: "room:start:1", lat: 45.497, lng: -73.578, floor: 1, type: "room" as any, ref: "H110" },
+        { id: "room:prev:1", lat: 45.497, lng: -73.578, floor: 1, type: "waypoint" as any },
+        { id: "elev:1", lat: 45.497, lng: -73.579, floor: 1, type: "elevator" as any },
+        { id: "room:dest:-2", lat: 45.498, lng: -73.579, floor: -2, type: "room" as any, ref: "MBS2.437" },
       ], { selectedFloor: 1, startRoomRef: "H110", destinationRoomRef: "MBS2.437" });
 
       // Act
@@ -625,8 +628,8 @@ describe("IndoorMapView", () => {
       // Arrange — staircase node has NaN coordinates
       setupPathContext([
         { id: "room:H851.02:8", lat: 45.497, lng: -73.578, floor: 8, type: "room" as any, ref: "H851.02" },
-        { id: "stair:bad",      lat: Number.NaN, lng: Number.NaN, floor: 8, type: "staircase" as any },
-        { id: "room:H961:9",    lat: 45.498, lng: -73.579, floor: 9, type: "room" as any, ref: "H961" },
+        { id: "stair:bad", lat: Number.NaN, lng: Number.NaN, floor: 8, type: "staircase" as any },
+        { id: "room:H961:9", lat: 45.498, lng: -73.579, floor: 9, type: "room" as any, ref: "H961" },
       ], { destinationRoomRef: "H961" });
 
       // Act
@@ -640,9 +643,9 @@ describe("IndoorMapView", () => {
     it("renders transition marker without floor label when neighbor is on same floor", () => {
       // Arrange — staircase with both neighbors on the same floor (no floor change detected)
       setupPathContext([
-        { id: "room:A:8",  lat: 45.497, lng: -73.578, floor: 8, type: "room" as any, ref: "H851.02" },
+        { id: "room:A:8", lat: 45.497, lng: -73.578, floor: 8, type: "room" as any, ref: "H851.02" },
         { id: "stair:mid", lat: 45.497, lng: -73.579, floor: 8, type: "staircase" as any },
-        { id: "room:B:8",  lat: 45.498, lng: -73.579, floor: 8, type: "room" as any, ref: "H857" },
+        { id: "room:B:8", lat: 45.498, lng: -73.579, floor: 8, type: "room" as any, ref: "H857" },
       ]);
 
       // Act
@@ -657,7 +660,7 @@ describe("IndoorMapView", () => {
       // Arrange — staircase at floor 8 has previous node on floor 7 and next node on floor 8
       setupPathContext([
         { id: "room:prev:7", lat: 45.496, lng: -73.579, floor: 7, type: "room" as any, ref: "H751" },
-        { id: "stair:8",    lat: 45.497, lng: -73.579, floor: 8, type: "staircase" as any },
+        { id: "stair:8", lat: 45.497, lng: -73.579, floor: 8, type: "staircase" as any },
         { id: "room:next:8", lat: 45.498, lng: -73.579, floor: 8, type: "room" as any, ref: "H851" },
       ]);
 
