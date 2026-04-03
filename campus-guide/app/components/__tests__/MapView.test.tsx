@@ -517,8 +517,9 @@ describe("MapViewApp", () => {
       // Arrange & Act
       const screen = renderWithProvider(<MapViewApp />);
       const polygons = screen.getAllByTestId("building-polygon");
-      // Assert - should have 2 SGW polygons from mock
-      expect(polygons.length).toBe(2);
+      // Both campuses are always loaded; default mock returns mockSGWPolygons (2 items)
+      // for every call, so SGW + Loyola = 4 total polygons.
+      expect(polygons.length).toBe(4);
     });
 
     it("calls useBuildingPolygons with correct campus", () => {
@@ -612,8 +613,8 @@ describe("MapViewApp", () => {
         }
       });
 
-      // Assert
-      expect(useBuildingPolygons).toHaveBeenLastCalledWith("SGW");
+      // Assert — both campuses are always fetched; verify SGW was among the calls
+      expect(useBuildingPolygons).toHaveBeenCalledWith("SGW");
     });
 
     it("highlights building when onBuildingHighlight is called", () => {

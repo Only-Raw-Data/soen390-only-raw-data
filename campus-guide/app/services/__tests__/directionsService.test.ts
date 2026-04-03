@@ -149,7 +149,7 @@ describe("directionsService", () => {
   );
 
   describe("shuttle mode", () => {
-    it("returns fixed route for cross-campus SGW to Loyola without calling API", async () => {
+    it("returns walk+shuttle+walk segments for cross-campus SGW to Loyola", async () => {
       // Arrange
       const origin = { lat: 45.497092, lng: -73.5788 };
       const destination = { lat: 45.4585, lng: -73.639 };
@@ -158,15 +158,21 @@ describe("directionsService", () => {
       // Act
       const result = await fetchDirections(origin, destination, "shuttle", options);
 
-      // Assert
-      expect(globalThis.fetch).not.toHaveBeenCalled();
+      // Assert — walking legs attempt API calls (2 fetches); failures use straight-line fallback
+      expect(globalThis.fetch).toHaveBeenCalledTimes(2);
       expect(result).not.toBeNull();
       expect(result?.duration).toBe(SHUTTLE_DURATION);
       expect(result?.distance).toBe(SHUTTLE_DISTANCE);
-      expect(result?.coordinates).toEqual(SHUTTLE_ROUTE_SGW_TO_LOYOLA);
+      // Three segments: walk to boarding stop, shuttle bus, walk to destination
+      expect(result?.segments).toHaveLength(3);
+      expect(result?.segments?.[0].mode).toBe("WALK");
+      expect(result?.segments?.[1].mode).toBe("SHUTTLE");
+      expect(result?.segments?.[2].mode).toBe("WALK");
+      expect(result?.segments?.[1].coordinates).toEqual(SHUTTLE_ROUTE_SGW_TO_LOYOLA);
+      expect(result?.shuttleStops).toBeDefined();
     });
 
-    it("returns fixed route for cross-campus Loyola to SGW with reversed polyline", async () => {
+    it("returns walk+shuttle+walk segments for cross-campus Loyola to SGW with reversed polyline", async () => {
       // Arrange
       const origin = { lat: 45.4585, lng: -73.639 };
       const destination = { lat: 45.497092, lng: -73.5788 };
@@ -175,13 +181,18 @@ describe("directionsService", () => {
       // Act
       const result = await fetchDirections(origin, destination, "shuttle", options);
 
-      // Assert
-      expect(globalThis.fetch).not.toHaveBeenCalled();
+      // Assert — walking legs attempt API calls (2 fetches); failures use straight-line fallback
+      expect(globalThis.fetch).toHaveBeenCalledTimes(2);
       expect(result).not.toBeNull();
       expect(result?.duration).toBe(SHUTTLE_DURATION);
       expect(result?.distance).toBe(SHUTTLE_DISTANCE);
+      expect(result?.segments).toHaveLength(3);
+      expect(result?.segments?.[0].mode).toBe("WALK");
+      expect(result?.segments?.[1].mode).toBe("SHUTTLE");
+      expect(result?.segments?.[2].mode).toBe("WALK");
       const expectedReversed = [...SHUTTLE_ROUTE_SGW_TO_LOYOLA].reverse();
-      expect(result?.coordinates).toEqual(expectedReversed);
+      expect(result?.segments?.[1].coordinates).toEqual(expectedReversed);
+      expect(result?.shuttleStops).toBeDefined();
     });
 
     it("returns null for shuttle same-campus without calling API", async () => {
