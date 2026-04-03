@@ -46,6 +46,15 @@ export default function DirectionsHeader() {
     }
   }, [transportationMode, startBuilding, destinationBuilding]);
 
+  // Committed start/destination can change from other screens (e.g. POI tab). If the user
+  // left a field focused, we still show searchQuery instead of the building name — reset
+  // local search UI whenever the context values change so the new selection is visible.
+  useEffect(() => {
+    setIsSearchingStart(false);
+    setIsSearchingDest(false);
+    setSearchQuery('');
+  }, [startBuilding, destinationBuilding]);
+
   useEffect(() => {
     if ((startBuilding || startCoords) && destinationBuilding) {
       fetchRoute();
