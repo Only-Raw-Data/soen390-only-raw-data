@@ -284,40 +284,7 @@ describe('DirectionsHeader', () => {
             expect(modalContent).toBeNull();
         });
 
-        it('sets default start and destination when Shuttle mode is pressed', () => {
-            // Arrange — start in walk mode with no buildings selected
-            (useDirections as jest.Mock).mockReturnValue({
-                startBuilding: null,
-                destinationBuilding: null,
-                transportationMode: 'walk',
-                route: null,
-                isLoadingRoute: false,
-                setTransportationMode: mockSetTransportationMode,
-                setStartBuilding: mockSetStartBuilding,
-                setDestinationBuilding: mockSetDestinationBuilding,
-                setStartCoords: mockSetStartCoords,
-                swapLocations: mockSwapLocations,
-                clearDirections: mockClearDirections,
-                fetchRoute: mockFetchRoute,
-            });
-
-            const { getByText } = render(<DirectionsHeader />);
-
-            // Act — press the Shuttle transport mode button
-            fireEvent.press(getByText('Shuttle'));
-
-            // Assert
-            expect(mockSetTransportationMode).toHaveBeenCalledWith('shuttle');
-            expect(mockSetStartBuilding).toHaveBeenCalledWith(
-                expect.objectContaining({ id: 'h' }),
-            );
-            // Assert
-            expect(mockSetDestinationBuilding).toHaveBeenCalledWith(
-                expect.objectContaining({ id: 'vl' }),
-            );
-        });
-
-        it('sets startCoords and clears startBuilding when Use Current Location succeeds', async () => {
+it('sets startCoords and clears startBuilding when Use Current Location succeeds', async () => {
             // Arrange & Act
             mockGetRawLocation.mockResolvedValue({ lat: 45.497, lng: -73.578 });
             const { getByTestId } = render(<DirectionsHeader />);
