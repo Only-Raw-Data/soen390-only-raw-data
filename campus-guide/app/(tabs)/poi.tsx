@@ -170,7 +170,7 @@ export default function POIScreen() {
     isLoading: loading,
     searchRadius,
     setSearchRadius,
-    updateSearchCenter,
+    fetchPOIsAt,
     setShowPOIs,
   } = usePOIContext();
 
@@ -194,10 +194,10 @@ export default function POIScreen() {
   const fetchLat = userLocation?.coords.latitude ?? campusCenter.latitude;
   const fetchLon = userLocation?.coords.longitude ?? campusCenter.longitude;
 
-  // When campus or user location changes, update the context search center
+  // When campus or user location changes, fetch POIs at the new location (force bypasses cooldown)
   React.useEffect(() => {
-    updateSearchCenter(fetchLat, fetchLon);
-  }, [fetchLat, fetchLon, updateSearchCenter]);
+    fetchPOIsAt(fetchLat, fetchLon, true);
+  }, [fetchLat, fetchLon, fetchPOIsAt]);
 
   // Search + filters
   const [searchQuery, setSearchQuery] = useState("");

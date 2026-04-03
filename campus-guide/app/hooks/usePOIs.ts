@@ -26,8 +26,9 @@ export default function usePOIs({
     let cancelled = false;
 
     async function loadPOIs() {
-      // Don't fetch if not enabled
+      // Don't fetch if not enabled; clear stale results so old POIs don't flash on next toggle
       if (!enabled) {
+        if (!cancelled) setPois([]);
         return;
       }
 
