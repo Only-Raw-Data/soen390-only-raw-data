@@ -10,8 +10,11 @@ import React, {
 import { PointOfInterest } from "../types/poi";
 import usePOIs from "../hooks/usePOIs";
 import { useDirections } from "./DirectionsContext";
-
-const COOLDOWN_MS = 3000;
+import {
+  POI_POI_COOLDOWN_MS,
+  POI_INITIAL_SEARCH_CENTER,
+  POI_INITIAL_SEARCH_RADIUS,
+} from "../../constants/poi";
 
 interface POIContextType {
   // Visibility & selection
@@ -51,8 +54,8 @@ interface POIProviderProps {
 export function POIProvider({ children }: POIProviderProps) {
   const [showPOIs, setShowPOIs] = useState(false);
   const [selectedPOI, setSelectedPOI] = useState<PointOfInterest | null>(null);
-  const [searchCenter, setSearchCenter] = useState({ lat: 45.4972, lon: -73.5792 });
-  const [searchRadius, setSearchRadius] = useState(1000);
+  const [searchCenter, setSearchCenter] = useState(POI_INITIAL_SEARCH_CENTER);
+  const [searchRadius, setSearchRadius] = useState(POI_INITIAL_SEARCH_RADIUS);
   const [isOnCooldown, setIsOnCooldown] = useState(false);
 
   const lastFetchTimeRef = useRef<number>(0);
@@ -74,13 +77,13 @@ export function POIProvider({ children }: POIProviderProps) {
 
   /**
    * Fetch POIs at a specific location.
-   * - force=false (default): subject to COOLDOWN_MS throttle — use for toggle button presses
+   * - force=false (default): subject to POI_COOLDOWN_MS throttle — use for toggle button presses
    * - force=true: bypasses throttle — use for intentional location changes (campus switch, tab focus)
    */
   const fetchPOIsAt = useCallback((lat: number, lon: number, force = false) => {
     const now = Date.now();
     const elapsed = now - lastFetchTimeRef.current;
-    const remaining = COOLDOWN_MS - elapsed;
+    const remaining = POI_COOLDOWN_MS - elapsed;
 
     if (!force && remaining > 0) {
       // Too soon — signal cooldown to UI without triggering a fetch

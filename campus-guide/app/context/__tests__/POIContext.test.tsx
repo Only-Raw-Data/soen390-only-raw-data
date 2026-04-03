@@ -1,6 +1,7 @@
 import React from 'react';
 import { renderHook, act } from '@testing-library/react-native';
 import { POIProvider, usePOIContext } from '../POIContext';
+import { POI_INITIAL_SEARCH_CENTER, POI_INITIAL_SEARCH_RADIUS } from '../../../constants/poi';
 
 jest.mock('../../hooks/usePOIs', () => ({
   __esModule: true,
@@ -28,8 +29,8 @@ describe('POIContext', () => {
     expect(result.current.showPOIs).toBe(false);
     expect(result.current.pois).toEqual([]);
     expect(result.current.isOnCooldown).toBe(false);
-    expect(result.current.searchRadius).toBe(1000);
-    expect(result.current.searchCenter).toEqual({ lat: 45.4972, lon: -73.5792 });
+    expect(result.current.searchRadius).toBe(POI_INITIAL_SEARCH_RADIUS);
+    expect(result.current.searchCenter).toEqual(POI_INITIAL_SEARCH_CENTER);
     expect(result.current.selectedPOI).toBeNull();
   });
 
