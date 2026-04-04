@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useMemo, useState } from "react";
+import React, { useRef, useEffect, useMemo, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import MapView, { Marker, Polygon, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
+import { Ionicons } from "@expo/vector-icons";
 import { usePostHog } from "posthog-react-native";
 import { NodeType, GraphNode } from "@app/services/indoorGraphService";
 import { CAMPUS_MAP_STYLE } from "@/constants/mapStyle";
@@ -21,9 +22,13 @@ import {
   getFeaturesForFloor,
   getRoomSuggestions,
 } from "@app/context/IndoorMapContext";
+import useUserLocation from "@app/hooks/useUserLocation";
 import { IndoorFeature } from "@app/types/indoorMap";
 import { IndoorStep, NavigationStep} from "@app/types/navigation";
-import { planCrossBuildingRoute } from "@app/services/crossBuildingRouteService";
+import {
+  planCrossBuildingRoute,
+  planCrossBuildingRouteFromGps,
+} from "@app/services/crossBuildingRouteService";
 import StoryOutdoorMap from "./StoryOutdoorMap";
 import { formatFloorLabel } from "@app/utils/timeFormat";
 import {
@@ -96,15 +101,17 @@ function CrossBuildingBanner({
   storyError,
   storyLoading,
   onStartStoryMode,
+  message,
 }: {
   readonly storyError: string | null;
   readonly storyLoading: boolean;
   readonly onStartStoryMode: () => void;
+  readonly message?: string;
 }) {
   return (
     <View style={styles.crossBuildingBanner} testID="cross-building-banner">
       <Text style={styles.crossBuildingText}>
-        These rooms are in different buildings.
+        {message ?? "These rooms are in different buildings."}
       </Text>
       {storyError && (
         <Text style={styles.crossBuildingError}>{storyError}</Text>
@@ -425,6 +432,7 @@ function BottomInfoSection({
   accessible,
   pathCoordinates,
   selectedFloor,
+  useCurrentLocation,
 }: {
   readonly selectedPOI: { amenity: string; ref?: string; name?: string } | null;
   readonly onDismissPOI: () => void;
@@ -435,7 +443,10 @@ function BottomInfoSection({
   readonly accessible: boolean;
   readonly pathCoordinates: { latitude: number; longitude: number }[];
   readonly selectedFloor: number | null;
+  readonly useCurrentLocation: boolean;
 }) {
+  const hasStart = startRoomRef || useCurrentLocation;
+
   if (selectedPOI) {
     return (
       <View style={styles.infoBar} testID="poi-info-bar">
@@ -470,40 +481,191 @@ function BottomInfoSection({
     );
   }
 
-  if (!startRoomRef && !destinationRoomRef && !highlightedFeature) {
+  if (!hasStart && !destinationRoomRef && !highlightedFeature) {
     return null;
   }
 
   return (
     <View style={styles.infoBar}>
-      {startRoomRef && (
+      {hasStart && (
         <View style={styles.infoRow}>
           <View style={[styles.infoDot, styles.infoDotStart]} />
           <Text style={styles.infoLabel}>From: </Text>
-          <Text style={styles.infoValue} testID="start-room-label">{startRoomRef}</Text>
+          <Text style={styles.infoValue} testID="start-room-label">
+            {useCurrentLocation ? "Your Location" : startRoomRef}
+          </Text>
         </View>
       )}
       {destinationRoomRef && (
-        <View style={[styles.infoRow, startRoomRef ? { marginTop: 4 } : undefined]}>
+        <View style={[styles.infoRow, hasStart ? { marginTop: 4 } : undefined]}>
           <View style={[styles.infoDot, styles.infoDotDestination]} />
           <Text style={styles.infoLabel}>To: </Text>
           <Text style={styles.infoValue} testID="destination-room-label">{destinationRoomRef}</Text>
         </View>
       )}
-      {startRoomRef && destinationRoomRef && (
+      {hasStart && destinationRoomRef && (
         <RouteInfo
           currentPath={currentPath}
           accessible={accessible}
           pathCoordinates={pathCoordinates}
         />
       )}
-      {highlightedFeature && !startRoomRef && !destinationRoomRef && (
+      {highlightedFeature && !hasStart && !destinationRoomRef && (
         <HighlightedRoomInfo
           highlightedFeature={highlightedFeature}
           selectedFloor={selectedFloor}
         />
       )}
     </View>
+  );
+}
+
+type TransitionPoint = {
+  node: GraphNode;
+  toFloor: number | null;
+  direction: Direction;
+};
+
+function computeTransitionPoints(
+  currentPath: GraphNode[] | null,
+  selectedFloor: number | null,
+): TransitionPoint[] {
+  if (!currentPath || selectedFloor === null) return [];
+  return currentPath.flatMap((node, i) => {
+    if (node.floor !== selectedFloor) return [];
+    if (node.type !== NodeType.Staircase && node.type !== NodeType.Elevator) return [];
+    if (!Number.isFinite(node.lat) || !Number.isFinite(node.lng)) return [];
+    const prev = currentPath[i - 1];
+    const next = currentPath[i + 1];
+    let neighbor: GraphNode | null = null;
+    if (next && next.floor !== selectedFloor) {
+      neighbor = next;
+    } else if (prev && prev.floor !== selectedFloor) {
+      neighbor = prev;
+    }
+    const toFloor = neighbor?.floor ?? null;
+    let direction: Direction = null;
+    if (toFloor !== null) {
+      direction = toFloor > selectedFloor ? "up" : "down";
+    }
+    return [{ node, toFloor, direction }];
+  });
+}
+
+function computeRoomStyle(
+  feature: IndoorFeature,
+  startRoomRef: string | null,
+  destinationRoomRef: string | null,
+  highlightedRoomRef: string | null,
+) {
+  const roomRef = feature.properties?.ref;
+  if (roomRef && roomRef === startRoomRef) return ROOM_STYLE_START;
+  if (roomRef && roomRef === destinationRoomRef) return ROOM_STYLE_DESTINATION;
+  if (highlightedRoomRef !== null && roomRef === highlightedRoomRef) return ROOM_STYLE_HIGHLIGHTED;
+  return ROOM_STYLE_DEFAULT;
+}
+
+function computeFloorFeatures(
+  building: ReturnType<typeof useIndoorMap>["selectedBuilding"],
+  floor: number | null,
+): ReturnType<typeof getFeaturesForFloor> {
+  if (!building || floor === null) return [];
+  const geoJson = getGeoJsonForBuilding(building);
+  if (!geoJson) return [];
+  return getFeaturesForFloor(geoJson, floor);
+}
+
+function applyRouteStepsResult(
+  steps: NavigationStep[] | null,
+  setStorySteps: (s: NavigationStep[]) => void,
+  setStoryIndex: (i: number) => void,
+  setStoryError: (e: string) => void,
+): void {
+  if (steps && steps.length > 0) {
+    setStorySteps(steps);
+    setStoryIndex(0);
+  } else {
+    setStoryError("Could not compute route");
+  }
+}
+
+function computePathCoordinates(
+  currentPath: GraphNode[] | null,
+  selectedFloor: number | null,
+): { latitude: number; longitude: number }[] {
+  if (!currentPath || selectedFloor === null) return [];
+  const onFloor = currentPath
+    .filter((node) => node.floor === selectedFloor)
+    .filter((c) => Number.isFinite(c.lat) && Number.isFinite(c.lng));
+  const filtered = onFloor.filter((n) => n.type !== NodeType.Room);
+  const chosen = filtered.length >= 2 ? filtered : onFloor;
+  return chosen.map((node) => ({ latitude: node.lat, longitude: node.lng }));
+}
+
+function findHighlightedFeature(
+  features: IndoorFeature[],
+  roomRef: string | null,
+): IndoorFeature | null {
+  if (!roomRef) return null;
+  return features.find((f) => f.properties?.ref === roomRef) ?? null;
+}
+
+function getInitialRegion(building: ReturnType<typeof useIndoorMap>["selectedBuilding"]) {
+  if (building) {
+    return {
+      latitude: building.centerLat,
+      longitude: building.centerLng,
+      latitudeDelta: MAP_CONSTANTS.INDOOR_BUILDING_DELTA,
+      longitudeDelta: MAP_CONSTANTS.INDOOR_BUILDING_DELTA,
+    };
+  }
+  return {
+    latitude: 45.497092,
+    longitude: -73.5788,
+    latitudeDelta: MAP_CONSTANTS.DEFAULT_CAMERA_DELTA,
+    longitudeDelta: MAP_CONSTANTS.DEFAULT_CAMERA_DELTA,
+  };
+}
+
+function computeWillRenderPolyline(floorTransitioning: boolean, pathLength: number): boolean {
+  return !floorTransitioning && pathLength > 1;
+}
+
+function getCrossBuildingBannerMessage(isCrossBuilding: boolean): string {
+  return isCrossBuilding
+    ? "These rooms are in different buildings."
+    : "Get step-by-step directions from your current location.";
+}
+
+function bounceIosMapPadding(
+  setIosMapPadding: (p: { top: number; right: number; bottom: number; left: number }) => void,
+  timerRef: React.MutableRefObject<ReturnType<typeof setTimeout> | null>,
+): void {
+  setIosMapPadding({ top: 0, right: 0, bottom: 1, left: 0 });
+  if (timerRef.current) clearTimeout(timerRef.current);
+  timerRef.current = setTimeout(() => {
+    setIosMapPadding({ top: 0, right: 0, bottom: 0, left: 0 });
+  }, 300);
+}
+
+async function planStoryModeRoute(params: {
+  useCurrentLocation: boolean;
+  location: ReturnType<typeof useUserLocation>["location"];
+  destinationSearchQuery: string;
+  startSearchQuery: string;
+  accessible: boolean;
+}): Promise<NavigationStep[] | null> {
+  if (params.useCurrentLocation && params.location) {
+    return planCrossBuildingRouteFromGps(
+      { lat: params.location.coords.latitude, lng: params.location.coords.longitude },
+      params.destinationSearchQuery,
+      params.accessible,
+    );
+  }
+  return planCrossBuildingRoute(
+    params.startSearchQuery,
+    params.destinationSearchQuery,
+    params.accessible,
   );
 }
 
@@ -534,7 +696,13 @@ export default function IndoorMapView() {
     showPOIs,
     togglePOIs,
     isCrossBuilding,
+    useCurrentLocation,
+    currentLocationError,
+    setStartFromCurrentLocation,
+    clearCurrentLocationStart,
   } = useIndoorMap();
+
+  const { getCurrentLocation, location, isLoading: locationLoading } = useUserLocation();
 
   useIndoorUsabilityTasks();
 
@@ -547,8 +715,8 @@ export default function IndoorMapView() {
   const [storyError, setStoryError] = useState<string | null>(null);
 
   const startSuggestions = useMemo(
-    () => (startRoomRef ? [] : getRoomSuggestions(startSearchQuery)),
-    [startSearchQuery, startRoomRef],
+    () => (startRoomRef || useCurrentLocation ? [] : getRoomSuggestions(startSearchQuery)),
+    [startSearchQuery, startRoomRef, useCurrentLocation],
   );
 
   const destinationSuggestions = useMemo(
@@ -557,6 +725,7 @@ export default function IndoorMapView() {
   );
 
   const handleSelectStartSuggestion = (room: string) => {
+    clearCurrentLocationStart();
     setStartSearchQuery(room);
     searchStartRoom(room);
   };
@@ -609,12 +778,10 @@ export default function IndoorMapView() {
   }, [selectedBuilding, selectedFloor]);
 
   // Get floor features for current building + floor
-  const floorFeatures = useMemo(() => {
-    if (!selectedBuilding || selectedFloor === null) return [];
-    const geoJson = getGeoJsonForBuilding(selectedBuilding);
-    if (!geoJson) return [];
-    return getFeaturesForFloor(geoJson, selectedFloor);
-  }, [selectedBuilding, selectedFloor]);
+  const floorFeatures = useMemo(
+    () => computeFloorFeatures(selectedBuilding, selectedFloor),
+    [selectedBuilding, selectedFloor],
+  );
 
   // Filter to only polygon features (rooms/areas), excluding amenity POIs when shown separately
   const polygonFeatures = useMemo(() => {
@@ -630,11 +797,7 @@ export default function IndoorMapView() {
   // after polygon features change (building/floor selection).
   useEffect(() => {
     if (Platform.OS === "ios" && polygonFeatures.length > 0) {
-      setIosMapPadding({ top: 0, right: 0, bottom: 1, left: 0 });
-      if (iosPaddingTimer.current) clearTimeout(iosPaddingTimer.current);
-      iosPaddingTimer.current = setTimeout(() => {
-        setIosMapPadding({ top: 0, right: 0, bottom: 0, left: 0 });
-      }, 300);
+      bounceIosMapPadding(setIosMapPadding, iosPaddingTimer);
     }
   }, [polygonFeatures.length]);
 
@@ -678,28 +841,62 @@ export default function IndoorMapView() {
     clearStartRoom();
   };
 
+  const handleClearCurrentLocation = () => {
+    clearCurrentLocationStart();
+  };
+
   const handleClearDestinationSearch = () => {
     setDestinationSearchQuery("");
     clearDestinationRoom();
   };
 
+  const [locationRequested, setLocationRequested] = useState(false);
+
+  const handleUseMyLocation = useCallback(async () => {
+    // Clear any manually entered start room
+    setStartSearchQuery("");
+    clearStartRoom();
+    setLocationRequested(true);
+    await getCurrentLocation();
+  }, [getCurrentLocation, setStartSearchQuery, clearStartRoom]);
+
+  // When location updates after user requested it, set it in context.
+  // selectedFloor is passed so that if a building is already selected the search
+  // is scoped to that floor; passing null triggers auto-detection across all buildings.
+  useEffect(() => {
+    if (locationRequested && location) {
+      setStartFromCurrentLocation(
+        location.coords.latitude,
+        location.coords.longitude,
+        selectedFloor,
+      );
+    }
+  }, [locationRequested, location, selectedBuilding, selectedFloor, setStartFromCurrentLocation]);
+
+  const handleStartRoomSubmit = useCallback((query: string) => {
+    clearCurrentLocationStart();
+    setLocationRequested(false);
+    searchStartRoom(query);
+  }, [clearCurrentLocationStart, searchStartRoom]);
+
+  const handleStartRoomChange = useCallback((text: string) => {
+    setStartSearchQuery(text);
+  }, [setStartSearchQuery]);
+
   const handleStartStoryMode = async () => {
     setStoryLoading(true);
     setStoryError(null);
     try {
-      const steps = await planCrossBuildingRoute(
-        startSearchQuery,
+      const steps = await planStoryModeRoute({
+        useCurrentLocation,
+        location,
         destinationSearchQuery,
+        startSearchQuery,
         accessible,
-      );
-      if (steps && steps.length > 0) {
-        setStorySteps(steps);
-        setStoryIndex(0);
-      } else {
-        setStoryError("Could not compute cross-building route");
-      }
+      });
+      applyRouteStepsResult(steps, setStorySteps, setStoryIndex, setStoryError);
     } catch {
-      setStoryError("Error computing cross-building route");
+      setStoryError("Error computing route");
     } finally {
       setStoryLoading(false);
     }
@@ -743,112 +940,96 @@ export default function IndoorMapView() {
     );
   };
 
-  const getRoomStyle = (feature: IndoorFeature) => {
-    const roomRef = feature.properties?.ref;
-    if (roomRef && roomRef === startRoomRef) {
-      return ROOM_STYLE_START;
-    }
-    if (roomRef && roomRef === destinationRoomRef) {
-      return ROOM_STYLE_DESTINATION;
-    }
-    if (isHighlighted(feature)) {
-      return ROOM_STYLE_HIGHLIGHTED;
-    }
-    return ROOM_STYLE_DEFAULT;
-  };
+  const getRoomStyle = (feature: IndoorFeature) =>
+    computeRoomStyle(feature, startRoomRef, destinationRoomRef, highlightedRoomRef);
 
   // Find the highlighted feature for the info bar
-  const highlightedFeature = highlightedRoomRef
-    ? polygonFeatures.find((f) => f.properties?.ref === highlightedRoomRef)
-    : null;
+  const highlightedFeature = findHighlightedFeature(polygonFeatures, highlightedRoomRef);
 
   // Filter path nodes to the current floor for per-floor polyline rendering.
   // Prefer showing only corridor/staircase/elevator waypoints (keeps line in hallways).
   // Fall back to including Room nodes if fewer than 2 waypoints remain.
-  const pathCoordinates = useMemo(() => {
-    if (!currentPath || selectedFloor === null) return [];
+  const pathCoordinates = useMemo(
+    () => computePathCoordinates(currentPath, selectedFloor),
+    [currentPath, selectedFloor],
+  );
 
-    const onFloor = currentPath
-      .filter((node) => node.floor === selectedFloor)
-      .filter((c) => Number.isFinite(c.lat) && Number.isFinite(c.lng));
+  const transitionPoints = useMemo(
+    () => computeTransitionPoints(currentPath, selectedFloor),
+    [currentPath, selectedFloor],
+  );
 
-    // Exclude Room centroid nodes so the line stays in hallways.
-    // Start/destination rooms are already highlighted by colored polygons.
-    const filtered = onFloor.filter((n) => n.type !== NodeType.Room);
-    const chosen = filtered.length >= 2 ? filtered : onFloor;
-
-    return chosen.map((node) => ({ latitude: node.lat, longitude: node.lng }));
-  }, [currentPath, selectedFloor]);
-
-  // Staircase / elevator nodes on the current floor that lead to another floor.
-  // These are rendered as labelled markers so the user can see exactly where
-  // to take stairs/elevator and which floor they lead to.
-  const transitionPoints = useMemo(() => {
-    if (!currentPath || selectedFloor === null) return [] as {
-      node: GraphNode; toFloor: number | null; direction: "up" | "down" | null;
-    }[];
-    return currentPath.flatMap((node, i) => {
-      if (node.floor !== selectedFloor) return [];
-      if (node.type !== NodeType.Staircase && node.type !== NodeType.Elevator) return [];
-      if (!Number.isFinite(node.lat) || !Number.isFinite(node.lng)) return [];
-      // Look at neighboring nodes to find which floor this transition leads to
-      const prev = currentPath[i - 1];
-      const next = currentPath[i + 1];
-      let neighbor: GraphNode | null = null;
-      if (next && next.floor !== selectedFloor) {
-        neighbor = next;
-      } else if (prev && prev.floor !== selectedFloor) {
-        neighbor = prev;
-      }
-      const toFloor = neighbor?.floor ?? null;
-      let direction: "up" | "down" | null = null;
-      if (toFloor !== null) {
-        direction = toFloor > selectedFloor ? "up" : "down";
-      }
-      return [{ node, toFloor, direction }];
-    });
-  }, [currentPath, selectedFloor]);
-
-  const initialRegion = selectedBuilding
-    ? {
-      latitude: selectedBuilding.centerLat,
-      longitude: selectedBuilding.centerLng,
-      latitudeDelta: MAP_CONSTANTS.INDOOR_BUILDING_DELTA,
-      longitudeDelta: MAP_CONSTANTS.INDOOR_BUILDING_DELTA,
-    }
-    : {
-      latitude: 45.497092,
-      longitude: -73.5788,
-      latitudeDelta: MAP_CONSTANTS.DEFAULT_CAMERA_DELTA,
-      longitudeDelta: MAP_CONSTANTS.DEFAULT_CAMERA_DELTA,
-    };
+  const initialRegion = getInitialRegion(selectedBuilding);
 
   logIndoorMapRender({
     floorTransitioning,
     pathCoordinatesLength: pathCoordinates.length,
     selectedFloor,
-    willRenderPolyline: !!(!floorTransitioning && pathCoordinates.length > 1),
+    willRenderPolyline: computeWillRenderPolyline(floorTransitioning, pathCoordinates.length),
   });
 
   return (
     <View style={styles.container}>
-      {/* Start Room Search Bar */}
+      {/* Start: Current Location or Room Search */}
       <View style={styles.searchRow}>
         <View style={[styles.searchDot, styles.searchDotStart]} />
-        <View style={styles.searchBarFlex}>
-          <RoomSearchBar
-            value={startSearchQuery}
-            onChangeText={setStartSearchQuery}
-            onSubmit={searchStartRoom}
-            onClear={handleClearStartSearch}
-            error={startSearchError}
-            placeholder="Start room (e.g., H-820)"
-            testIDPrefix="room-search-start"
-            suggestions={startSuggestions}
-            onSelectSuggestion={handleSelectStartSuggestion}
-          />
-        </View>
+        {useCurrentLocation ? (
+          <View style={styles.currentLocationRow}>
+            <View style={[styles.currentLocationButton, styles.currentLocationButtonActive]}>
+              {locationLoading ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Ionicons name="navigate" size={18} color="#FFFFFF" />
+              )}
+              <Text style={[styles.currentLocationText, styles.currentLocationTextActive]}>
+                Your Location
+              </Text>
+              <TouchableOpacity
+                onPress={handleClearCurrentLocation}
+                style={styles.currentLocationClear}
+                testID="clear-current-location"
+              >
+                <Ionicons name="close-circle" size={18} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+            {currentLocationError && (
+              <Text style={styles.currentLocationError}>{currentLocationError}</Text>
+            )}
+          </View>
+        ) : (
+          <View style={styles.searchBarFlex}>
+            <RoomSearchBar
+              value={startSearchQuery}
+              onChangeText={handleStartRoomChange}
+              onSubmit={handleStartRoomSubmit}
+              onClear={handleClearStartSearch}
+              error={startSearchError}
+              placeholder="Start room (e.g., H-820)"
+              testIDPrefix="room-search-start"
+              suggestions={startSuggestions}
+              onSelectSuggestion={handleSelectStartSuggestion}
+            />
+          </View>
+        )}
       </View>
+      {/* Use My Location Button */}
+      {!useCurrentLocation && (
+        <View style={styles.locationButtonRow}>
+          <TouchableOpacity
+            style={styles.useMyLocationButton}
+            onPress={handleUseMyLocation}
+            testID="use-my-location-button"
+            disabled={locationLoading}
+          >
+            {locationLoading ? (
+              <ActivityIndicator size="small" color="#912338" />
+            ) : (
+              <Ionicons name="navigate" size={16} color="#912338" />
+            )}
+            <Text style={styles.useMyLocationText}>Use My Location</Text>
+          </TouchableOpacity>
+        </View>
+      )}
       {/* Destination Room Search Bar */}
       <View style={styles.searchRow}>
         <View style={[styles.searchDot, styles.searchDotDestination]} />
@@ -978,12 +1159,13 @@ export default function IndoorMapView() {
         </View>
       )}
 
-      {/* Cross-building banner */}
-      {isCrossBuilding && !storySteps && (
+      {/* Cross-building banner — also shown when using GPS so outdoor leg is included */}
+      {(isCrossBuilding || (useCurrentLocation && !!destinationRoomRef)) && !storySteps && (
         <CrossBuildingBanner
           storyError={storyError}
           storyLoading={storyLoading}
           onStartStoryMode={handleStartStoryMode}
+          message={getCrossBuildingBannerMessage(isCrossBuilding)}
         />
       )}
 
@@ -1137,6 +1319,7 @@ export default function IndoorMapView() {
           accessible={accessible}
           pathCoordinates={pathCoordinates}
           selectedFloor={selectedFloor}
+          useCurrentLocation={useCurrentLocation}
         />
       )}
     </View>
@@ -1235,6 +1418,62 @@ const styles = StyleSheet.create({
   },
   searchBarFlex: {
     flex: 1,
+  },
+  currentLocationRow: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  currentLocationButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F3F4F6",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    height: 44,
+    gap: 8,
+  },
+  currentLocationButtonActive: {
+    backgroundColor: "#912338",
+  },
+  currentLocationText: {
+    fontSize: 16,
+    color: "#912338",
+    fontWeight: "500",
+    flex: 1,
+  },
+  currentLocationTextActive: {
+    color: "#FFFFFF",
+  },
+  currentLocationClear: {
+    padding: 4,
+  },
+  currentLocationError: {
+    color: "#DC2626",
+    fontSize: 13,
+    marginTop: 6,
+    marginLeft: 4,
+  },
+  locationButtonRow: {
+    flexDirection: "row",
+    paddingHorizontal: 40,
+    paddingBottom: 4,
+    backgroundColor: "#FFFFFF",
+  },
+  useMyLocationButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#912338",
+  },
+  useMyLocationText: {
+    fontSize: 13,
+    color: "#912338",
+    fontWeight: "600",
   },
   buildingSelectorContainer: {
     backgroundColor: "#FFFFFF",

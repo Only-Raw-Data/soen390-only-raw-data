@@ -7,17 +7,26 @@ appId: com.soen390.campusguide
 
 - assertVisible: "SGW Campus"
 
-- tapOn:
-    point: "90%,93%"
-- waitForAnimationToEnd
-
 - tapOn: "Schedule"
 - waitForAnimationToEnd
 
-- tapOn: ".*Get Directions.*"
+- tapOn: ".*NEXT CLASS"
 - waitForAnimationToEnd
 
-- assertVisible:
-    text: ".*mins.*km.*" 
+- tapOn: "Use My Location"
+- waitForAnimationToEnd
+
+- tapOn: "Get Step-by-Step Directions"
+- waitForAnimationToEnd
+
+- assertVisible: ".*Walking.*mins.*"
+
+- tapOn: "Next.*"
+- waitForAnimationToEnd
+
+- assertVisible: "John Molson Building Entrance.*"
+
+- tapOn: ".*Previous"
+- waitForAnimationToEnd
 
 - stopApp
