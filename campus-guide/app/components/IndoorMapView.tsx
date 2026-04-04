@@ -520,6 +520,51 @@ function BottomInfoSection({
   );
 }
 
+type TransitionPoint = {
+  node: GraphNode;
+  toFloor: number | null;
+  direction: Direction;
+};
+
+function computeTransitionPoints(
+  currentPath: GraphNode[] | null,
+  selectedFloor: number | null,
+): TransitionPoint[] {
+  if (!currentPath || selectedFloor === null) return [];
+  return currentPath.flatMap((node, i) => {
+    if (node.floor !== selectedFloor) return [];
+    if (node.type !== NodeType.Staircase && node.type !== NodeType.Elevator) return [];
+    if (!Number.isFinite(node.lat) || !Number.isFinite(node.lng)) return [];
+    const prev = currentPath[i - 1];
+    const next = currentPath[i + 1];
+    let neighbor: GraphNode | null = null;
+    if (next && next.floor !== selectedFloor) {
+      neighbor = next;
+    } else if (prev && prev.floor !== selectedFloor) {
+      neighbor = prev;
+    }
+    const toFloor = neighbor?.floor ?? null;
+    let direction: Direction = null;
+    if (toFloor !== null) {
+      direction = toFloor > selectedFloor ? "up" : "down";
+    }
+    return [{ node, toFloor, direction }];
+  });
+}
+
+function computeRoomStyle(
+  feature: IndoorFeature,
+  startRoomRef: string | null,
+  destinationRoomRef: string | null,
+  highlightedRoomRef: string | null,
+) {
+  const roomRef = feature.properties?.ref;
+  if (roomRef && roomRef === startRoomRef) return ROOM_STYLE_START;
+  if (roomRef && roomRef === destinationRoomRef) return ROOM_STYLE_DESTINATION;
+  if (highlightedRoomRef !== null && roomRef === highlightedRoomRef) return ROOM_STYLE_HIGHLIGHTED;
+  return ROOM_STYLE_DEFAULT;
+}
+
 export default function IndoorMapView() {
   const {
     selectedBuilding,
@@ -812,19 +857,8 @@ export default function IndoorMapView() {
     );
   };
 
-  const getRoomStyle = (feature: IndoorFeature) => {
-    const roomRef = feature.properties?.ref;
-    if (roomRef && roomRef === startRoomRef) {
-      return ROOM_STYLE_START;
-    }
-    if (roomRef && roomRef === destinationRoomRef) {
-      return ROOM_STYLE_DESTINATION;
-    }
-    if (isHighlighted(feature)) {
-      return ROOM_STYLE_HIGHLIGHTED;
-    }
-    return ROOM_STYLE_DEFAULT;
-  };
+  const getRoomStyle = (feature: IndoorFeature) =>
+    computeRoomStyle(feature, startRoomRef, destinationRoomRef, highlightedRoomRef);
 
   // Find the highlighted feature for the info bar
   const highlightedFeature = highlightedRoomRef
@@ -849,34 +883,10 @@ export default function IndoorMapView() {
     return chosen.map((node) => ({ latitude: node.lat, longitude: node.lng }));
   }, [currentPath, selectedFloor]);
 
-  // Staircase / elevator nodes on the current floor that lead to another floor.
-  // These are rendered as labelled markers so the user can see exactly where
-  // to take stairs/elevator and which floor they lead to.
-  const transitionPoints = useMemo(() => {
-    if (!currentPath || selectedFloor === null) return [] as {
-      node: GraphNode; toFloor: number | null; direction: "up" | "down" | null;
-    }[];
-    return currentPath.flatMap((node, i) => {
-      if (node.floor !== selectedFloor) return [];
-      if (node.type !== NodeType.Staircase && node.type !== NodeType.Elevator) return [];
-      if (!Number.isFinite(node.lat) || !Number.isFinite(node.lng)) return [];
-      // Look at neighboring nodes to find which floor this transition leads to
-      const prev = currentPath[i - 1];
-      const next = currentPath[i + 1];
-      let neighbor: GraphNode | null = null;
-      if (next && next.floor !== selectedFloor) {
-        neighbor = next;
-      } else if (prev && prev.floor !== selectedFloor) {
-        neighbor = prev;
-      }
-      const toFloor = neighbor?.floor ?? null;
-      let direction: "up" | "down" | null = null;
-      if (toFloor !== null) {
-        direction = toFloor > selectedFloor ? "up" : "down";
-      }
-      return [{ node, toFloor, direction }];
-    });
-  }, [currentPath, selectedFloor]);
+  const transitionPoints = useMemo(
+    () => computeTransitionPoints(currentPath, selectedFloor),
+    [currentPath, selectedFloor],
+  );
 
   const initialRegion = selectedBuilding
     ? {
