@@ -40,6 +40,8 @@ import { PointOfInterest } from "../types/poi";
 import { poiToBuildingAdapter } from "../utils/poiUtils";
 import { useMapUsabilityTasks } from "@hooks/useMapUsabilityTasks";
 import { useActionRepeatSignal } from "@hooks/useActionRepeatSignal";
+import { RouteData } from "@app/services/directionsService";
+import { TransportationMode } from "@app/types/transportation";
 
 function BuildingMarkerItem({
   building,
@@ -75,16 +77,16 @@ function BuildingMarkerItem({
       <View
         style={[
           styles.labelMarker,
-          isCurrentLocation && styles.labelMarkerCurrent,
-          isStart && styles.labelMarkerStart,
-          isDest && styles.labelMarkerDest,
+          isCurrentLocation ? styles.labelMarkerCurrent : undefined,
+          isStart ? styles.labelMarkerStart : undefined,
+          isDest ? styles.labelMarkerDest : undefined,
         ]}
       >
         <Text
           style={[
             styles.labelMarkerText,
-            isCurrentLocation && styles.labelMarkerTextCurrent,
-            (isStart || isDest) && styles.labelMarkerTextAlt,
+            isCurrentLocation ? styles.labelMarkerTextCurrent : undefined,
+            isStart || isDest ? styles.labelMarkerTextAlt : undefined,
           ]}
           numberOfLines={1}
         >
@@ -188,6 +190,197 @@ function getPolygonColors(
   };
 }
 
+type MapRegionLike = {
+  latitude: number;
+  longitude: number;
+  latitudeDelta: number;
+};
+
+function isShuttleCrossCampus(
+  mode: TransportationMode,
+  start: Building | null,
+  dest: Building | null,
+): boolean {
+  if (mode !== "shuttle" || !start || !dest) {
+    return false;
+  }
+  return start.campus !== dest.campus;
+}
+
+function computeShowRoute(
+  route: RouteData | null | undefined,
+  shuttleCrossCampus: boolean,
+): boolean {
+  if (!route) {
+    return false;
+  }
+  if (!shuttleCrossCampus) {
+    return true;
+  }
+  return isWithinShuttleHours();
+}
+
+/** Returns a campus to switch to from map center, or null if unchanged. */
+function pickCampusFromMapCenter(
+  region: MapRegionLike,
+  selectedCampus: Campus,
+): Campus | null {
+  if (region.latitudeDelta > MAP_CONSTANTS.AUTO_SWITCH_MAX_DELTA) {
+    return null;
+  }
+  const sgwCenter = CAMPUS_REGIONS.SGW;
+  const loyolaCenter = CAMPUS_REGIONS.Loyola;
+  const distToSGW = Math.sqrt(
+    Math.pow(region.latitude - sgwCenter.latitude, 2) +
+      Math.pow(region.longitude - sgwCenter.longitude, 2),
+  );
+  const distToLoyola = Math.sqrt(
+    Math.pow(region.latitude - loyolaCenter.latitude, 2) +
+      Math.pow(region.longitude - loyolaCenter.longitude, 2),
+  );
+  if (distToSGW < distToLoyola && selectedCampus !== "SGW") {
+    return "SGW";
+  }
+  if (distToLoyola < distToSGW && selectedCampus !== "Loyola") {
+    return "Loyola";
+  }
+  return null;
+}
+
+function TransitRoutePolylines({ route }: { readonly route: RouteData }) {
+  const segments = route.segments;
+  if (segments && segments.length > 0) {
+    return (
+      <>
+        {segments.map((seg, i) => {
+          const isWalk = seg.mode === "WALK";
+          const color = SEGMENT_COLORS[seg.mode];
+          const segKey = `transit-seg-${seg.mode}-${i}-${seg.coordinates[0]?.latitude ?? i}`;
+          return (
+            <Polyline
+              // @ts-ignore - key is a React reserved prop, missing in MapPolylineProps but required in map()
+              key={segKey}
+              coordinates={seg.coordinates}
+              strokeWidth={isWalk ? 3 : 5}
+              strokeColor={color}
+              lineDashPattern={isWalk ? [6, 5] : undefined}
+              zIndex={10}
+            />
+          );
+        })}
+      </>
+    );
+  }
+  return (
+    <Polyline
+      coordinates={route.coordinates}
+      strokeWidth={4}
+      strokeColor="#8B5CF6"
+      lineDashPattern={[16, 8]}
+      zIndex={10}
+    />
+  );
+}
+
+function ShuttleRoutePolylines({ route }: { readonly route: RouteData }) {
+  const segments = route.segments;
+  if (segments && segments.length > 0) {
+    return (
+      <>
+        {segments.map((seg, i) => {
+          const isShuttle = seg.mode === "SHUTTLE";
+          const segKey = `shuttle-seg-${seg.mode}-${i}-${seg.coordinates[0]?.latitude ?? i}`;
+          return (
+            <Polyline
+              // @ts-ignore
+              key={segKey}
+              coordinates={seg.coordinates}
+              strokeWidth={isShuttle ? 5 : 3}
+              strokeColor={isShuttle ? "#EC4899" : "#F97316"}
+              lineDashPattern={isShuttle ? undefined : [8, 6]}
+              zIndex={10}
+            />
+          );
+        })}
+      </>
+    );
+  }
+  return (
+    <Polyline
+      coordinates={route.coordinates}
+      strokeWidth={5}
+      strokeColor="#EC4899"
+      zIndex={10}
+    />
+  );
+}
+
+function MapDirectionsPolylines({
+  route,
+  transportationMode,
+}: {
+  readonly route: RouteData;
+  readonly transportationMode: TransportationMode;
+}) {
+  return (
+    <>
+      {transportationMode === "walk" && (
+        <Polyline
+          coordinates={route.coordinates}
+          strokeWidth={4}
+          strokeColor="#3B82F6"
+          lineDashPattern={[8, 6]}
+          zIndex={10}
+        />
+      )}
+      {transportationMode === "car" && (
+        <Polyline
+          coordinates={route.coordinates}
+          strokeWidth={5}
+          strokeColor="#F59E0B"
+          zIndex={10}
+        />
+      )}
+      {transportationMode === "transit" && <TransitRoutePolylines route={route} />}
+      {transportationMode === "shuttle" && <ShuttleRoutePolylines route={route} />}
+    </>
+  );
+}
+
+function CrossCampusEndpointMarkers({
+  startBuilding,
+  destinationBuilding,
+}: {
+  readonly startBuilding: Building;
+  readonly destinationBuilding: Building;
+}) {
+  if (startBuilding.campus === destinationBuilding.campus) {
+    return null;
+  }
+  return (
+    <>
+      <Marker
+        key={`start-marker-${startBuilding.id}`}
+        coordinate={{
+          latitude: startBuilding.lat,
+          longitude: startBuilding.lng,
+        }}
+        pinColor="#10B981"
+        title="Start"
+      />
+      <Marker
+        key={`dest-marker-${destinationBuilding.id}`}
+        coordinate={{
+          latitude: destinationBuilding.lat,
+          longitude: destinationBuilding.lng,
+        }}
+        pinColor="#FFEA00"
+        title="Destination"
+      />
+    </>
+  );
+}
+
 interface MapViewAppProps {
   readonly googleMapsApiKey?: string;
   readonly showSearch?: boolean;
@@ -215,12 +408,12 @@ export default function MapViewApp({
   const posthog = usePostHog();
   const trackActionRepeat = useActionRepeatSignal();
 
-  const isShuttleCrossCampus =
-    transportationMode === "shuttle" &&
-    startBuilding &&
-    destinationBuilding &&
-    startBuilding.campus !== destinationBuilding.campus;
-  const showRoute = route && (!isShuttleCrossCampus || isWithinShuttleHours());
+  const shuttleCrossCampus = isShuttleCrossCampus(
+    transportationMode,
+    startBuilding,
+    destinationBuilding,
+  );
+  const showRoute = computeShowRoute(route, shuttleCrossCampus);
 
   const router = useRouter();
   const mapRef = useRef<MapView>(null);
@@ -390,6 +583,21 @@ export default function MapViewApp({
     }
   }, [showPOIs, isOnCooldown, fetchPOIsAt, setShowPOIs]);
 
+  const onRegionChangeComplete = useCallback(
+    (region: MapRegionLike) => {
+      currentRegionRef.current = region;
+      const nextCampus = pickCampusFromMapCenter(region, selectedCampus);
+      if (nextCampus) {
+        setSelectedCampus(nextCampus);
+      }
+    },
+    [selectedCampus],
+  );
+
+  const directionsButtonLabel = startBuilding ? "Set as Destination" : "Set as Start";
+  const showClearSelections = Boolean(startBuilding || destinationBuilding);
+  const poiToggleIconColor = showPOIs ? "#FFFFFF" : "#8B5CF6";
+
   // Fit route in view when it changes (and when shuttle, only if within service hours)
   React.useEffect(() => {
     if (!showRoute) return;
@@ -418,13 +626,13 @@ export default function MapViewApp({
             onPress={() => handleCampusChange("SGW")}
             style={[
               styles.campusButton,
-              selectedCampus === "SGW" && styles.campusButtonActive,
+              selectedCampus === "SGW" ? styles.campusButtonActive : undefined,
             ]}
           >
             <Text
               style={[
                 styles.campusButtonText,
-                selectedCampus === "SGW" && styles.campusButtonTextActive,
+                selectedCampus === "SGW" ? styles.campusButtonTextActive : undefined,
               ]}
             >
               SGW Campus
@@ -435,13 +643,13 @@ export default function MapViewApp({
             onPress={() => handleCampusChange("Loyola")}
             style={[
               styles.campusButton,
-              selectedCampus === "Loyola" && styles.campusButtonActive,
+              selectedCampus === "Loyola" ? styles.campusButtonActive : undefined,
             ]}
           >
             <Text
               style={[
                 styles.campusButtonText,
-                selectedCampus === "Loyola" && styles.campusButtonTextActive,
+                selectedCampus === "Loyola" ? styles.campusButtonTextActive : undefined,
               ]}
             >
               Loyola Campus
@@ -459,36 +667,7 @@ export default function MapViewApp({
           showsUserLocation={true}
           showsMyLocationButton={false}
           customMapStyle={CAMPUS_MAP_STYLE}
-          onRegionChangeComplete={(region) => {
-            // Track current map center so POI toggle always fetches at the visible location
-            currentRegionRef.current = region;
-
-            // Only auto-switch if zoomed in enough to see buildings (guard against flip-flopping)
-            if (region.latitudeDelta > MAP_CONSTANTS.AUTO_SWITCH_MAX_DELTA)
-              return;
-
-            // Auto-switch campus markers based on the map center
-            const sgwCenter = CAMPUS_REGIONS.SGW;
-            const loyolaCenter = CAMPUS_REGIONS.Loyola;
-
-            const distToSGW = Math.sqrt(
-              Math.pow(region.latitude - sgwCenter.latitude, 2) +
-                Math.pow(region.longitude - sgwCenter.longitude, 2),
-            );
-            const distToLoyola = Math.sqrt(
-              Math.pow(region.latitude - loyolaCenter.latitude, 2) +
-                Math.pow(region.longitude - loyolaCenter.longitude, 2),
-            );
-
-            if (distToSGW < distToLoyola && selectedCampus !== "SGW") {
-              setSelectedCampus("SGW");
-            } else if (
-              distToLoyola < distToSGW &&
-              selectedCampus !== "Loyola"
-            ) {
-              setSelectedCampus("Loyola");
-            }
-          }}
+          onRegionChangeComplete={onRegionChangeComplete}
         >
           {/* Render Building Polygons */}
           {buildingPolygons.map((polygon) => {
@@ -547,119 +726,21 @@ export default function MapViewApp({
             ))}
 
           {/* Render Directions Polyline */}
-          {showRoute && (
-            <>
-              {/* Walking — dashed */}
-              {transportationMode === "walk" && (
-                <Polyline
-                  coordinates={route.coordinates}
-                  strokeWidth={4}
-                  strokeColor="#3B82F6"
-                  lineDashPattern={[8, 6]}
-                  zIndex={10}
-                />
-              )}
-
-              {/* Driving — solid */}
-              {transportationMode === "car" && (
-                <Polyline
-                  coordinates={route.coordinates}
-                  strokeWidth={5}
-                  strokeColor="#F59E0B"
-                  zIndex={10}
-                />
-              )}
-
-              {/* Transit — per-segment polylines (walk/bus/metro/tram/rail) */}
-              {transportationMode === "transit" &&
-              route.segments &&
-              route.segments.length > 0
-                ? route.segments.map((seg, i) => {
-                    const isWalk = seg.mode === "WALK";
-                    const color = SEGMENT_COLORS[seg.mode];
-                    const segKey = `transit-seg-${seg.mode}-${i}-${seg.coordinates[0]?.latitude ?? i}`;
-                    return (
-                      <Polyline
-                        // @ts-ignore - key is a React reserved prop, missing in MapPolylineProps but required in map()
-                        key={segKey}
-                        coordinates={seg.coordinates}
-                        strokeWidth={isWalk ? 3 : 5}
-                        strokeColor={color}
-                        lineDashPattern={isWalk ? [6, 5] : undefined}
-                        zIndex={10}
-                      />
-                    );
-                  })
-                : transportationMode === "transit" && (
-                    <Polyline
-                      coordinates={route.coordinates}
-                      strokeWidth={4}
-                      strokeColor="#8B5CF6"
-                      lineDashPattern={[16, 8]}
-                      zIndex={10}
-                    />
-                  )}
-
-              {/* Shuttle — walk-to-stop (orange dashed) + shuttle bus (pink solid) + walk-from-stop (orange dashed) */}
-              {transportationMode === "shuttle" &&
-                (route.segments && route.segments.length > 0
-                  ? route.segments.map((seg, i) => {
-                      const isShuttle = seg.mode === "SHUTTLE";
-                      const segKey = `shuttle-seg-${seg.mode}-${i}-${seg.coordinates[0]?.latitude ?? i}`;
-                      return (
-                        <Polyline
-                          // @ts-ignore
-                          key={segKey}
-                          coordinates={seg.coordinates}
-                          strokeWidth={isShuttle ? 5 : 3}
-                          strokeColor={isShuttle ? "#EC4899" : "#F97316"}
-                          lineDashPattern={isShuttle ? undefined : [8, 6]}
-                          zIndex={10}
-                        />
-                      );
-                    })
-                  : (
-                    <Polyline
-                      coordinates={route.coordinates}
-                      strokeWidth={5}
-                      strokeColor="#EC4899"
-                      zIndex={10}
-                    />
-                  ))}
-            </>
+          {showRoute && route && (
+            <MapDirectionsPolylines route={route} transportationMode={transportationMode} />
           )}
 
-          {/* Add markers for start and destination if they are from different campuses */}
-          {showRoute &&
-            startBuilding &&
-            destinationBuilding &&
-            startBuilding.campus !== destinationBuilding.campus && (
-              <>
-                <Marker
-                  key={`start-marker-${startBuilding.id}`}
-                  coordinate={{
-                    latitude: startBuilding.lat,
-                    longitude: startBuilding.lng,
-                  }}
-                  pinColor="#10B981"
-                  title="Start"
-                />
-                <Marker
-                  key={`dest-marker-${destinationBuilding.id}`}
-                  coordinate={{
-                    latitude: destinationBuilding.lat,
-                    longitude: destinationBuilding.lng,
-                  }}
-                  pinColor="#FFEA00"
-                  title="Destination"
-                />
-              </>
-            )}
+          {showRoute && startBuilding && destinationBuilding && (
+            <CrossCampusEndpointMarkers
+              startBuilding={startBuilding}
+              destinationBuilding={destinationBuilding}
+            />
+          )}
 
         </MapView>
 
         {/* Clear Selection Button */}
-        {(startBuilding || destinationBuilding) && (
+        {showClearSelections && (
           <TouchableOpacity
             style={styles.clearSelectionButton}
             testID="clear-directions-button"
@@ -695,7 +776,7 @@ export default function MapViewApp({
       <TouchableOpacity
         style={[
           styles.poiToggleButton,
-          showPOIs && styles.poiToggleButtonActive,
+          showPOIs ? styles.poiToggleButtonActive : undefined,
         ]}
         onPress={handlePOIToggle}
         testID="poi-toggle-button"
@@ -703,7 +784,7 @@ export default function MapViewApp({
         <Ionicons
           name="restaurant"
           size={24}
-          color={showPOIs ? "#FFFFFF" : "#8B5CF6"}
+          color={poiToggleIconColor}
         />
       </TouchableOpacity>
 
@@ -723,9 +804,7 @@ export default function MapViewApp({
           building={infoBuilding}
           onGetDirections={handleGetDirections}
           onClose={() => setInfoBuilding(null)}
-          getDirectionsButtonText={
-            startBuilding ? "Set as Destination" : "Set as Start"
-          }
+          getDirectionsButtonText={directionsButtonLabel}
         />
       )}
 
@@ -776,7 +855,7 @@ export default function MapViewApp({
               onPress={() => handleGetDirections(selectedBuilding)}
             >
               <Text style={styles.bottomBarButtonPrimaryText}>
-                {startBuilding ? "Set as Destination" : "Set as Start"}
+                {directionsButtonLabel}
               </Text>
             </TouchableOpacity>
           </View>
