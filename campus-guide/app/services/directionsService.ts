@@ -1,4 +1,5 @@
 import type { Campus } from "@/constants/buildings";
+import { SGW_BUILDINGS, LOYOLA_BUILDINGS } from "@/constants/buildings";
 import {
   SHUTTLE_DISTANCE,
   SHUTTLE_DURATION,
@@ -7,11 +8,18 @@ import {
 import { TransportationMode, TransitSegment, SegmentMode } from "@app/types/transportation";
 import { decode } from "@googlemaps/polyline-codec";
 
+export interface ShuttleStop {
+  latitude: number;
+  longitude: number;
+  name: string;
+}
+
 export interface RouteData {
   coordinates: { latitude: number; longitude: number }[];
   duration: string;
   distance: string;
   segments?: TransitSegment[];
+  shuttleStops?: { departure: ShuttleStop; arrival: ShuttleStop };
 }
 
 export interface FetchDirectionsOptions {
@@ -26,6 +34,144 @@ const modeMapping: Record<TransportationMode, string> = {
   shuttle: "TRANSIT",
 };
 
+/** Given one campus, returns the other (SGW ↔ Loyola). Returns undefined for unknown values. */
+function inferOppositeCampus(campus: Campus | undefined): Campus | undefined {
+  if (campus === "Loyola") return "SGW";
+  if (campus === "SGW") return "Loyola";
+  return undefined;
+}
+
+function straightLine(
+  from: { lat: number; lng: number },
+  to: { lat: number; lng: number },
+): { latitude: number; longitude: number }[] {
+  return [
+    { latitude: from.lat, longitude: from.lng },
+    { latitude: to.lat, longitude: to.lng },
+  ];
+}
+
+async function fetchShuttleRoute(
+  origin: { lat: number; lng: number },
+  destination: { lat: number; lng: number },
+  effectiveStartCampus: Campus,
+  destinationCampus: Campus,
+): Promise<RouteData | null> {
+  const hallBuilding = SGW_BUILDINGS.find((b) => b.id === "h");
+  const vanierBuilding = LOYOLA_BUILDINGS.find((b) => b.id === "vl");
+
+  if (!hallBuilding || !vanierBuilding) {
+    const coordinates =
+      effectiveStartCampus === "SGW"
+        ? [...SHUTTLE_ROUTE_SGW_TO_LOYOLA]
+        : [...SHUTTLE_ROUTE_SGW_TO_LOYOLA].reverse();
+    return { coordinates, duration: SHUTTLE_DURATION, distance: SHUTTLE_DISTANCE };
+  }
+
+  const departureStop =
+    effectiveStartCampus === "SGW"
+      ? { lat: hallBuilding.lat, lng: hallBuilding.lng }
+      : { lat: vanierBuilding.lat, lng: vanierBuilding.lng };
+  const arrivalStop =
+    effectiveStartCampus === "SGW"
+      ? { lat: vanierBuilding.lat, lng: vanierBuilding.lng }
+      : { lat: hallBuilding.lat, lng: hallBuilding.lng };
+
+  const shuttleCoords =
+    effectiveStartCampus === "SGW"
+      ? [...SHUTTLE_ROUTE_SGW_TO_LOYOLA]
+      : [...SHUTTLE_ROUTE_SGW_TO_LOYOLA].reverse();
+
+  let walkToStop: RouteData | null = null;
+  let walkFromStop: RouteData | null = null;
+  try {
+    [walkToStop, walkFromStop] = await Promise.all([
+      fetchDirections(origin, departureStop, "walk"),
+      fetchDirections(arrivalStop, destination, "walk"),
+    ]);
+  } catch (error) {
+    console.warn(
+      "[directionsService] Failed to fetch shuttle walking legs — falling back to straight-line segments:",
+      error,
+    );
+  }
+
+  const walkToCoords =
+    walkToStop && walkToStop.coordinates.length > 0
+      ? walkToStop.coordinates
+      : straightLine(origin, departureStop);
+
+  const walkFromCoords =
+    walkFromStop && walkFromStop.coordinates.length > 0
+      ? walkFromStop.coordinates
+      : straightLine(arrivalStop, destination);
+
+  const segments: TransitSegment[] = [
+    { mode: "WALK", coordinates: walkToCoords },
+    { mode: "SHUTTLE", coordinates: shuttleCoords },
+    { mode: "WALK", coordinates: walkFromCoords },
+  ];
+
+  const departureName =
+    effectiveStartCampus === "SGW" ? hallBuilding.name : vanierBuilding.name;
+  const arrivalName =
+    effectiveStartCampus === "SGW" ? vanierBuilding.name : hallBuilding.name;
+
+  return {
+    coordinates: segments.flatMap((s) => s.coordinates),
+    duration: SHUTTLE_DURATION,
+    distance: SHUTTLE_DISTANCE,
+    segments,
+    shuttleStops: {
+      departure: {
+        latitude: departureStop.lat,
+        longitude: departureStop.lng,
+        name: departureName,
+      },
+      arrival: {
+        latitude: arrivalStop.lat,
+        longitude: arrivalStop.lng,
+        name: arrivalName,
+      },
+    },
+  };
+}
+
+function classifyVehicleType(vehicleType: string): SegmentMode {
+  const v = vehicleType.toUpperCase();
+  if (v === "BUS" || v === "INTERCITY_BUS" || v === "TROLLEYBUS") return "BUS";
+  if (v === "SUBWAY" || v === "HEAVY_RAIL" || v === "METRO_RAIL") return "SUBWAY";
+  if (v === "TRAM" || v === "LIGHT_RAIL") return "TRAM";
+  if (v === "RAIL" || v === "COMMUTER_TRAIN" || v === "HIGH_SPEED_TRAIN") return "RAIL";
+  return "BUS";
+}
+
+function parseTransitSegments(route: any): TransitSegment[] {
+  return (route.legs ?? []).flatMap((leg: any) =>
+    (leg.steps ?? []).map((step: any): TransitSegment => {
+      const stepCoords = step.polyline?.encodedPolyline
+        ? decode(step.polyline.encodedPolyline).map(([lat, lng]) => ({
+            latitude: lat,
+            longitude: lng,
+          }))
+        : [];
+
+      const rawMode: string = step.travelMode ?? "WALK";
+      const vehicleType: string =
+        step.transitDetails?.transitLine?.vehicle?.type ?? "";
+
+      const segmentMode: SegmentMode =
+        rawMode === "TRANSIT" ? classifyVehicleType(vehicleType) : "WALK";
+
+      return {
+        mode: segmentMode,
+        coordinates: stepCoords,
+        lineName: step.transitDetails?.transitLine?.nameShort,
+      };
+    }),
+  );
+}
+
 export const fetchDirections = async (
   origin: { lat: number; lng: number },
   destination: { lat: number; lng: number },
@@ -34,22 +180,16 @@ export const fetchDirections = async (
 ): Promise<RouteData | null> => {
   const { startCampus, destinationCampus } = options ?? {};
 
-  // Shuttle: use fixed route when cross-campus; no API call
+  const effectiveStartCampus: Campus | undefined =
+    startCampus ?? inferOppositeCampus(destinationCampus);
+
   if (
     mode === "shuttle" &&
-    startCampus &&
+    effectiveStartCampus &&
     destinationCampus &&
-    startCampus !== destinationCampus
+    effectiveStartCampus !== destinationCampus
   ) {
-    const coordinates =
-      startCampus === "SGW"
-        ? [...SHUTTLE_ROUTE_SGW_TO_LOYOLA]
-        : [...SHUTTLE_ROUTE_SGW_TO_LOYOLA].reverse();
-    return {
-      coordinates,
-      duration: SHUTTLE_DURATION,
-      distance: SHUTTLE_DISTANCE,
-    };
+    return fetchShuttleRoute(origin, destination, effectiveStartCampus, destinationCampus);
   }
 
   if (mode === "shuttle") {
@@ -94,7 +234,7 @@ export const fetchDirections = async (
     units: "METRIC",
   };
 
-  const isTransit = travelMode === "TRANSIT"; // covers 'transit', 'rem', and 'shuttle' API calls
+  const isTransit = travelMode === "TRANSIT";
 
   const fieldMask = isTransit
     ? [
@@ -130,7 +270,6 @@ export const fetchDirections = async (
     }
 
     if (!data.routes || data.routes.length === 0) {
-      // An empty routes array is a valid API outcome (not a crash-level error).
       console.warn("No routes found for request", {
         mode,
         origin,
@@ -141,14 +280,12 @@ export const fetchDirections = async (
 
     const route = data.routes[0];
 
-    // Format duration (e.g., "300s" -> "5 mins")
     const durationSeconds = Number.parseInt(route.duration.replace("s", ""));
     const durationText =
       durationSeconds < 60
         ? `${durationSeconds} secs`
         : `${Math.round(durationSeconds / 60)} mins`;
 
-    // Format distance (e.g., 2500 -> "2.5 km")
     const distanceKm = (route.distanceMeters / 1000).toFixed(1);
     const distanceText = `${distanceKm} km`;
 
@@ -158,46 +295,8 @@ export const fetchDirections = async (
       longitude: lng,
     }));
 
-    // Parse transit steps into typed segments
-    let segments: TransitSegment[] | undefined;
-    if (isTransit && route.legs) {
-      segments = route.legs.flatMap((leg: any) =>
-        (leg.steps ?? []).map((step: any): TransitSegment => {
-          const stepCoords = step.polyline?.encodedPolyline
-            ? decode(step.polyline.encodedPolyline).map(([lat, lng]) => ({
-                latitude: lat,
-                longitude: lng,
-              }))
-            : [];
-
-          const rawMode: string = step.travelMode ?? "WALK";
-          const vehicleType: string =
-            step.transitDetails?.transitLine?.vehicle?.type ?? "";
-
-          let segmentMode: SegmentMode = "WALK";
-          if (rawMode === "TRANSIT") {
-            const v = vehicleType.toUpperCase();
-            if (v === "BUS" || v === "INTERCITY_BUS" || v === "TROLLEYBUS") {
-              segmentMode = "BUS";
-            } else if (v === "SUBWAY" || v === "HEAVY_RAIL" || v === "METRO_RAIL") {
-              segmentMode = "SUBWAY";
-            } else if (v === "TRAM" || v === "LIGHT_RAIL") {
-              segmentMode = "TRAM";
-            } else if (v === "RAIL" || v === "COMMUTER_TRAIN" || v === "HIGH_SPEED_TRAIN") {
-              segmentMode = "RAIL";
-            } else {
-              segmentMode = "BUS";
-            }
-          }
-
-          return {
-            mode: segmentMode,
-            coordinates: stepCoords,
-            lineName: step.transitDetails?.transitLine?.nameShort,
-          };
-        })
-      );
-    }
+    const segments: TransitSegment[] | undefined =
+      isTransit && route.legs ? parseTransitSegments(route) : undefined;
 
     return {
       coordinates: formattedCoordinates,

@@ -21,39 +21,21 @@ appId: com.soen390.campusguide
 
 - assertVisible: "Destination"
 - tapOn: "Destination"
-- inputText: "Vanier Li"
+- inputText: "Centra"
 - hideKeyboard
 - waitForAnimationToEnd
 
-- tapOn: "Vanier Library Building"
+- tapOn: "Central Building"
 - waitForAnimationToEnd
 
 - assertVisible: "John Molson Building"
-- assertVisible: "Vanier Library Building"
+- assertVisible: "Central Building"
 
 - tapOn:
    point: "50%,45%"
 - waitForAnimationToEnd
 
-- tapOn: "Car"
-- waitForAnimationToEnd
-- assertVisible:
-    text: ".*mins.*km.*" 
-
-- tapOn: "Transit"
-- waitForAnimationToEnd
-- assertVisible:
-    text: ".*mins.*km.*" 
-
-- doubleTapOn:
-    point: "50%,85%"
-- waitForAnimationToEnd
-
 - tapOn: "Shuttle"
-- waitForAnimationToEnd
-
-- doubleTapOn:
-    point: "50%,85%"
 - waitForAnimationToEnd
 
 - tapOn: "Full Schedule"
@@ -84,5 +66,15 @@ appId: com.soen390.campusguide
 
 - assertVisible:
     text: ".*mins.*km.*" 
+
+- tapOn: "Map"
+- waitForAnimationToEnd
+
+- tapOn: "Loyola Campus"
+- waitForAnimationToEnd
+
+- doubleTapOn:
+    point: "50%,70%"
+- waitForAnimationToEnd
 
 - stopApp

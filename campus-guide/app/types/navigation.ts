@@ -1,5 +1,6 @@
 import { GraphNode } from "@app/services/indoorGraphService";
 import { RouteData } from "@app/services/directionsService";
+import { TransportationMode } from "@app/types/transportation";
 
 export interface IndoorStep {
   kind: "indoor";
@@ -15,6 +16,7 @@ export interface OutdoorStep {
   route: RouteData;
   startLabel: string;
   endLabel: string;
+  transportMode?: TransportationMode;
 }
 
 export type NavigationStep = IndoorStep | OutdoorStep;

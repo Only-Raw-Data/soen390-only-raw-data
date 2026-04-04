@@ -530,8 +530,9 @@ describe("MapViewApp", () => {
       // Arrange & Act
       const screen = renderWithProvider(<MapViewApp />);
       const polygons = screen.getAllByTestId("building-polygon");
-      // Assert - should have 2 SGW polygons from mock
-      expect(polygons.length).toBe(2);
+      // Both campuses are always loaded; default mock returns mockSGWPolygons (2 items)
+      // for every call, so SGW + Loyola = 4 total polygons.
+      expect(polygons.length).toBe(4);
     });
 
     it("calls useBuildingPolygons with correct campus", () => {
@@ -625,8 +626,8 @@ describe("MapViewApp", () => {
         }
       });
 
-      // Assert
-      expect(useBuildingPolygons).toHaveBeenLastCalledWith("SGW");
+      // Assert — both campuses are always fetched; verify SGW was among the calls
+      expect(useBuildingPolygons).toHaveBeenCalledWith("SGW");
     });
 
     it("highlights building when onBuildingHighlight is called", () => {
@@ -1041,6 +1042,13 @@ describe("MapViewApp", () => {
       const screen = renderWithProvider(<MapViewApp />);
       fireEvent.press(screen.getByText("Loyola Campus"));
 
+      // Capture call count before the region change so we can pinpoint the
+      // re-render triggered by the auto-switch. The component always calls
+      // useBuildingPolygons("SGW") first then useBuildingPolygons("Loyola")
+      // in every render, so the last call is always "Loyola". We assert
+      // that the first call of the post-switch render is "SGW" instead.
+      const callsBefore = (useBuildingPolygons as jest.Mock).mock.calls.length;
+
       // Act — pan to SGW area
       fireRegionChange(screen, {
         latitude: 45.4972,
@@ -1049,8 +1057,8 @@ describe("MapViewApp", () => {
         longitudeDelta: 0.01,
       });
 
-      // Assert
-      expect(useBuildingPolygons).toHaveBeenLastCalledWith("SGW");
+      // Assert — the campus-switch re-render starts with "SGW"
+      expect(useBuildingPolygons).toHaveBeenNthCalledWith(callsBefore + 1, "SGW");
     });
 
     it("does not switch campus when already on the closest campus", () => {
@@ -1115,6 +1123,85 @@ describe("MapViewApp", () => {
       // Assert
       expect(screen.getByTestId("route-polyline")).toBeTruthy();
       expect(screen.getByText("21 mins (8.3 km)")).toBeTruthy();
+    });
+
+    it("renders three segment polylines for walk-shuttle-walk route", () => {
+      // Arrange — shuttle route with 3 segments
+      (isWithinShuttleHours as jest.Mock).mockReturnValue(true);
+      (useDirections as jest.Mock).mockReturnValue(
+        createDirectionsMock({
+          startBuilding: SGW_BUILDINGS.find((b) => b.code === "H"),
+          destinationBuilding: LOYOLA_BUILDINGS[0],
+          transportationMode: "shuttle",
+          route: {
+            coordinates: [
+              { latitude: 45.497, longitude: -73.579 },
+              { latitude: 45.458, longitude: -73.64 },
+            ],
+            duration: "21 mins",
+            distance: "8.3 km",
+            segments: [
+              {
+                mode: "WALK",
+                coordinates: [
+                  { latitude: 45.497, longitude: -73.579 },
+                  { latitude: 45.4965, longitude: -73.5788 },
+                ],
+              },
+              {
+                mode: "SHUTTLE",
+                coordinates: [
+                  { latitude: 45.4965, longitude: -73.5788 },
+                  { latitude: 45.4583, longitude: -73.6398 },
+                ],
+              },
+              {
+                mode: "WALK",
+                coordinates: [
+                  { latitude: 45.4583, longitude: -73.6398 },
+                  { latitude: 45.458, longitude: -73.64 },
+                ],
+              },
+            ],
+          },
+        }),
+      );
+
+      // Act
+      const screen = renderWithProvider(<MapViewApp />);
+
+      // Assert — one polyline per segment
+      const polylines = screen.getAllByTestId("route-polyline");
+      expect(polylines).toHaveLength(3);
+    });
+
+    it("renders cross-campus start and destination markers when buildings are on different campuses", () => {
+      // Arrange
+      (isWithinShuttleHours as jest.Mock).mockReturnValue(true);
+      const sgwBuilding = SGW_BUILDINGS.find((b) => b.code === "H")!;
+      const loyolaBuilding = LOYOLA_BUILDINGS[0];
+      (useDirections as jest.Mock).mockReturnValue(
+        createDirectionsMock({
+          startBuilding: sgwBuilding,
+          destinationBuilding: loyolaBuilding,
+          transportationMode: "shuttle",
+          route: {
+            coordinates: [
+              { latitude: 45.497, longitude: -73.579 },
+              { latitude: 45.458, longitude: -73.64 },
+            ],
+            duration: "21 mins",
+            distance: "8.3 km",
+          },
+        }),
+      );
+
+      // Act
+      const screen = renderWithProvider(<MapViewApp />);
+
+      // Assert — cross-campus start and destination markers are shown
+      expect(screen.getByText("Start")).toBeTruthy();
+      expect(screen.getByText("Destination")).toBeTruthy();
     });
   });
 });

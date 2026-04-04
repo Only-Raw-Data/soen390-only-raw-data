@@ -14,6 +14,7 @@ import {
   getGeoJsonForBuilding,
 } from "../context/IndoorMapContext";
 import { IndoorBuildingConfig } from "@app/types/indoorMap";
+import { TransportationMode } from "@app/types/transportation";
 
 function getBuildingGraph(building: IndoorBuildingConfig) {
   const geoJson = getGeoJsonForBuilding(building);
@@ -37,12 +38,13 @@ function getEntranceCoords(
 /**
  * Plans a cross-building route returning an array of NavigationSteps.
  * - Same building: returns 1 indoor step
- * - Different buildings: returns 3 steps (indoor exit, outdoor walk, indoor enter)
+ * - Different buildings: returns 3 steps (indoor exit, outdoor segment, indoor enter)
  */
 export async function planCrossBuildingRoute(
   startQuery: string,
   destQuery: string,
   accessible = false,
+  transportMode: TransportationMode = "walk",
 ): Promise<NavigationStep[] | null> {
   const normalizedStart = startQuery.replaceAll(/[\s-]/g, "").toUpperCase();
   const normalizedDest = destQuery.replaceAll(/[\s-]/g, "").toUpperCase();
@@ -98,10 +100,10 @@ export async function planCrossBuildingRoute(
     distance: "~0.3 km",
   };
 
-  // Step 2: Outdoor walking route between buildings
+  // Step 2: Outdoor route between buildings (mode-dependent)
   let outdoorRoute: RouteData;
   try {
-    outdoorRoute = await fetchDirections(exitCoords, enterCoords, "walk") ?? fallbackRoute;
+    outdoorRoute = await fetchDirections(exitCoords, enterCoords, transportMode) ?? fallbackRoute;
   } catch {
     outdoorRoute = fallbackRoute;
   }
@@ -120,12 +122,13 @@ export async function planCrossBuildingRoute(
     });
   }
 
-  // Step 2: Outdoor walk
+  // Step 2: Outdoor segment
   steps.push({
     kind: "outdoor",
     route: outdoorRoute,
     startLabel: startBuilding.name,
     endLabel: destBuilding.name,
+    transportMode,
   });
 
   // Step 3: Indoor entrance to destination
@@ -145,13 +148,14 @@ export async function planCrossBuildingRoute(
 
 /**
  * Plans a route starting from a GPS coordinate (outdoor) to an indoor room.
- * Returns 2 steps: outdoor walk to the building entrance, then indoor to the room.
+ * Returns 2 steps: outdoor segment to the building entrance, then indoor to the room.
  * Used when the user's starting point is their current location outside any building.
  */
 export async function planCrossBuildingRouteFromGps(
   gpsCoords: { lat: number; lng: number },
   destQuery: string,
   accessible = false,
+  transportMode: TransportationMode = "walk",
 ): Promise<NavigationStep[] | null> {
   const normalizedDest = destQuery.replaceAll(/[\s-]/g, "").toUpperCase();
   const destResult = findRoomInBuildings(normalizedDest);
@@ -175,7 +179,7 @@ export async function planCrossBuildingRouteFromGps(
 
   let outdoorRoute: RouteData;
   try {
-    outdoorRoute = await fetchDirections(gpsCoords, enterCoords, "walk") ?? fallbackRoute;
+    outdoorRoute = await fetchDirections(gpsCoords, enterCoords, transportMode) ?? fallbackRoute;
   } catch {
     outdoorRoute = fallbackRoute;
   }
@@ -186,6 +190,7 @@ export async function planCrossBuildingRouteFromGps(
       route: outdoorRoute,
       startLabel: "Your Location",
       endLabel: destBuilding.name,
+      transportMode,
     },
   ];
 

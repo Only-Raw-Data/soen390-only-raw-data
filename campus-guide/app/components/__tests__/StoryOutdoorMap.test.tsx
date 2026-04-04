@@ -126,4 +126,101 @@ describe("StoryOutdoorMap", () => {
     // Assert
     expect(getByText("Walking: 12 min (1.2 km)")).toBeTruthy();
   });
+
+  describe("transport mode rendering", () => {
+    it("renders drive (car) mode with correct label", () => {
+      // Arrange
+      const route = makeRoute(sampleCoords, "5 min", "2 km");
+
+      // Act
+      const { getByText, getByTestId } = render(
+        <StoryOutdoorMap route={route} startLabel="A" endLabel="B" transportMode="car" />,
+      );
+
+      // Assert
+      expect(getByText("Driving: 5 min (2 km)")).toBeTruthy();
+      expect(getByTestId("story-outdoor-polyline")).toBeTruthy();
+    });
+
+    it("renders transit mode with correct label — fallback (no segments)", () => {
+      // Arrange
+      const route = makeRoute(sampleCoords, "15 min", "3 km");
+
+      // Act
+      const { getByText, getByTestId } = render(
+        <StoryOutdoorMap route={route} startLabel="A" endLabel="B" transportMode="transit" />,
+      );
+
+      // Assert
+      expect(getByText("Transit: 15 min (3 km)")).toBeTruthy();
+      expect(getByTestId("story-outdoor-polyline")).toBeTruthy();
+    });
+
+    it("renders transit mode with per-segment polylines", () => {
+      // Arrange
+      const route = {
+        ...makeRoute(sampleCoords, "20 min", "4 km"),
+        segments: [
+          { mode: "WALK" as const, coordinates: [sampleCoords[0], sampleCoords[1]] },
+          { mode: "BUS" as const, coordinates: [sampleCoords[1], sampleCoords[2]] },
+        ],
+      };
+
+      // Act
+      const { getAllByTestId, getByText } = render(
+        <StoryOutdoorMap route={route} startLabel="A" endLabel="B" transportMode="transit" />,
+      );
+
+      // Assert — first segment gets testID, all should render
+      expect(getAllByTestId("story-outdoor-polyline")).toHaveLength(1);
+      expect(getByText("Transit: 20 min (4 km)")).toBeTruthy();
+    });
+
+    it("renders shuttle mode with correct label — fallback (no segments)", () => {
+      // Arrange
+      const route = makeRoute(sampleCoords, "12 min", "2.5 km");
+
+      // Act
+      const { getByText, getByTestId } = render(
+        <StoryOutdoorMap route={route} startLabel="A" endLabel="B" transportMode="shuttle" />,
+      );
+
+      // Assert
+      expect(getByText("Shuttle: 12 min (2.5 km)")).toBeTruthy();
+      expect(getByTestId("story-outdoor-polyline")).toBeTruthy();
+    });
+
+    it("renders shuttle mode with per-segment polylines", () => {
+      // Arrange
+      const route = {
+        ...makeRoute(sampleCoords, "18 min", "3.5 km"),
+        segments: [
+          { mode: "WALK" as const, coordinates: [sampleCoords[0], sampleCoords[1]] },
+          { mode: "SHUTTLE" as const, coordinates: [sampleCoords[1], sampleCoords[2]] },
+        ],
+      };
+
+      // Act
+      const { getAllByTestId, getByText } = render(
+        <StoryOutdoorMap route={route} startLabel="A" endLabel="B" transportMode="shuttle" />,
+      );
+
+      // Assert
+      expect(getAllByTestId("story-outdoor-polyline")).toHaveLength(1);
+      expect(getByText("Shuttle: 18 min (3.5 km)")).toBeTruthy();
+    });
+
+    it("defaults to walk mode when no transportMode prop is provided", () => {
+      // Arrange
+      const route = makeRoute(sampleCoords, "8 min", "700 m");
+
+      // Act
+      const { getByText } = render(
+        <StoryOutdoorMap route={route} startLabel="A" endLabel="B" />,
+      );
+
+      // Assert
+      expect(getByText("Walking: 8 min (700 m)")).toBeTruthy();
+    });
+  });
 });

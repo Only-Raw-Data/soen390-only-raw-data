@@ -2,12 +2,19 @@ import React, { useMemo } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 import { RouteData } from "@app/services/directionsService";
+import { TransportationMode } from "@app/types/transportation";
 import { hasNoCoordinates } from "@app/utils/indoorMapUtils";
+import {
+  SEGMENT_COLORS,
+  MODE_LABELS,
+  MODE_INFO_COLORS,
+} from "@constants/transportStyles";
 
 interface StoryOutdoorMapProps {
   readonly route: RouteData;
   readonly startLabel: string;
   readonly endLabel: string;
+  readonly transportMode?: TransportationMode;
 }
 
 function computeRegion(coords: { latitude: number; longitude: number }[]) {
@@ -29,10 +36,106 @@ function computeRegion(coords: { latitude: number; longitude: number }[]) {
   };
 }
 
+function RoutePolylines({
+  route,
+  transportMode,
+}: {
+  readonly route: RouteData;
+  readonly transportMode: TransportationMode;
+}) {
+  if (transportMode === "walk") {
+    return (
+      <Polyline
+        coordinates={route.coordinates}
+        strokeWidth={4}
+        strokeColor="#3B82F6"
+        lineDashPattern={[8, 6]}
+        testID="story-outdoor-polyline"
+      />
+    );
+  }
+
+  if (transportMode === "car") {
+    return (
+      <Polyline
+        coordinates={route.coordinates}
+        strokeWidth={5}
+        strokeColor="#F59E0B"
+        testID="story-outdoor-polyline"
+      />
+    );
+  }
+
+  if (transportMode === "transit") {
+    if (route.segments && route.segments.length > 0) {
+      return (
+        <>
+          {route.segments.map((seg, i) => {
+            const isWalk = seg.mode === "WALK";
+            const color = SEGMENT_COLORS[seg.mode];
+            return (
+              <Polyline
+                key={`transit-seg-${seg.mode}-${i}`}
+                coordinates={seg.coordinates}
+                strokeWidth={isWalk ? 3 : 5}
+                strokeColor={color}
+                lineDashPattern={isWalk ? [6, 5] : undefined}
+                testID={i === 0 ? "story-outdoor-polyline" : undefined}
+              />
+            );
+          })}
+        </>
+      );
+    }
+    return (
+      <Polyline
+        coordinates={route.coordinates}
+        strokeWidth={4}
+        strokeColor="#8B5CF6"
+        lineDashPattern={[16, 8]}
+        testID="story-outdoor-polyline"
+      />
+    );
+  }
+
+  if (transportMode === "shuttle") {
+    if (route.segments && route.segments.length > 0) {
+      return (
+        <>
+          {route.segments.map((seg, i) => {
+            const isShuttle = seg.mode === "SHUTTLE";
+            return (
+              <Polyline
+                key={`shuttle-seg-${seg.mode}-${i}`}
+                coordinates={seg.coordinates}
+                strokeWidth={isShuttle ? 5 : 3}
+                strokeColor={isShuttle ? "#EC4899" : "#F97316"}
+                lineDashPattern={isShuttle ? undefined : [8, 6]}
+                testID={i === 0 ? "story-outdoor-polyline" : undefined}
+              />
+            );
+          })}
+        </>
+      );
+    }
+    return (
+      <Polyline
+        coordinates={route.coordinates}
+        strokeWidth={5}
+        strokeColor="#EC4899"
+        testID="story-outdoor-polyline"
+      />
+    );
+  }
+
+  return null;
+}
+
 export default function StoryOutdoorMap({
   route,
   startLabel,
   endLabel,
+  transportMode = "walk",
 }: StoryOutdoorMapProps) {
   const coords = route?.coordinates;
   const region = useMemo(
@@ -44,6 +147,7 @@ export default function StoryOutdoorMap({
 
   const startCoord = coords[0];
   const endCoord = coords.at(-1);
+  const infoColor = MODE_INFO_COLORS[transportMode];
 
   return (
     <View style={styles.container}>
@@ -53,13 +157,7 @@ export default function StoryOutdoorMap({
         initialRegion={region}
         testID="story-outdoor-map"
       >
-        <Polyline
-          coordinates={coords}
-          strokeColor="#3B82F6"
-          strokeWidth={4}
-          lineDashPattern={[8, 6]}
-          testID="story-outdoor-polyline"
-        />
+        <RoutePolylines route={route} transportMode={transportMode} />
         <Marker
           coordinate={startCoord}
           title={startLabel}
@@ -73,9 +171,9 @@ export default function StoryOutdoorMap({
           testID="story-outdoor-end-marker"
         />
       </MapView>
-      <View style={styles.infoBar}>
-        <Text style={styles.infoText}>
-          Walking: {route.duration} ({route.distance})
+      <View style={[styles.infoBar, { borderTopColor: infoColor }]}>
+        <Text style={[styles.infoText, { color: infoColor }]}>
+          {MODE_LABELS[transportMode]}: {route.duration} ({route.distance})
         </Text>
       </View>
     </View>
@@ -90,16 +188,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   infoBar: {
-    backgroundColor: "#EFF6FF",
+    backgroundColor: "#F9FAFB",
     paddingHorizontal: 16,
     paddingVertical: 10,
-    borderTopWidth: 1,
-    borderTopColor: "#BFDBFE",
+    borderTopWidth: 2,
   },
   infoText: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#1E40AF",
     textAlign: "center",
   },
 });

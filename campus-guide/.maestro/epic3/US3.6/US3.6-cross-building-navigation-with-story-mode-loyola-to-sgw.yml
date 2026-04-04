@@ -1,0 +1,70 @@
+appId: com.soen390.campusguide
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "SGW Campus"
+    timeout: 1800000
+
+- assertVisible: "SGW Campus"
+
+- tapOn: "Indoor"
+- waitForAnimationToEnd
+
+- tapOn: "Indoor POIs"
+- waitForAnimationToEnd
+
+- assertVisible: "OFF"
+
+- assertVisible: "Start room (e.g., H-820)"
+- tapOn: "Start room (e.g., H-820)"
+- inputText: "VL-1721"
+- pressKey: enter
+- waitForAnimationToEnd
+
+- assertVisible: "VL-1721"
+- assertVisible: "1"
+
+- tapOn: "Destination room (e.g., H-820)"
+- inputText: "MBS2.210"
+- pressKey: enter
+- waitForAnimationToEnd
+
+
+- tapOn: "Get Step-by-Step Directions"
+- waitForAnimationToEnd
+
+- assertVisible: ".*Step.*of.*"
+- assertVisible: "Next.*"
+- assertVisible: ".*Previous"
+- assertVisible: "Exit Story Mode"
+
+- tapOn: "Next.*"
+- waitForAnimationToEnd
+
+- assertVisible: ".*Walking.*mins.*"
+
+- tapOn: ".*Transit"
+- waitForAnimationToEnd
+
+- assertVisible: ".*Transit.*mins.*"
+
+- tapOn: ".*Drive"
+- waitForAnimationToEnd
+
+- assertVisible: ".*Driving.*mins.*"
+
+- tapOn: "Next.*"
+- waitForAnimationToEnd
+
+- assertVisible: "John Molson Building Entrance.*"
+
+- tapOn: ".*Previous"
+- waitForAnimationToEnd
+
+- tapOn: ".*Previous"
+- waitForAnimationToEnd
+
+- tapOn: "Exit Story Mode"
+- waitForAnimationToEnd
+
+- stopApp

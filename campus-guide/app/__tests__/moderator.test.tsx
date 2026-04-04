@@ -1,5 +1,5 @@
 import React from "react";
-import { Alert, InteractionManager } from "react-native";
+import { Alert, InteractionManager, Platform } from "react-native";
 import {
   render,
   screen,
@@ -124,6 +124,17 @@ describe("ModeratorScreen", () => {
       ia.mockRestore();
       jest.useRealTimers();
     }
+  });
+
+  it("renders with padding behavior on iOS (KeyboardAvoidingView branch)", async () => {
+    Platform.OS = "ios";
+    render(
+      <ParticipantSessionProvider>
+        <ModeratorScreen />
+      </ParticipantSessionProvider>,
+    );
+    expect(screen.getByText("Start Session")).toBeTruthy();
+    Platform.OS = "android";
   });
 
   it("shows alert and does not capture when no session exists", async () => {
