@@ -565,6 +565,27 @@ function computeRoomStyle(
   return ROOM_STYLE_DEFAULT;
 }
 
+async function planStoryModeRoute(params: {
+  useCurrentLocation: boolean;
+  location: ReturnType<typeof useUserLocation>["location"];
+  destinationSearchQuery: string;
+  startSearchQuery: string;
+  accessible: boolean;
+}): Promise<NavigationStep[] | null> {
+  if (params.useCurrentLocation && params.location) {
+    return planCrossBuildingRouteFromGps(
+      { lat: params.location.coords.latitude, lng: params.location.coords.longitude },
+      params.destinationSearchQuery,
+      params.accessible,
+    );
+  }
+  return planCrossBuildingRoute(
+    params.startSearchQuery,
+    params.destinationSearchQuery,
+    params.accessible,
+  );
+}
+
 export default function IndoorMapView() {
   const {
     selectedBuilding,
@@ -789,23 +810,13 @@ export default function IndoorMapView() {
     setStoryLoading(true);
     setStoryError(null);
     try {
-      let steps = null;
-
-      if (useCurrentLocation && location) {
-        // Start from GPS coordinates — generate outdoor walk to building + indoor to room
-        steps = await planCrossBuildingRouteFromGps(
-          { lat: location.coords.latitude, lng: location.coords.longitude },
-          destinationSearchQuery,
-          accessible,
-        );
-      } else {
-        steps = await planCrossBuildingRoute(
-          startSearchQuery,
-          destinationSearchQuery,
-          accessible,
-        );
-      }
-
+      const steps = await planStoryModeRoute({
+        useCurrentLocation,
+        location,
+        destinationSearchQuery,
+        startSearchQuery,
+        accessible,
+      });
       if (steps && steps.length > 0) {
         setStorySteps(steps);
         setStoryIndex(0);

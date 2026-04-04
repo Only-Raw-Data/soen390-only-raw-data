@@ -13,7 +13,7 @@ import {
   IndoorFeature,
   IndoorGeoJSON,
 } from "@app/types/indoorMap";
-import { GraphNode, IndoorGraph, getOrBuildGraph, findNearestGraphNode, haversineDistance } from "@app/services/indoorGraphService";
+import { GraphNode, getOrBuildGraph, findNearestGraphNode, haversineDistance } from "@app/services/indoorGraphService";
 import { findIndoorPath, findIndoorPathFromNodeId } from "@app/services/indoorPathService";
 
 import hallData from "@/constants/indoorData/hall.json";

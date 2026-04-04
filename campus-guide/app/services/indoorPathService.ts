@@ -175,6 +175,67 @@ export function findPathToNearestEntrance(
 }
 
 /**
+ * Runs full Dijkstra from a start node across the whole graph.
+ * Returns the dist and prev maps (no early termination).
+ */
+function runFullDijkstra(
+  graph: IndoorGraph,
+  startNode: GraphNode,
+  accessible: boolean,
+): { dist: Map<string, number>; prev: Map<string, string | null> } {
+  const dist = new Map<string, number>();
+  const prev = new Map<string, string | null>();
+  const visited = new Set<string>();
+
+  for (const id of graph.nodes.keys()) {
+    dist.set(id, Infinity);
+    prev.set(id, null);
+  }
+  dist.set(startNode.id, 0);
+
+  const queue: Array<{ id: string; cost: number }> = [
+    { id: startNode.id, cost: 0 },
+  ];
+
+  while (queue.length > 0) {
+    const currentId = extractMin(queue);
+    if (visited.has(currentId)) continue;
+    visited.add(currentId);
+    relaxNeighbors(currentId, graph, dist, prev, visited, queue, accessible);
+  }
+
+  return { dist, prev };
+}
+
+/**
+ * Finds the nearest entrance node id given pre-computed Dijkstra distances.
+ * Prefers ground-level (floor >= 1) entrances; falls back to any entrance.
+ */
+function findNearestEntranceId(
+  graph: IndoorGraph,
+  dist: Map<string, number>,
+): string | null {
+  let bestId: string | null = null;
+  let bestCost = Infinity;
+
+  for (const node of graph.nodes.values()) {
+    if (node.type !== NodeType.Entrance || node.floor < 1) continue;
+    const cost = dist.get(node.id) ?? Infinity;
+    if (cost < bestCost) { bestCost = cost; bestId = node.id; }
+  }
+  if (bestId && bestCost < Infinity) return bestId;
+
+  // Fall back to any entrance (including underground)
+  bestCost = Infinity;
+  for (const node of graph.nodes.values()) {
+    if (node.type !== NodeType.Entrance) continue;
+    const cost = dist.get(node.id) ?? Infinity;
+    if (cost < bestCost) { bestCost = cost; bestId = node.id; }
+  }
+  return bestCost < Infinity ? bestId : null;
+}
+
+/**
  * Finds the shortest path from any entrance node to a destination room (by ref).
  * Runs Dijkstra from the destination backwards, then picks the nearest entrance.
  */
@@ -188,56 +249,10 @@ export function findPathFromEntrance(
 
   // Run Dijkstra from destination (graph is bidirectional, so this finds
   // shortest distances from dest to all nodes, including entrances).
-  const dist = new Map<string, number>();
-  const prev = new Map<string, string | null>();
-  const visited = new Set<string>();
+  const { dist, prev } = runFullDijkstra(graph, destNode, accessible);
 
-  for (const id of graph.nodes.keys()) {
-    dist.set(id, Infinity);
-    prev.set(id, null);
-  }
-  dist.set(destNode.id, 0);
-
-  const queue: Array<{ id: string; cost: number }> = [
-    { id: destNode.id, cost: 0 },
-  ];
-
-  while (queue.length > 0) {
-    const currentId = extractMin(queue);
-    if (visited.has(currentId)) continue;
-    visited.add(currentId);
-    relaxNeighbors(currentId, graph, dist, prev, visited, queue, accessible);
-  }
-
-  // Find the entrance with shortest distance from dest.
-  // Prefer ground-level (floor >= 1) entrances so we don't route via underground
-  // tunnels when a normal main-entrance path exists.
-  let bestEntrance: string | null = null;
-  let bestCost = Infinity;
-
-  for (const node of graph.nodes.values()) {
-    if (node.type !== NodeType.Entrance || node.floor < 1) continue;
-    const cost = dist.get(node.id) ?? Infinity;
-    if (cost < bestCost) {
-      bestCost = cost;
-      bestEntrance = node.id;
-    }
-  }
-
-  // Fall back to any entrance (including underground) if no ground-level one found
-  if (!bestEntrance || bestCost === Infinity) {
-    bestCost = Infinity;
-    for (const node of graph.nodes.values()) {
-      if (node.type !== NodeType.Entrance) continue;
-      const cost = dist.get(node.id) ?? Infinity;
-      if (cost < bestCost) {
-        bestCost = cost;
-        bestEntrance = node.id;
-      }
-    }
-  }
-
-  if (!bestEntrance || bestCost === Infinity) return null;
+  const bestEntrance = findNearestEntranceId(graph, dist);
+  if (!bestEntrance) return null;
 
   // Reconstruct path from entrance to dest (reverse the prev chain from dest-rooted Dijkstra)
   const reversePath = reconstructPath(bestEntrance, graph, prev);

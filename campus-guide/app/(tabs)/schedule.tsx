@@ -415,7 +415,7 @@ function NextClassCard({
     computeNextClassDirectionsVisibility(nextClass, thresholdMinutes);
 
   const headerOnPress =
-    nextClass?.location != null ? onIndoorDirections : undefined;
+    nextClass?.location == null ? undefined : onIndoorDirections;
 
   return (
     <View style={styles.nextClassCard}>
