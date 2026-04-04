@@ -362,6 +362,29 @@ export function findEntranceNodes(graph: IndoorGraph): GraphNode[] {
   );
 }
 
+/**
+ * Finds the nearest graph node to the given GPS coordinates on the specified floor.
+ * Searches all node types (waypoints, rooms, entrances, elevators, staircases).
+ */
+export function findNearestGraphNode(
+  graph: IndoorGraph,
+  lat: number,
+  lng: number,
+  floor: number,
+): GraphNode | null {
+  let bestNode: GraphNode | null = null;
+  let bestDist = Infinity;
+  for (const node of graph.nodes.values()) {
+    if (node.floor !== floor) continue;
+    const d = haversineDistance(lat, lng, node.lat, node.lng);
+    if (d < bestDist) {
+      bestDist = d;
+      bestNode = node;
+    }
+  }
+  return bestNode;
+}
+
 // Module-level cache so both IndoorMapContext and crossBuildingRouteService
 // share one graph per building data file.
 const graphCacheMap = new Map<string, IndoorGraph>();

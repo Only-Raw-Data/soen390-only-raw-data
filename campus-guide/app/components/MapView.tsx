@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import BuildingSearchHeader from "./BuildingSearchComponent";
 import { Ionicons } from "@expo/vector-icons";
@@ -242,8 +243,12 @@ export default function MapViewApp({
     isLoading: poisLoading,
     selectedPOI,
     setSelectedPOI,
-    updateSearchCenter,
+    fetchPOIsAt,
+    isOnCooldown,
   } = usePOIContext();
+
+  // Tracks the latest map region so the POI toggle always fetches at the visible center
+  const currentRegionRef = useRef(CAMPUS_REGIONS[selectedCampus]);
 
   const allBuildingsList = [...SGW_BUILDINGS, ...LOYOLA_BUILDINGS];
 
@@ -451,9 +456,8 @@ export default function MapViewApp({
           showsMyLocationButton={false}
           customMapStyle={CAMPUS_MAP_STYLE}
           onRegionChangeComplete={(region) => {
-            // Smart POI center update: debounced, only on meaningful movement
-            // If POIs are enabled, auto-fetches new data instead of clearing toggle
-            updateSearchCenter(region.latitude, region.longitude);
+            // Track current map center so POI toggle always fetches at the visible location
+            currentRegionRef.current = region;
 
             // Only auto-switch if zoomed in enough to see buildings (guard against flip-flopping)
             if (region.latitudeDelta > MAP_CONSTANTS.AUTO_SWITCH_MAX_DELTA)
@@ -684,7 +688,16 @@ export default function MapViewApp({
           styles.poiToggleButton,
           showPOIs && styles.poiToggleButtonActive,
         ]}
-        onPress={() => setShowPOIs(!showPOIs)}
+        onPress={() => {
+          if (showPOIs) {
+            setShowPOIs(false);
+          } else if (isOnCooldown) {
+            Alert.alert('Please wait', 'Already loading nearby places. Try again in a moment.');
+          } else {
+            fetchPOIsAt(currentRegionRef.current.latitude, currentRegionRef.current.longitude);
+            setShowPOIs(true);
+          }
+        }}
         testID="poi-toggle-button"
       >
         <Ionicons

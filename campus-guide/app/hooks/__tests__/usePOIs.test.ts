@@ -82,6 +82,23 @@ describe('usePOIs', () => {
     expect(result.current.error).toEqual(mockError);
   });
 
+  it('should clear pois when disabled after a successful fetch', async () => {
+    // Arrange
+    (fetchPOIs as jest.Mock).mockResolvedValue(mockPois);
+    const { result, rerender } = renderHook(
+      ({ enabled }: { enabled: boolean }) =>
+        usePOIs({ lat: 45.5, lon: -73.5, enabled }),
+      { initialProps: { enabled: true } },
+    );
+    await waitFor(() => expect(result.current.pois).toEqual(mockPois));
+
+    // Act — disable the hook
+    rerender({ enabled: false });
+
+    // Assert — stale pois are cleared
+    await waitFor(() => expect(result.current.pois).toEqual([]));
+  });
+
   it('should not update state if unmounted before fetch completes', async () => {
     // Arrange
     // Return a promise that doesn't resolve immediately

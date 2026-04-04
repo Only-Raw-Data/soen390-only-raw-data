@@ -3,6 +3,7 @@ import {
   coordKey,
   haversineDistance,
   findEntranceNodes,
+  findNearestGraphNode,
   getOrBuildGraph,
   NodeType,
 } from "@app/services/indoorGraphService";
@@ -915,5 +916,72 @@ describe("getOrBuildGraph", () => {
 
     // Assert — different references
     expect(graph1).not.toBe(graph2);
+  });
+});
+
+// ── findNearestGraphNode tests ──────────────────────────────────────────
+
+describe("findNearestGraphNode", () => {
+  const hallData = require("@/constants/indoorData/hall.json") as IndoorGeoJSON;
+
+  it("returns the closest node on the given floor", () => {
+    // Arrange
+    const graph = buildIndoorGraph(hallData);
+    const floor8Nodes = [...graph.nodes.values()].filter((n) => n.floor === 8);
+    expect(floor8Nodes.length).toBeGreaterThan(0);
+    const targetNode = floor8Nodes[0];
+
+    // Act — query with exact coordinates of that node
+    const nearest = findNearestGraphNode(graph, targetNode.lat, targetNode.lng, 8);
+
+    // Assert — should return the same node
+    expect(nearest).not.toBeNull();
+    expect(nearest!.id).toBe(targetNode.id);
+  });
+
+  it("returns null when no nodes exist on the given floor", () => {
+    // Arrange
+    const graph = buildIndoorGraph(hallData);
+
+    // Act — query a floor that doesn't exist
+    const nearest = findNearestGraphNode(graph, 45.497, -73.578, 99);
+
+    // Assert
+    expect(nearest).toBeNull();
+  });
+
+  it("returns the nearest node when coordinates are offset", () => {
+    // Arrange
+    const graph = buildIndoorGraph(hallData);
+    const floor8Nodes = [...graph.nodes.values()].filter((n) => n.floor === 8);
+    expect(floor8Nodes.length).toBeGreaterThan(1);
+
+    const nodeA = floor8Nodes[0];
+    const nodeB = floor8Nodes[1];
+    const midLat = (nodeA.lat + nodeB.lat) / 2;
+    const midLng = (nodeA.lng + nodeB.lng) / 2;
+
+    // Act
+    const nearest = findNearestGraphNode(graph, midLat, midLng, 8);
+
+    // Assert
+    expect(nearest).not.toBeNull();
+    expect(nearest!.floor).toBe(8);
+  });
+
+  it("only considers nodes on the requested floor", () => {
+    // Arrange
+    const graph = buildIndoorGraph(hallData);
+    const floor1Nodes = [...graph.nodes.values()].filter((n) => n.floor === 1);
+    expect(floor1Nodes.length).toBeGreaterThan(0);
+    const floor1Node = floor1Nodes[0];
+
+    // Act — query floor 1 coordinates but ask for floor 8
+    const nearest = findNearestGraphNode(graph, floor1Node.lat, floor1Node.lng, 8);
+
+    // Assert — result should be on floor 8, not floor 1
+    if (nearest) {
+      expect(nearest.floor).toBe(8);
+    }
   });
 });

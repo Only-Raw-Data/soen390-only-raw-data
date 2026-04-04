@@ -1,5 +1,8 @@
 export const POI_LIMIT = 15;
 export const POI_RADIUS = 500;
+export const POI_COOLDOWN_MS = 3000;
+export const POI_INITIAL_SEARCH_CENTER = { lat: 45.4972, lon: -73.5792 };
+export const POI_INITIAL_SEARCH_RADIUS = 1000;
 export const POI_CACHE_DIR = "poi_cache";
 export const POI_CACHE_FILE = "poi_cache.json";
 export const POI_CACHE_EXPIRY = 60 * 60 * 24 * 7; // 7 days

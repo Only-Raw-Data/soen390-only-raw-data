@@ -105,29 +105,10 @@ export default function DirectionsHeader() {
     { id: 'shuttle', icon: 'bus-outline', label: 'Shuttle' },
   ];
 
-  // Shuttle departs from Hall Building (SGW) and arrives at Vanier Library (Loyola), and vice versa
-  const shuttleDefaultStart = SGW_BUILDINGS.find(b => b.id === 'h');
-  const shuttleDefaultDest = LOYOLA_BUILDINGS.find(b => b.id === 'vl');
-
   const handleModePress = (mode: TransportationMode) => {
     trackActionRepeat('directions_transport_mode_toggle');
     posthog.capture('directions_transport_mode_changed', { mode });
     setTransportationMode(mode);
-    if (mode === 'shuttle' && shuttleDefaultStart && shuttleDefaultDest) {
-      // Keep the user's buildings if they already have a building-to-building cross-campus
-      // route set up — the shuttle will add walking legs to/from the stops automatically.
-      // In every other case (no selection, same campus, or current-location start without
-      // a known campus), fall back to the canonical Hall ↔ Vanier defaults.
-      const hasCrossCampusRoute =
-        startBuilding &&
-        destinationBuilding &&
-        startBuilding.campus !== destinationBuilding.campus;
-      if (!hasCrossCampusRoute) {
-        setStartBuilding(shuttleDefaultStart);
-        setStartCoords(null);
-        setDestinationBuilding(shuttleDefaultDest);
-      }
-    }
   };
 
   let startDisplayValue = '';

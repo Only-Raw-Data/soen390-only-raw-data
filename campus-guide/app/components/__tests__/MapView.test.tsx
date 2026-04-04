@@ -28,6 +28,19 @@ jest.mock("../../context/DirectionsContext", () => ({
   useDirections: jest.fn(),
 }));
 
+jest.mock("@/constants/poi", () => ({
+  POI_COOLDOWN_MS: 3000,
+  POI_INITIAL_SEARCH_CENTER: { lat: 45.4972, lon: -73.5792 },
+  POI_INITIAL_SEARCH_RADIUS: 1000,
+  POI_LIMIT: 15,
+  POI_RADIUS: 500,
+  getPoiInfo: (type: string) => {
+    if (type === "cafe") return { icon: "cafe", color: "#D97706" };
+    if (type === "restaurant") return { icon: "restaurant", color: "#EF4444" };
+    return { icon: "location", color: "#6B7280" };
+  },
+}));
+
 jest.mock("@/constants/buildingImages", () => ({
   BUILDING_IMAGES: {
     h: "mock-image-h",
@@ -976,6 +989,86 @@ describe("MapViewApp", () => {
       // Assert
       const polylines = screen.getAllByTestId("route-polyline");
       expect(polylines).toHaveLength(3);
+    });
+  });
+
+  describe("onRegionChangeComplete campus auto-switch", () => {
+    const fireRegionChange = (screen: any, region: object) => {
+      act(() => {
+        screen.getByTestId("mapView").props.onRegionChangeComplete(region);
+      });
+    };
+
+    beforeEach(() => {
+      setupDefaultMocks();
+      setupCampusSwitchingPolygonMock();
+    });
+
+    it("does not switch campus when latitudeDelta exceeds AUTO_SWITCH_MAX_DELTA", () => {
+      // Arrange
+      const screen = renderWithProvider(<MapViewApp />);
+      const callsBefore = (useBuildingPolygons as jest.Mock).mock.calls.length;
+
+      // Act — large delta triggers early return
+      fireRegionChange(screen, {
+        latitude: 45.4582,
+        longitude: -73.6405,
+        latitudeDelta: 0.05,
+        longitudeDelta: 0.05,
+      });
+
+      // Assert — no additional call means no campus switch
+      expect((useBuildingPolygons as jest.Mock).mock.calls.length).toBe(callsBefore);
+    });
+
+    it("auto-switches to Loyola when map center is closer to Loyola", () => {
+      // Arrange — default campus is SGW
+      const screen = renderWithProvider(<MapViewApp />);
+
+      // Act — pan to Loyola area with small delta
+      fireRegionChange(screen, {
+        latitude: 45.4582,
+        longitude: -73.6405,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      });
+
+      // Assert
+      expect(useBuildingPolygons).toHaveBeenLastCalledWith("Loyola");
+    });
+
+    it("auto-switches to SGW when map center is closer to SGW", () => {
+      // Arrange — start on Loyola
+      const screen = renderWithProvider(<MapViewApp />);
+      fireEvent.press(screen.getByText("Loyola Campus"));
+
+      // Act — pan to SGW area
+      fireRegionChange(screen, {
+        latitude: 45.4972,
+        longitude: -73.5788,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      });
+
+      // Assert
+      expect(useBuildingPolygons).toHaveBeenLastCalledWith("SGW");
+    });
+
+    it("does not switch campus when already on the closest campus", () => {
+      // Arrange — default is SGW, pan to SGW center
+      const screen = renderWithProvider(<MapViewApp />);
+      const callsBefore = (useBuildingPolygons as jest.Mock).mock.calls.length;
+
+      // Act — already on SGW, region near SGW
+      fireRegionChange(screen, {
+        latitude: 45.4972,
+        longitude: -73.5788,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      });
+
+      // Assert — no extra render triggered
+      expect((useBuildingPolygons as jest.Mock).mock.calls.length).toBe(callsBefore);
     });
   });
 

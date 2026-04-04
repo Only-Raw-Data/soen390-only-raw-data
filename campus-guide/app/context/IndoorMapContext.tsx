@@ -13,8 +13,8 @@ import {
   IndoorFeature,
   IndoorGeoJSON,
 } from "@app/types/indoorMap";
-import { GraphNode, getOrBuildGraph } from "@app/services/indoorGraphService";
-import { findIndoorPath } from "@app/services/indoorPathService";
+import { GraphNode, getOrBuildGraph, findNearestGraphNode, haversineDistance } from "@app/services/indoorGraphService";
+import { findIndoorPath, findIndoorPathFromNodeId } from "@app/services/indoorPathService";
 
 import hallData from "@/constants/indoorData/hall.json";
 import jmsbData from "@/constants/indoorData/jmsb.json";
@@ -309,6 +309,8 @@ interface IndoorMapContextType {
   accessible: boolean;
   showPOIs: boolean;
   isCrossBuilding: boolean;
+  useCurrentLocation: boolean;
+  currentLocationError: string | null;
   setSelectedBuilding: (building: IndoorBuildingConfig | null) => void;
   setSelectedFloor: (floor: number | null) => void;
   setSearchQuery: (query: string) => void;
@@ -323,11 +325,73 @@ interface IndoorMapContextType {
   clearPath: () => void;
   toggleAccessible: () => void;
   togglePOIs: () => void;
+  setStartFromCurrentLocation: (lat: number, lng: number, floor: number | null) => void;
+  clearCurrentLocationStart: () => void;
 }
 
 const IndoorMapContext = createContext<IndoorMapContextType | undefined>(
   undefined,
 );
+
+interface PathComputeParams {
+  useCurrentLocation: boolean;
+  currentLocationNodeId: string | null;
+  startRoomRef: string | null;
+  destinationRoomRef: string;
+  accessible: boolean;
+  building: IndoorBuildingConfig;
+}
+
+function computeIndoorPath(params: PathComputeParams): {
+  path: GraphNode[] | null;
+  error: string | null;
+} {
+  const geoJson = getGeoJsonForBuilding(params.building);
+  if (!geoJson) {
+    return { path: null, error: "No map data for this building" };
+  }
+
+  const graph = getOrBuildGraph(params.building.dataFile, geoJson);
+  let path: GraphNode[] | null = null;
+
+  if (params.useCurrentLocation && params.currentLocationNodeId) {
+    path = findIndoorPathFromNodeId(
+      graph,
+      params.currentLocationNodeId,
+      params.destinationRoomRef,
+      params.accessible,
+    );
+  } else if (params.startRoomRef) {
+    path = findIndoorPath(
+      graph,
+      params.startRoomRef,
+      params.destinationRoomRef,
+      params.accessible,
+    );
+  }
+
+  if (path) {
+    return { path, error: null };
+  }
+
+  const error = params.accessible
+    ? "No accessible route found (no elevator/ramp between these rooms)"
+    : "No path found between these rooms";
+  return { path: null, error };
+}
+
+function isCrossBuildingNavigation(
+  destinationRoomRef: string,
+  selectedBuilding: IndoorBuildingConfig,
+): boolean {
+  const destNormalized = destinationRoomRef
+    .replaceAll(/[\s-]/g, "")
+    .toUpperCase();
+  const destResult = findRoomInBuildings(destNormalized);
+  return !!(
+    destResult && destResult.building.dataFile !== selectedBuilding.dataFile
+  );
+}
 
 export default function IndoorMapProvider({
   children,
@@ -358,6 +422,9 @@ export default function IndoorMapProvider({
   const [accessible, setAccessible] = useState(false);
   const [showPOIs, setShowPOIs] = useState(true);
   const [isCrossBuilding, setIsCrossBuilding] = useState(false);
+  const [useCurrentLocation, setUseCurrentLocation] = useState(false);
+  const [currentLocationNodeId, setCurrentLocationNodeId] = useState<string | null>(null);
+  const [currentLocationError, setCurrentLocationError] = useState<string | null>(null);
 
   const toggleAccessible = useCallback(() => {
     setAccessible((prev) => !prev);
@@ -448,72 +515,111 @@ export default function IndoorMapProvider({
     setPathError(null);
   }, []);
 
-  // Auto-compute shortest path whenever both rooms are set
+  const setStartFromCurrentLocation = useCallback(
+    (lat: number, lng: number, floor: number | null) => {
+      setCurrentLocationError(null);
+
+      // If a building and floor are already selected, search only within that context.
+      if (selectedBuilding && floor !== null) {
+        const geoJson = getGeoJsonForBuilding(selectedBuilding);
+        if (!geoJson) {
+          setCurrentLocationError("No map data for this building");
+          return;
+        }
+        const graph = getOrBuildGraph(selectedBuilding.dataFile, geoJson);
+        const nearest = findNearestGraphNode(graph, lat, lng, floor);
+        if (!nearest) {
+          setCurrentLocationError("Could not determine your position indoors");
+          return;
+        }
+        setUseCurrentLocation(true);
+        setCurrentLocationNodeId(nearest.id);
+        setStartRoomRef(null);
+        setStartSearchQuery("");
+        setStartSearchError(null);
+        return;
+      }
+
+      // No building/floor pre-selected — auto-detect by finding the nearest graph
+      // node across every mapped building and every floor.
+      let bestBuilding: IndoorBuildingConfig | null = null;
+      let bestNode: GraphNode | null = null;
+      let bestDist = Infinity;
+
+      for (const building of INDOOR_BUILDINGS) {
+        const geoJson = getGeoJsonForBuilding(building);
+        if (!geoJson) continue;
+        const graph = getOrBuildGraph(building.dataFile, geoJson);
+        for (const node of graph.nodes.values()) {
+          const d = haversineDistance(lat, lng, node.lat, node.lng);
+          if (d < bestDist) {
+            bestDist = d;
+            bestBuilding = building;
+            bestNode = node;
+          }
+        }
+      }
+
+      if (!bestBuilding || !bestNode) {
+        setCurrentLocationError("Could not determine your position indoors");
+        return;
+      }
+
+      setSelectedBuilding(bestBuilding);
+      setSelectedFloor(bestNode.floor);
+      setUseCurrentLocation(true);
+      setCurrentLocationNodeId(bestNode.id);
+      setStartRoomRef(null);
+      setStartSearchQuery("");
+      setStartSearchError(null);
+    },
+    [selectedBuilding],
+  );
+
+  const clearCurrentLocationStart = useCallback(() => {
+    setUseCurrentLocation(false);
+    setCurrentLocationNodeId(null);
+    setCurrentLocationError(null);
+    setCurrentPath(null);
+    setPathError(null);
+  }, []);
+
+  // Auto-compute shortest path whenever start and destination are set
   useEffect(() => {
     setIsCrossBuilding(false);
 
-    if (!startRoomRef || !destinationRoomRef || !selectedBuilding) {
+    const hasStart = startRoomRef || (useCurrentLocation && currentLocationNodeId);
+    if (!hasStart || !destinationRoomRef || !selectedBuilding) {
       clearPath();
       return;
     }
 
-    // Detect cross-building: check if destination room belongs to a different building
-    const destNormalized = destinationRoomRef
-      .replaceAll(/[\s-]/g, "")
-      .toUpperCase();
-    const destResult = findRoomInBuildings(destNormalized);
-    if (
-      destResult &&
-      destResult.building.dataFile !== selectedBuilding.dataFile
-    ) {
+    if (isCrossBuildingNavigation(destinationRoomRef, selectedBuilding)) {
       setIsCrossBuilding(true);
       setCurrentPath(null);
       setPathError(null);
       return;
     }
 
-    const geoJson = getGeoJsonForBuilding(selectedBuilding);
-    if (!geoJson) {
-      setPathError("No map data for this building");
-      return;
-    }
-
     try {
-      const graph = getOrBuildGraph(selectedBuilding.dataFile, geoJson);
-
-      const path = findIndoorPath(
-        graph,
+      const { path, error } = computeIndoorPath({
+        useCurrentLocation,
+        currentLocationNodeId,
         startRoomRef,
         destinationRoomRef,
         accessible,
-      );
-
-      if (path) {
-        setCurrentPath(path);
-        setPathError(null);
-        posthog.capture("indoor_path_calculated", {
-          building_code: selectedBuilding.code,
-          start_room: startRoomRef,
-          destination_room: destinationRoomRef,
-          accessible,
-          success: true,
-          steps: path.length,
-        });
-      } else {
-        const msg = accessible
-          ? "No accessible route found (no elevator/ramp between these rooms)"
-          : "No path found between these rooms";
-        setCurrentPath(null);
-        setPathError(msg);
-        posthog.capture("indoor_path_calculated", {
-          building_code: selectedBuilding.code,
-          start_room: startRoomRef,
-          destination_room: destinationRoomRef,
-          accessible,
-          success: false,
-          error: msg,
-        });
-      }
+        building: selectedBuilding,
+      });
+      setCurrentPath(path);
+      setPathError(error);
+      posthog.capture("indoor_path_calculated", {
+        building_code: selectedBuilding.code,
+        start_room: useCurrentLocation ? "current_location" : startRoomRef,
+        destination_room: destinationRoomRef,
+        accessible,
+        success: !!path,
+        ...(path ? { steps: path.length } : { error }),
+      });
     } catch (err) {
       console.error("[IndoorMapContext] ERROR in path computation:", err);
       setCurrentPath(null);
@@ -526,6 +632,8 @@ export default function IndoorMapProvider({
     accessible,
     clearPath,
     posthog,
+    useCurrentLocation,
+    currentLocationNodeId,
   ]);
 
   const value = useMemo(
@@ -545,6 +653,8 @@ export default function IndoorMapProvider({
       pathError,
       accessible,
       isCrossBuilding,
+      useCurrentLocation,
+      currentLocationError,
       setSelectedBuilding,
       setSelectedFloor,
       setSearchQuery,
@@ -560,6 +670,8 @@ export default function IndoorMapProvider({
       toggleAccessible,
       showPOIs,
       togglePOIs,
+      setStartFromCurrentLocation,
+      clearCurrentLocationStart,
     }),
     [
       selectedBuilding,
@@ -577,6 +689,8 @@ export default function IndoorMapProvider({
       pathError,
       accessible,
       isCrossBuilding,
+      useCurrentLocation,
+      currentLocationError,
       showPOIs,
       searchRoom,
       clearHighlight,
@@ -587,6 +701,8 @@ export default function IndoorMapProvider({
       clearPath,
       toggleAccessible,
       togglePOIs,
+      setStartFromCurrentLocation,
+      clearCurrentLocationStart,
     ],
   );
 

@@ -79,6 +79,13 @@ jest.mock("@hooks/useUserLocation", () => ({
   })),
 }));
 
+jest.mock("@context/IndoorMapContext", () => ({
+  useIndoorMap: jest.fn(() => ({
+    searchDestinationRoom: jest.fn(),
+    setDestinationSearchQuery: jest.fn(),
+  })),
+}));
+
 jest.mock("@services/nextClassDirectionsService", () => ({
   ...jest.requireActual("@services/nextClassDirectionsService"),
   getStoredThresholdMinutes: jest.fn().mockResolvedValue(15),
@@ -499,7 +506,7 @@ describe("ScheduleScreen", () => {
       });
     });
 
-    it("renders timed event without summary as Untitled Event", async () => {
+    it("filters out timed events without a class code summary", async () => {
       // Arrange
       mockUseCalendarAuth.mockReturnValue({ ...baseAuth, isConnected: true });
       mockGetFreshCalendarAccessToken.mockResolvedValue("token");
@@ -522,14 +529,14 @@ describe("ScheduleScreen", () => {
       // Act
       render(<ScheduleScreen />);
 
-      // Assert
+      // Assert — event has no class code, so it should be filtered out
       await waitFor(() => {
-        expect(screen.getByText("Untitled Event")).toBeTruthy();
+        expect(screen.queryByText("Untitled Event")).toBeNull();
       });
     });
   });
 
-  it("shows all-day events in the all-day section", async () => {
+  it("shows all-day class events in the all-day section", async () => {
     // Arrange
     const today = new Date();
     const todayStr = today.toISOString().split("T")[0];
@@ -548,7 +555,7 @@ describe("ScheduleScreen", () => {
         items: [
           {
             id: "allday1",
-            summary: "University Holiday",
+            summary: "SOEN 490 Project Day",
             start: { date: todayStr },
             end: { date: tomorrowStr },
           },
@@ -561,7 +568,7 @@ describe("ScheduleScreen", () => {
 
     // Assert
     await waitFor(() => {
-      expect(screen.getByText("University Holiday")).toBeTruthy();
+      expect(screen.getByText("SOEN 490 Project Day")).toBeTruthy();
     });
     expect(screen.getByText("All-day events")).toBeTruthy();
   });
@@ -884,7 +891,7 @@ describe("ScheduleScreen", () => {
       expect(screen.getByText("Sprint review session")).toBeTruthy();
     });
 
-    it("shows All day label in detail modal for all-day events", async () => {
+    it("shows All day label in detail modal for all-day class events", async () => {
       // Arrange
       const today = new Date("2026-03-25");
       const todayStr = today.toISOString().split("T")[0];
@@ -898,7 +905,7 @@ describe("ScheduleScreen", () => {
           items: [
             {
               id: "allday1",
-              summary: "Spring Break",
+              summary: "COMP 390 Hackathon",
               start: { date: todayStr },
               end: { date: tomorrowStr },
             },
@@ -911,11 +918,11 @@ describe("ScheduleScreen", () => {
 
       // Assert
       await waitFor(() => {
-        expect(screen.getByText("Spring Break")).toBeTruthy();
+        expect(screen.getByText("COMP 390 Hackathon")).toBeTruthy();
       });
 
       // Arrange
-      const allEventTexts = screen.getAllByText("Spring Break");
+      const allEventTexts = screen.getAllByText("COMP 390 Hackathon");
       // Act
       fireEvent.press(allEventTexts[0]);
 

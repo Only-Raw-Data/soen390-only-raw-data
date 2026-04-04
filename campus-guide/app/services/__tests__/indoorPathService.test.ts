@@ -1,5 +1,5 @@
 import { buildIndoorGraph, IndoorGraph, GraphNode, NodeType, EdgeType } from "../indoorGraphService";
-import { findIndoorPath, findPathToNearestEntrance, findPathFromEntrance } from "../indoorPathService";
+import { findIndoorPath, findIndoorPathFromNodeId, findPathToNearestEntrance, findPathFromEntrance } from "../indoorPathService";
 import hallData from "@/constants/indoorData/hall.json";
 import { IndoorGeoJSON } from "@app/types/indoorMap";
 
@@ -350,5 +350,81 @@ describe("findPathFromEntrance", () => {
 
     // Assert
     expect(path).toBeNull();
+  });
+});
+
+// ── findIndoorPathFromNodeId tests ────────────────────────────────────────
+
+describe("findIndoorPathFromNodeId", () => {
+  it("finds path from a node ID to a destination room ref", () => {
+    // Arrange
+    const graph = makeSimpleGraph();
+
+    // Act — start from waypoint wp:B, navigate to room C
+    const path = findIndoorPathFromNodeId(graph, "wp:B", "C");
+
+    // Assert
+    expect(path).not.toBeNull();
+    expect(path![0].id).toBe("wp:B");
+    expect(path![path!.length - 1].ref).toBe("C");
+  });
+
+  it("returns single-node path when start node is the destination room", () => {
+    // Arrange
+    const graph = makeSimpleGraph();
+
+    // Act
+    const path = findIndoorPathFromNodeId(graph, "room:A:1", "A");
+
+    // Assert
+    expect(path).toHaveLength(1);
+    expect(path![0].ref).toBe("A");
+  });
+
+  it("returns null when start node ID does not exist", () => {
+    // Arrange
+    const graph = makeSimpleGraph();
+
+    // Act
+    const path = findIndoorPathFromNodeId(graph, "nonexistent-id", "C");
+
+    // Assert
+    expect(path).toBeNull();
+  });
+
+  it("returns null when destination ref does not exist", () => {
+    // Arrange
+    const graph = makeSimpleGraph();
+
+    // Act
+    const path = findIndoorPathFromNodeId(graph, "wp:B", "NONEXISTENT");
+
+    // Assert
+    expect(path).toBeNull();
+  });
+
+  it("returns null when nodes are disconnected", () => {
+    // Arrange
+    const graph = makeDisconnectedGraph();
+
+    // Act
+    const path = findIndoorPathFromNodeId(graph, "room:A:1", "B");
+
+    // Assert
+    expect(path).toBeNull();
+  });
+
+  it("finds path through full graph from room node ID to another room", () => {
+    // Arrange
+    const graph = makeSimpleGraph();
+
+    // Act — start from room:A:1 by ID, navigate to room C by ref
+    const path = findIndoorPathFromNodeId(graph, "room:A:1", "C");
+
+    // Assert — A → wp:B → C
+    expect(path).toHaveLength(3);
+    expect(path![0].ref).toBe("A");
+    expect(path![1].id).toBe("wp:B");
+    expect(path![2].ref).toBe("C");
   });
 });
