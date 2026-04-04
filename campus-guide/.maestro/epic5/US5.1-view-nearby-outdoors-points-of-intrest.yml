@@ -7,8 +7,7 @@ appId: com.soen390.campusguide
 
 - assertVisible: "SGW Campus"
 
-- tapOn:
-    point: "90%,93%"
+- tapOn: "SGW Campus"
 - waitForAnimationToEnd
 
 - tapOn:
@@ -16,21 +15,55 @@ appId: com.soen390.campusguide
 - waitForAnimationToEnd
 
 - tapOn:
-    point: "30%,47%"
+    point: "30%,64%"
 - waitForAnimationToEnd
 
-- assertVisible: "CAFE"
+- assertVisible: "FAST FOOD"
+
+- tapOn: "Clear"
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "poi-toggle-button"
+- waitForAnimationToEnd
+
+- tapOn: "Loyola Campus"
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "poi-toggle-button"
+- waitForAnimationToEnd
 
 - tapOn:
     point: "90%,93%"
 - waitForAnimationToEnd
 
-- assertVisible: "Reggie's"
+- tapOn: "Loyola"
+- waitForAnimationToEnd
+
+- assertVisible: "Second Cup"
+
+- assertVisible: "Found 29 places nearby"
+
+- tapOn: "500m"
+- waitForAnimationToEnd
+
+- tapOn: "Map"
+- waitForAnimationToEnd
+
+- tapOn:
+    point: "90%,93%"
+- waitForAnimationToEnd
+
+- assertVisible: "Found 13 places nearby"
+
+- tapOn: "2km"
+- waitForAnimationToEnd
+
+- assertVisible: "Found 50 places nearby"
 
 - swipe:
     direction: UP
     duration: 5000
-
-- assertVisible: "Nakamichi"
 
 - stopApp
