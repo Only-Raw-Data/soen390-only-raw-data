@@ -1277,7 +1277,7 @@ describe("IndoorMapView", () => {
       fireEvent.press(getByTestId("cross-building-directions-button"));
 
       // Assert
-      expect(await findByText("Could not compute cross-building route")).toBeTruthy();
+      expect(await findByText("Could not compute route")).toBeTruthy();
     });
 
     it("shows error when planCrossBuildingRoute throws", async () => {
@@ -1297,7 +1297,7 @@ describe("IndoorMapView", () => {
       fireEvent.press(getByTestId("cross-building-directions-button"));
 
       // Assert
-      expect(await findByText("Error computing cross-building route")).toBeTruthy();
+      expect(await findByText("Error computing route")).toBeTruthy();
     });
 
     it("exits story mode when exit button is pressed", async () => {

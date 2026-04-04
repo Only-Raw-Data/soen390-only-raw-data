@@ -209,15 +209,31 @@ export function findPathFromEntrance(
     relaxNeighbors(currentId, graph, dist, prev, visited, queue, accessible);
   }
 
-  // Find the entrance with the shortest distance from dest
+  // Find the entrance with shortest distance from dest.
+  // Prefer ground-level (floor >= 1) entrances so we don't route via underground
+  // tunnels when a normal main-entrance path exists.
   let bestEntrance: string | null = null;
   let bestCost = Infinity;
+
   for (const node of graph.nodes.values()) {
-    if (node.type !== NodeType.Entrance) continue;
+    if (node.type !== NodeType.Entrance || node.floor < 1) continue;
     const cost = dist.get(node.id) ?? Infinity;
     if (cost < bestCost) {
       bestCost = cost;
       bestEntrance = node.id;
+    }
+  }
+
+  // Fall back to any entrance (including underground) if no ground-level one found
+  if (!bestEntrance || bestCost === Infinity) {
+    bestCost = Infinity;
+    for (const node of graph.nodes.values()) {
+      if (node.type !== NodeType.Entrance) continue;
+      const cost = dist.get(node.id) ?? Infinity;
+      if (cost < bestCost) {
+        bestCost = cost;
+        bestEntrance = node.id;
+      }
     }
   }
 

@@ -142,3 +142,63 @@ export async function planCrossBuildingRoute(
 
   return steps.length > 0 ? steps : null;
 }
+
+/**
+ * Plans a route starting from a GPS coordinate (outdoor) to an indoor room.
+ * Returns 2 steps: outdoor walk to the building entrance, then indoor to the room.
+ * Used when the user's starting point is their current location outside any building.
+ */
+export async function planCrossBuildingRouteFromGps(
+  gpsCoords: { lat: number; lng: number },
+  destQuery: string,
+  accessible = false,
+): Promise<NavigationStep[] | null> {
+  const normalizedDest = destQuery.replaceAll(/[\s-]/g, "").toUpperCase();
+  const destResult = findRoomInBuildings(normalizedDest);
+  if (!destResult) return null;
+
+  const destBuilding = destResult.building;
+  const graphB = getBuildingGraph(destBuilding);
+  if (!graphB) return null;
+
+  const pathFromEntrance = findPathFromEntrance(graphB, destResult.ref, accessible);
+  const enterCoords = getEntranceCoords(pathFromEntrance, destBuilding, false);
+
+  const fallbackRoute: RouteData = {
+    coordinates: [
+      { latitude: gpsCoords.lat, longitude: gpsCoords.lng },
+      { latitude: enterCoords.lat, longitude: enterCoords.lng },
+    ],
+    duration: "~5 mins",
+    distance: "~0.3 km",
+  };
+
+  let outdoorRoute: RouteData;
+  try {
+    outdoorRoute = await fetchDirections(gpsCoords, enterCoords, "walk") ?? fallbackRoute;
+  } catch {
+    outdoorRoute = fallbackRoute;
+  }
+
+  const steps: NavigationStep[] = [
+    {
+      kind: "outdoor",
+      route: outdoorRoute,
+      startLabel: "Your Location",
+      endLabel: destBuilding.name,
+    },
+  ];
+
+  if (pathFromEntrance && pathFromEntrance.length > 0) {
+    steps.push({
+      kind: "indoor",
+      buildingCode: destBuilding.code,
+      buildingName: destBuilding.name,
+      path: pathFromEntrance,
+      startLabel: `${destBuilding.name} Entrance`,
+      endLabel: `Room ${destResult.ref}`,
+    });
+  }
+
+  return steps.length > 0 ? steps : null;
+}

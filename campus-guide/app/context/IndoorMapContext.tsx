@@ -13,7 +13,7 @@ import {
   IndoorFeature,
   IndoorGeoJSON,
 } from "@app/types/indoorMap";
-import { GraphNode, getOrBuildGraph, findNearestGraphNode } from "@app/services/indoorGraphService";
+import { GraphNode, getOrBuildGraph, findNearestGraphNode, haversineDistance } from "@app/services/indoorGraphService";
 import { findIndoorPath, findIndoorPathFromNodeId } from "@app/services/indoorPathService";
 
 import hallData from "@/constants/indoorData/hall.json";
@@ -325,7 +325,7 @@ interface IndoorMapContextType {
   clearPath: () => void;
   toggleAccessible: () => void;
   togglePOIs: () => void;
-  setStartFromCurrentLocation: (lat: number, lng: number, floor: number) => void;
+  setStartFromCurrentLocation: (lat: number, lng: number, floor: number | null) => void;
   clearCurrentLocationStart: () => void;
 }
 
@@ -456,25 +456,59 @@ export default function IndoorMapProvider({
   }, []);
 
   const setStartFromCurrentLocation = useCallback(
-    (lat: number, lng: number, floor: number) => {
+    (lat: number, lng: number, floor: number | null) => {
       setCurrentLocationError(null);
-      if (!selectedBuilding) {
-        setCurrentLocationError("Please select a building first");
+
+      // If a building and floor are already selected, search only within that context.
+      if (selectedBuilding && floor !== null) {
+        const geoJson = getGeoJsonForBuilding(selectedBuilding);
+        if (!geoJson) {
+          setCurrentLocationError("No map data for this building");
+          return;
+        }
+        const graph = getOrBuildGraph(selectedBuilding.dataFile, geoJson);
+        const nearest = findNearestGraphNode(graph, lat, lng, floor);
+        if (!nearest) {
+          setCurrentLocationError("Could not determine your position indoors");
+          return;
+        }
+        setUseCurrentLocation(true);
+        setCurrentLocationNodeId(nearest.id);
+        setStartRoomRef(null);
+        setStartSearchQuery("");
+        setStartSearchError(null);
         return;
       }
-      const geoJson = getGeoJsonForBuilding(selectedBuilding);
-      if (!geoJson) {
-        setCurrentLocationError("No map data for this building");
-        return;
+
+      // No building/floor pre-selected — auto-detect by finding the nearest graph
+      // node across every mapped building and every floor.
+      let bestBuilding: IndoorBuildingConfig | null = null;
+      let bestNode: GraphNode | null = null;
+      let bestDist = Infinity;
+
+      for (const building of INDOOR_BUILDINGS) {
+        const geoJson = getGeoJsonForBuilding(building);
+        if (!geoJson) continue;
+        const graph = getOrBuildGraph(building.dataFile, geoJson);
+        for (const node of graph.nodes.values()) {
+          const d = haversineDistance(lat, lng, node.lat, node.lng);
+          if (d < bestDist) {
+            bestDist = d;
+            bestBuilding = building;
+            bestNode = node;
+          }
+        }
       }
-      const graph = getOrBuildGraph(selectedBuilding.dataFile, geoJson);
-      const nearest = findNearestGraphNode(graph, lat, lng, floor);
-      if (!nearest) {
+
+      if (!bestBuilding || !bestNode) {
         setCurrentLocationError("Could not determine your position indoors");
         return;
       }
+
+      setSelectedBuilding(bestBuilding);
+      setSelectedFloor(bestNode.floor);
       setUseCurrentLocation(true);
-      setCurrentLocationNodeId(nearest.id);
+      setCurrentLocationNodeId(bestNode.id);
       setStartRoomRef(null);
       setStartSearchQuery("");
       setStartSearchError(null);

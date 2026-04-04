@@ -25,7 +25,10 @@ import {
 import useUserLocation from "@app/hooks/useUserLocation";
 import { IndoorFeature } from "@app/types/indoorMap";
 import { IndoorStep, NavigationStep} from "@app/types/navigation";
-import { planCrossBuildingRoute } from "@app/services/crossBuildingRouteService";
+import {
+  planCrossBuildingRoute,
+  planCrossBuildingRouteFromGps,
+} from "@app/services/crossBuildingRouteService";
 import StoryOutdoorMap from "./StoryOutdoorMap";
 import { formatFloorLabel } from "@app/utils/timeFormat";
 import {
@@ -98,15 +101,17 @@ function CrossBuildingBanner({
   storyError,
   storyLoading,
   onStartStoryMode,
+  message,
 }: {
   readonly storyError: string | null;
   readonly storyLoading: boolean;
   readonly onStartStoryMode: () => void;
+  readonly message?: string;
 }) {
   return (
     <View style={styles.crossBuildingBanner} testID="cross-building-banner">
       <Text style={styles.crossBuildingText}>
-        These rooms are in different buildings.
+        {message ?? "These rooms are in different buildings."}
       </Text>
       {storyError && (
         <Text style={styles.crossBuildingError}>{storyError}</Text>
@@ -712,9 +717,11 @@ export default function IndoorMapView() {
     await getCurrentLocation();
   }, [getCurrentLocation, setStartSearchQuery, clearStartRoom]);
 
-  // When location updates after user requested it, set it in context
+  // When location updates after user requested it, set it in context.
+  // selectedFloor is passed so that if a building is already selected the search
+  // is scoped to that floor; passing null triggers auto-detection across all buildings.
   useEffect(() => {
-    if (locationRequested && location && selectedBuilding && selectedFloor !== null) {
+    if (locationRequested && location) {
       setStartFromCurrentLocation(
         location.coords.latitude,
         location.coords.longitude,
@@ -737,19 +744,31 @@ export default function IndoorMapView() {
     setStoryLoading(true);
     setStoryError(null);
     try {
-      const steps = await planCrossBuildingRoute(
-        startSearchQuery,
-        destinationSearchQuery,
-        accessible,
-      );
+      let steps = null;
+
+      if (useCurrentLocation && location) {
+        // Start from GPS coordinates — generate outdoor walk to building + indoor to room
+        steps = await planCrossBuildingRouteFromGps(
+          { lat: location.coords.latitude, lng: location.coords.longitude },
+          destinationSearchQuery,
+          accessible,
+        );
+      } else {
+        steps = await planCrossBuildingRoute(
+          startSearchQuery,
+          destinationSearchQuery,
+          accessible,
+        );
+      }
+
       if (steps && steps.length > 0) {
         setStorySteps(steps);
         setStoryIndex(0);
       } else {
-        setStoryError("Could not compute cross-building route");
+        setStoryError("Could not compute route");
       }
     } catch {
-      setStoryError("Error computing cross-building route");
+      setStoryError("Error computing route");
     } finally {
       setStoryLoading(false);
     }
@@ -1071,12 +1090,17 @@ export default function IndoorMapView() {
         </View>
       )}
 
-      {/* Cross-building banner */}
-      {isCrossBuilding && !storySteps && (
+      {/* Cross-building banner — also shown when using GPS so outdoor leg is included */}
+      {(isCrossBuilding || (useCurrentLocation && !!destinationRoomRef)) && !storySteps && (
         <CrossBuildingBanner
           storyError={storyError}
           storyLoading={storyLoading}
           onStartStoryMode={handleStartStoryMode}
+          message={
+            isCrossBuilding
+              ? "These rooms are in different buildings."
+              : "Get step-by-step directions from your current location."
+          }
         />
       )}
 

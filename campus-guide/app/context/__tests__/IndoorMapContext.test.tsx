@@ -752,15 +752,17 @@ describe("IndoorMapContext", () => {
       expect(result.current.currentLocationError).toBeNull();
     });
 
-    it("setStartFromCurrentLocation sets error when no building selected", () => {
+    it("setStartFromCurrentLocation auto-detects nearest building when none is selected", () => {
       const { result } = renderHook(() => useIndoorMap(), { wrapper });
 
       act(() => {
+        // No building pre-selected; function should auto-detect across all buildings
         result.current.setStartFromCurrentLocation(45.497, -73.578, 8);
       });
 
-      expect(result.current.currentLocationError).toBe("Please select a building first");
-      expect(result.current.useCurrentLocation).toBe(false);
+      expect(result.current.currentLocationError).toBeNull();
+      expect(result.current.useCurrentLocation).toBe(true);
+      expect(result.current.selectedBuilding).not.toBeNull();
     });
 
     it("setStartFromCurrentLocation enables current location mode for valid building/floor", () => {
