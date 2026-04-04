@@ -2,31 +2,13 @@ import React, { useMemo } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 import { RouteData } from "@app/services/directionsService";
-import { TransportationMode, SegmentMode } from "@app/types/transportation";
+import { TransportationMode } from "@app/types/transportation";
 import { hasNoCoordinates } from "@app/utils/indoorMapUtils";
-
-const SEGMENT_COLORS: Record<SegmentMode, string> = {
-  WALK: "#3B82F6",
-  BUS: "#16A34A",
-  SUBWAY: "#F97316",
-  TRAM: "#DC2626",
-  RAIL: "#DC2626",
-  SHUTTLE: "#EC4899",
-};
-
-const MODE_LABELS: Record<TransportationMode, string> = {
-  walk: "Walking",
-  transit: "Transit",
-  car: "Driving",
-  shuttle: "Shuttle",
-};
-
-const MODE_INFO_COLORS: Record<TransportationMode, string> = {
-  walk: "#3B82F6",
-  transit: "#8B5CF6",
-  car: "#F59E0B",
-  shuttle: "#EC4899",
-};
+import {
+  SEGMENT_COLORS,
+  MODE_LABELS,
+  MODE_INFO_COLORS,
+} from "@constants/transportStyles";
 
 interface StoryOutdoorMapProps {
   readonly route: RouteData;
@@ -58,8 +40,8 @@ function RoutePolylines({
   route,
   transportMode,
 }: {
-  route: RouteData;
-  transportMode: TransportationMode;
+  readonly route: RouteData;
+  readonly transportMode: TransportationMode;
 }) {
   if (transportMode === "walk") {
     return (

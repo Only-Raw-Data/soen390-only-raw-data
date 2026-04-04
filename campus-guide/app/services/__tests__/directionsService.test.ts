@@ -3,6 +3,7 @@ import {
   SHUTTLE_DURATION,
   SHUTTLE_ROUTE_SGW_TO_LOYOLA,
 } from "@/constants/shuttleRoute";
+import * as buildings from "@/constants/buildings";
 import { fetchDirections } from "../directionsService";
 import { TransportationMode } from "@app/types/transportation";
 
@@ -223,6 +224,108 @@ describe("directionsService", () => {
       // Assert
       expect(globalThis.fetch).not.toHaveBeenCalled();
       expect(result).toBeNull();
+    });
+
+    it("falls back to bare shuttle polyline when Hall or Vanier building is not found", async () => {
+      // Arrange — remove Hall building so the guard triggers
+      const origin = { lat: 45.497092, lng: -73.5788 };
+      const destination = { lat: 45.4585, lng: -73.639 };
+      const options = { startCampus: "SGW" as const, destinationCampus: "Loyola" as const };
+
+      const originalSGW = buildings.SGW_BUILDINGS;
+      // @ts-ignore — patch the exported array for this test
+      buildings.SGW_BUILDINGS = originalSGW.filter((b) => b.id !== "h");
+
+      try {
+        // Act
+        const result = await fetchDirections(origin, destination, "shuttle", options);
+
+        // Assert — fallback: straight shuttle polyline, no segments
+        expect(result).not.toBeNull();
+        expect(result?.duration).toBe(SHUTTLE_DURATION);
+        expect(result?.distance).toBe(SHUTTLE_DISTANCE);
+        expect(result?.segments).toBeUndefined();
+        expect(result?.coordinates).toEqual(SHUTTLE_ROUTE_SGW_TO_LOYOLA);
+        expect(globalThis.fetch).not.toHaveBeenCalled();
+      } finally {
+        // @ts-ignore — restore
+        buildings.SGW_BUILDINGS = originalSGW;
+      }
+    });
+
+    it("falls back to bare reversed shuttle polyline for Loyola-to-SGW when building not found", async () => {
+      // Arrange
+      const origin = { lat: 45.4585, lng: -73.639 };
+      const destination = { lat: 45.497092, lng: -73.5788 };
+      const options = { startCampus: "Loyola" as const, destinationCampus: "SGW" as const };
+
+      const originalLoyola = buildings.LOYOLA_BUILDINGS;
+      // @ts-ignore
+      buildings.LOYOLA_BUILDINGS = originalLoyola.filter((b) => b.id !== "vl");
+
+      try {
+        const result = await fetchDirections(origin, destination, "shuttle", options);
+
+        expect(result).not.toBeNull();
+        expect(result?.duration).toBe(SHUTTLE_DURATION);
+        expect(result?.segments).toBeUndefined();
+        const expectedReversed = [...SHUTTLE_ROUTE_SGW_TO_LOYOLA].reverse();
+        expect(result?.coordinates).toEqual(expectedReversed);
+      } finally {
+        // @ts-ignore
+        buildings.LOYOLA_BUILDINGS = originalLoyola;
+      }
+    });
+
+    it("uses straight-line fallback when walking legs fetch throws", async () => {
+      // Arrange — make fetch reject so Promise.all throws, triggering the catch block
+      (globalThis.fetch as jest.Mock).mockRejectedValue(new Error("Network failure"));
+      const origin = { lat: 45.497092, lng: -73.5788 };
+      const destination = { lat: 45.4585, lng: -73.639 };
+      const options = { startCampus: "SGW" as const, destinationCampus: "Loyola" as const };
+
+      // Act
+      const result = await fetchDirections(origin, destination, "shuttle", options);
+
+      // Assert — still returns a valid route via straight-line fallback
+      expect(result).not.toBeNull();
+      expect(result?.segments).toHaveLength(3);
+      expect(result?.segments?.[1].mode).toBe("SHUTTLE");
+    });
+
+    it("uses real walking coordinates when walking legs API succeeds", async () => {
+      // Arrange — mock fetch to return a valid walking route
+      (globalThis.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          routes: [mockRoute({ duration: "120s", distanceMeters: 400 })],
+        }),
+      });
+      const origin = { lat: 45.497092, lng: -73.5788 };
+      const destination = { lat: 45.4585, lng: -73.639 };
+      const options = { startCampus: "SGW" as const, destinationCampus: "Loyola" as const };
+
+      // Act
+      const result = await fetchDirections(origin, destination, "shuttle", options);
+
+      // Assert — walking legs used real API coords (not straight lines)
+      expect(result).not.toBeNull();
+      expect(result?.segments).toHaveLength(3);
+      expect(result?.segments?.[0].coordinates.length).toBeGreaterThan(2);
+    });
+
+    it("infers startCampus from destinationCampus when startCampus is omitted", async () => {
+      // Arrange — only destinationCampus provided; start should be inferred as the opposite
+      const origin = { lat: 45.4585, lng: -73.639 };
+      const destination = { lat: 45.497092, lng: -73.5788 };
+      const options = { destinationCampus: "SGW" as const };
+
+      // Act
+      const result = await fetchDirections(origin, destination, "shuttle", options);
+
+      // Assert — cross-campus route is produced (effectiveStartCampus = Loyola)
+      expect(result).not.toBeNull();
+      expect(result?.segments).toHaveLength(3);
     });
   });
 

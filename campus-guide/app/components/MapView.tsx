@@ -35,7 +35,7 @@ import BuildingInformation from "./BuildingInformation";
 import LocateMeButton from "./LocateMeButton";
 import useUserLocation from "../hooks/useUserLocation";
 import { isWithinShuttleHours } from "../utils/shuttleHours";
-import { SegmentMode } from "@app/types/transportation";
+import { SEGMENT_COLORS } from "@constants/transportStyles";
 import { PointOfInterest } from "../types/poi";
 import { poiToBuildingAdapter } from "../utils/poiUtils";
 import { useMapUsabilityTasks } from "@hooks/useMapUsabilityTasks";
@@ -161,14 +161,11 @@ function POIMarkerItem({
   );
 }
 
-const SEGMENT_COLORS: Record<SegmentMode, string> = {
-  WALK: "#3B82F6",
-  BUS: "#16A34A",
-  SUBWAY: "#F97316",
-  TRAM: "#DC2626",
-  RAIL: "#DC2626",
-  SHUTTLE: "#EC4899",
-};
+function getStrokeColorForBuilding(isStart: boolean, isDest: boolean): string {
+  if (isStart) return "#10B981";
+  if (isDest) return "#FFEA00";
+  return "#912338";
+}
 
 interface MapViewAppProps {
   readonly googleMapsApiKey?: string;
@@ -304,12 +301,6 @@ export default function MapViewApp({
     setSelectedBuilding(building);
     setSelectedPOI(null);
     setInfoBuilding(null);
-  };
-
-  const getStrokeColorForBuilding = (isStart: boolean, isDest: boolean) => {
-    if (isStart) return "#10B981";
-    if (isDest) return "#FFEA00";
-    return "#912338";
   };
 
   const getPolygonColors = (buildingId: string) => {
