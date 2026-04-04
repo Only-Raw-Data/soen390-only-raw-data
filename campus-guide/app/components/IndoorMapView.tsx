@@ -602,6 +602,41 @@ function computePathCoordinates(
   return chosen.map((node) => ({ latitude: node.lat, longitude: node.lng }));
 }
 
+function findHighlightedFeature(
+  features: IndoorFeature[],
+  roomRef: string | null,
+): IndoorFeature | null {
+  if (!roomRef) return null;
+  return features.find((f) => f.properties?.ref === roomRef) ?? null;
+}
+
+function getInitialRegion(building: ReturnType<typeof useIndoorMap>["selectedBuilding"]) {
+  if (building) {
+    return {
+      latitude: building.centerLat,
+      longitude: building.centerLng,
+      latitudeDelta: MAP_CONSTANTS.INDOOR_BUILDING_DELTA,
+      longitudeDelta: MAP_CONSTANTS.INDOOR_BUILDING_DELTA,
+    };
+  }
+  return {
+    latitude: 45.497092,
+    longitude: -73.5788,
+    latitudeDelta: MAP_CONSTANTS.DEFAULT_CAMERA_DELTA,
+    longitudeDelta: MAP_CONSTANTS.DEFAULT_CAMERA_DELTA,
+  };
+}
+
+function computeWillRenderPolyline(floorTransitioning: boolean, pathLength: number): boolean {
+  return !floorTransitioning && pathLength > 1;
+}
+
+function getCrossBuildingBannerMessage(isCrossBuilding: boolean): string {
+  return isCrossBuilding
+    ? "These rooms are in different buildings."
+    : "Get step-by-step directions from your current location.";
+}
+
 function bounceIosMapPadding(
   setIosMapPadding: (p: { top: number; right: number; bottom: number; left: number }) => void,
   timerRef: React.MutableRefObject<ReturnType<typeof setTimeout> | null>,
@@ -909,9 +944,7 @@ export default function IndoorMapView() {
     computeRoomStyle(feature, startRoomRef, destinationRoomRef, highlightedRoomRef);
 
   // Find the highlighted feature for the info bar
-  const highlightedFeature = highlightedRoomRef
-    ? polygonFeatures.find((f) => f.properties?.ref === highlightedRoomRef)
-    : null;
+  const highlightedFeature = findHighlightedFeature(polygonFeatures, highlightedRoomRef);
 
   // Filter path nodes to the current floor for per-floor polyline rendering.
   // Prefer showing only corridor/staircase/elevator waypoints (keeps line in hallways).
@@ -926,25 +959,13 @@ export default function IndoorMapView() {
     [currentPath, selectedFloor],
   );
 
-  const initialRegion = selectedBuilding
-    ? {
-      latitude: selectedBuilding.centerLat,
-      longitude: selectedBuilding.centerLng,
-      latitudeDelta: MAP_CONSTANTS.INDOOR_BUILDING_DELTA,
-      longitudeDelta: MAP_CONSTANTS.INDOOR_BUILDING_DELTA,
-    }
-    : {
-      latitude: 45.497092,
-      longitude: -73.5788,
-      latitudeDelta: MAP_CONSTANTS.DEFAULT_CAMERA_DELTA,
-      longitudeDelta: MAP_CONSTANTS.DEFAULT_CAMERA_DELTA,
-    };
+  const initialRegion = getInitialRegion(selectedBuilding);
 
   logIndoorMapRender({
     floorTransitioning,
     pathCoordinatesLength: pathCoordinates.length,
     selectedFloor,
-    willRenderPolyline: !!(!floorTransitioning && pathCoordinates.length > 1),
+    willRenderPolyline: computeWillRenderPolyline(floorTransitioning, pathCoordinates.length),
   });
 
   return (
@@ -1144,11 +1165,7 @@ export default function IndoorMapView() {
           storyError={storyError}
           storyLoading={storyLoading}
           onStartStoryMode={handleStartStoryMode}
-          message={
-            isCrossBuilding
-              ? "These rooms are in different buildings."
-              : "Get step-by-step directions from your current location."
-          }
+          message={getCrossBuildingBannerMessage(isCrossBuilding)}
         />
       )}
 
