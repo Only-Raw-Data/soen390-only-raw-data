@@ -167,6 +167,27 @@ function getStrokeColorForBuilding(isStart: boolean, isDest: boolean): string {
   return "#912338";
 }
 
+function getPolygonColors(
+  buildingId: string,
+  startBuildingId: string | undefined,
+  destBuildingId: string | undefined,
+  highlightedBuildingId: string | null,
+) {
+  const isStart = startBuildingId === buildingId;
+  const isDest = destBuildingId === buildingId;
+  const isCurrentLocation = highlightedBuildingId === buildingId;
+
+  if (isCurrentLocation) {
+    return { fillColor: "#16A34A73", strokeColor: "#9123384D", strokeWidth: 5 };
+  }
+
+  return {
+    fillColor: "rgba(145, 35, 56, 0.3)",
+    strokeColor: getStrokeColorForBuilding(isStart, isDest),
+    strokeWidth: isStart || isDest ? 3 : 2,
+  };
+}
+
 interface MapViewAppProps {
   readonly googleMapsApiKey?: string;
   readonly showSearch?: boolean;
@@ -303,25 +324,6 @@ export default function MapViewApp({
     setInfoBuilding(null);
   };
 
-  const getPolygonColors = (buildingId: string) => {
-    const isStart = startBuilding?.id === buildingId;
-    const isDest = destinationBuilding?.id === buildingId;
-    const isCurrentLocation = highlightedBuildingId === buildingId;
-
-    if (isCurrentLocation) {
-      return {
-        fillColor: "#16A34A73",
-        strokeColor: "#9123384D",
-        strokeWidth: 5,
-      };
-    }
-
-    return {
-      fillColor: "rgba(145, 35, 56, 0.3)",
-      strokeColor: getStrokeColorForBuilding(isStart, isDest),
-      strokeWidth: isStart || isDest ? 3 : 2,
-    };
-  };
 
   // Handle campus switch when user is located
   const handleCampusDetected = (campus: Campus) => {
@@ -376,6 +378,17 @@ export default function MapViewApp({
     setSelectedPOI(null);
     router.push("/(tabs)/two");
   };
+
+  const handlePOIToggle = useCallback(() => {
+    if (showPOIs) {
+      setShowPOIs(false);
+    } else if (isOnCooldown) {
+      Alert.alert("Please wait", "Already loading nearby places. Try again in a moment.");
+    } else {
+      fetchPOIsAt(currentRegionRef.current.latitude, currentRegionRef.current.longitude);
+      setShowPOIs(true);
+    }
+  }, [showPOIs, isOnCooldown, fetchPOIsAt, setShowPOIs]);
 
   // Fit route in view when it changes (and when shuttle, only if within service hours)
   React.useEffect(() => {
@@ -479,7 +492,12 @@ export default function MapViewApp({
         >
           {/* Render Building Polygons */}
           {buildingPolygons.map((polygon) => {
-            const colors = getPolygonColors(polygon.buildingId);
+            const colors = getPolygonColors(
+              polygon.buildingId,
+              startBuilding?.id,
+              destinationBuilding?.id,
+              highlightedBuildingId,
+            );
             const building = allBuildingsList.find(
               (b: Building) => b.id === polygon.buildingId,
             );
@@ -679,16 +697,7 @@ export default function MapViewApp({
           styles.poiToggleButton,
           showPOIs && styles.poiToggleButtonActive,
         ]}
-        onPress={() => {
-          if (showPOIs) {
-            setShowPOIs(false);
-          } else if (isOnCooldown) {
-            Alert.alert('Please wait', 'Already loading nearby places. Try again in a moment.');
-          } else {
-            fetchPOIsAt(currentRegionRef.current.latitude, currentRegionRef.current.longitude);
-            setShowPOIs(true);
-          }
-        }}
+        onPress={handlePOIToggle}
         testID="poi-toggle-button"
       >
         <Ionicons
