@@ -24,7 +24,8 @@ import {
 } from "@app/context/IndoorMapContext";
 import useUserLocation from "@app/hooks/useUserLocation";
 import { IndoorFeature } from "@app/types/indoorMap";
-import { IndoorStep, NavigationStep} from "@app/types/navigation";
+import { IndoorStep, NavigationStep } from "@app/types/navigation";
+import { TransportationMode } from "@app/types/transportation";
 import {
   planCrossBuildingRoute,
   planCrossBuildingRouteFromGps,
@@ -134,23 +135,74 @@ function CrossBuildingBanner({
   );
 }
 
+const TRANSPORT_MODES: { key: TransportationMode; label: string; icon: string }[] = [
+  { key: "walk", label: "Walk", icon: "walk" },
+  { key: "transit", label: "Transit", icon: "bus" },
+  { key: "car", label: "Drive", icon: "car" },
+  { key: "shuttle", label: "Shuttle", icon: "bus-outline" },
+];
+
+function TransportModePicker({
+  selected,
+  onSelect,
+  disabled,
+}: {
+  readonly selected: TransportationMode;
+  readonly onSelect: (mode: TransportationMode) => void;
+  readonly disabled: boolean;
+}) {
+  return (
+    <View style={styles.transportPickerRow} testID="transport-mode-picker">
+      {TRANSPORT_MODES.map(({ key, label, icon }) => {
+        const isActive = selected === key;
+        return (
+          <TouchableOpacity
+            key={key}
+            style={[styles.transportChip, isActive && styles.transportChipActive]}
+            onPress={() => onSelect(key)}
+            disabled={disabled}
+            testID={`transport-mode-${key}`}
+            accessibilityRole="button"
+            accessibilityState={{ selected: isActive }}
+          >
+            <Ionicons
+              name={icon as React.ComponentProps<typeof Ionicons>["name"]}
+              size={14}
+              color={isActive ? "#FFFFFF" : "#374151"}
+            />
+            <Text style={[styles.transportChipText, isActive && styles.transportChipTextActive]}>
+              {label}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
 function StoryModeSection({
   storySteps,
   storyIndex,
   setStoryIndex,
   onExit,
+  transportMode,
+  onChangeMode,
+  modeSwitching,
 }: {
   readonly storySteps: NavigationStep[];
   readonly storyIndex: number;
   readonly setStoryIndex: React.Dispatch<React.SetStateAction<number>>;
   readonly onExit: () => void;
+  readonly transportMode: TransportationMode;
+  readonly onChangeMode: (mode: TransportationMode) => void;
+  readonly modeSwitching: boolean;
 }) {
   const currentStep = storySteps[storyIndex];
   const isFirst = storyIndex === 0;
   const isLast = storyIndex === storySteps.length - 1;
   const stepLabel = currentStep.kind === "indoor"
     ? `Indoor — ${(currentStep).buildingName}`
-    : "Outdoor — Walking";
+    : "Outdoor";
 
   return (
     <View style={styles.storyContainer} testID="story-mode-container">
@@ -179,12 +231,26 @@ function StoryModeSection({
         </Text>
       </View>
 
+      {/* Transport mode picker — always visible so user can switch modes */}
+      <View style={styles.transportPickerContainer}>
+        {modeSwitching ? (
+          <ActivityIndicator size="small" color="#912338" testID="mode-switching-indicator" />
+        ) : (
+          <TransportModePicker
+            selected={transportMode}
+            onSelect={onChangeMode}
+            disabled={modeSwitching}
+          />
+        )}
+      </View>
+
       <View style={styles.storyMapContainer}>
         {currentStep.kind === "outdoor" ? (
           <StoryOutdoorMap
             route={(currentStep).route}
             startLabel={currentStep.startLabel}
             endLabel={currentStep.endLabel}
+            transportMode={currentStep.transportMode ?? transportMode}
           />
         ) : (
           <StoryIndoorMap
@@ -654,18 +720,21 @@ async function planStoryModeRoute(params: {
   destinationSearchQuery: string;
   startSearchQuery: string;
   accessible: boolean;
+  transportMode: TransportationMode;
 }): Promise<NavigationStep[] | null> {
   if (params.useCurrentLocation && params.location) {
     return planCrossBuildingRouteFromGps(
       { lat: params.location.coords.latitude, lng: params.location.coords.longitude },
       params.destinationSearchQuery,
       params.accessible,
+      params.transportMode,
     );
   }
   return planCrossBuildingRoute(
     params.startSearchQuery,
     params.destinationSearchQuery,
     params.accessible,
+    params.transportMode,
   );
 }
 
@@ -713,6 +782,8 @@ export default function IndoorMapView() {
   const [storyIndex, setStoryIndex] = useState(0);
   const [storyLoading, setStoryLoading] = useState(false);
   const [storyError, setStoryError] = useState<string | null>(null);
+  const [storyTransportMode, setStoryTransportMode] = useState<TransportationMode>("walk");
+  const [modeSwitching, setModeSwitching] = useState(false);
 
   const startSuggestions = useMemo(
     () => (startRoomRef || useCurrentLocation ? [] : getRoomSuggestions(startSearchQuery)),
@@ -893,6 +964,7 @@ export default function IndoorMapView() {
         destinationSearchQuery,
         startSearchQuery,
         accessible,
+        transportMode: storyTransportMode,
       });
       applyRouteStepsResult(steps, setStorySteps, setStoryIndex, setStoryError);
     } catch {
@@ -902,10 +974,37 @@ export default function IndoorMapView() {
     }
   };
 
+  const handleChangeTransportMode = async (mode: TransportationMode) => {
+    setStoryTransportMode(mode);
+    setModeSwitching(true);
+    setStoryError(null);
+    try {
+      const steps = await planStoryModeRoute({
+        useCurrentLocation,
+        location,
+        destinationSearchQuery,
+        startSearchQuery,
+        accessible,
+        transportMode: mode,
+      });
+      if (steps && steps.length > 0) {
+        setStorySteps(steps);
+        // Preserve the current step index so the user stays on the same step
+      } else {
+        setStoryError("Could not compute route");
+      }
+    } catch {
+      setStoryError("Error computing route");
+    } finally {
+      setModeSwitching(false);
+    }
+  };
+
   const handleExitStoryMode = () => {
     setStorySteps(null);
     setStoryIndex(0);
     setStoryError(null);
+    setStoryTransportMode("walk");
   };
 
   const handleBuildingSelect = (building: typeof INDOOR_BUILDINGS[0]) => {
@@ -1084,41 +1183,43 @@ export default function IndoorMapView() {
         </View>
       </TouchableOpacity>
 
-      {/* Building Selector */}
-      <View style={styles.buildingSelectorContainer}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.buildingScroll}
-        >
-          {INDOOR_BUILDINGS.map((building) => {
-            const isActive = selectedBuilding?.code === building.code;
-            return (
-              <TouchableOpacity
-                key={building.code}
-                style={[
-                  styles.buildingPill,
-                  isActive && styles.buildingPillActive,
-                ]}
-                onPress={() => handleBuildingSelect(building)}
-                testID={`building-pill-${building.code}`}
-              >
-                <Text
+      {/* Building Selector — hidden during story mode */}
+      {!storySteps && (
+        <View style={styles.buildingSelectorContainer}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.buildingScroll}
+          >
+            {INDOOR_BUILDINGS.map((building) => {
+              const isActive = selectedBuilding?.code === building.code;
+              return (
+                <TouchableOpacity
+                  key={building.code}
                   style={[
-                    styles.buildingPillText,
-                    isActive && styles.buildingPillTextActive,
+                    styles.buildingPill,
+                    isActive && styles.buildingPillActive,
                   ]}
+                  onPress={() => handleBuildingSelect(building)}
+                  testID={`building-pill-${building.code}`}
                 >
-                  {building.code}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      </View>
+                  <Text
+                    style={[
+                      styles.buildingPillText,
+                      isActive && styles.buildingPillTextActive,
+                    ]}
+                  >
+                    {building.code}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
 
-      {/* Floor Selector */}
-      {selectedBuilding && (
+      {/* Floor Selector — hidden during story mode */}
+      {!storySteps && selectedBuilding && (
         <View style={styles.floorSelectorContainer}>
           <ScrollView
             horizontal
@@ -1176,6 +1277,9 @@ export default function IndoorMapView() {
           storyIndex={storyIndex}
           setStoryIndex={setStoryIndex}
           onExit={handleExitStoryMode}
+          transportMode={storyTransportMode}
+          onChangeMode={handleChangeTransportMode}
+          modeSwitching={modeSwitching}
         />
       )}
 
@@ -1327,6 +1431,31 @@ export default function IndoorMapView() {
 }
 
 /** Renders an indoor map for a story mode step, showing path on the first floor segment. */
+function computeIndoorRegion(
+  coords: { latitude: number; longitude: number }[],
+  fallbackLat: number,
+  fallbackLng: number,
+) {
+  if (coords.length === 0) {
+    return { latitude: fallbackLat, longitude: fallbackLng, latitudeDelta: 0.0008, longitudeDelta: 0.0008 };
+  }
+  let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
+  for (const c of coords) {
+    if (c.latitude < minLat) minLat = c.latitude;
+    if (c.latitude > maxLat) maxLat = c.latitude;
+    if (c.longitude < minLng) minLng = c.longitude;
+    if (c.longitude > maxLng) maxLng = c.longitude;
+  }
+  const padding = 1.6;
+  const minDelta = 0.0004;
+  return {
+    latitude: (minLat + maxLat) / 2,
+    longitude: (minLng + maxLng) / 2,
+    latitudeDelta: Math.max((maxLat - minLat) * padding, minDelta),
+    longitudeDelta: Math.max((maxLng - minLng) * padding, minDelta),
+  };
+}
+
 function StoryIndoorMap({ step }: { readonly step: IndoorStep }) {
   const building = INDOOR_BUILDINGS.find((b) => b.code === step.buildingCode);
   if (!building) return null;
@@ -1353,17 +1482,14 @@ function StoryIndoorMap({ step }: { readonly step: IndoorStep }) {
         .filter((n) => n.floor === floor && Number.isFinite(n.lat) && Number.isFinite(n.lng))
         .map((n) => ({ latitude: n.lat, longitude: n.lng }));
 
+  const region = computeIndoorRegion(finalPathCoords, building.centerLat, building.centerLng);
+
   return (
     <MapView
       style={{ flex: 1 }}
       provider={PROVIDER_GOOGLE}
       customMapStyle={CAMPUS_MAP_STYLE}
-      initialRegion={{
-        latitude: building.centerLat,
-        longitude: building.centerLng,
-        latitudeDelta: 0.002,
-        longitudeDelta: 0.002,
-      }}
+      initialRegion={region}
       testID="story-indoor-map"
     >
       {polygonFeatures.map((feature, index) => {
@@ -1907,5 +2033,40 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: "#DC2626",
+  },
+  transportPickerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F9FAFB",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+    gap: 8,
+  },
+  transportPickerRow: {
+    flexDirection: "row",
+    gap: 6,
+    flex: 1,
+  },
+  transportChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#E5E7EB",
+    borderRadius: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  transportChipActive: {
+    backgroundColor: "#912338",
+  },
+  transportChipText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#374151",
+  },
+  transportChipTextActive: {
+    color: "#FFFFFF",
   },
 });

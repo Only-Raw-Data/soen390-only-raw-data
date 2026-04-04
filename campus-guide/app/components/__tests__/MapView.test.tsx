@@ -1042,6 +1042,13 @@ describe("MapViewApp", () => {
       const screen = renderWithProvider(<MapViewApp />);
       fireEvent.press(screen.getByText("Loyola Campus"));
 
+      // Capture call count before the region change so we can pinpoint the
+      // re-render triggered by the auto-switch. The component always calls
+      // useBuildingPolygons("SGW") first then useBuildingPolygons("Loyola")
+      // in every render, so the last call is always "Loyola". We assert
+      // that the first call of the post-switch render is "SGW" instead.
+      const callsBefore = (useBuildingPolygons as jest.Mock).mock.calls.length;
+
       // Act — pan to SGW area
       fireRegionChange(screen, {
         latitude: 45.4972,
@@ -1050,8 +1057,8 @@ describe("MapViewApp", () => {
         longitudeDelta: 0.01,
       });
 
-      // Assert
-      expect(useBuildingPolygons).toHaveBeenLastCalledWith("SGW");
+      // Assert — the campus-switch re-render starts with "SGW"
+      expect(useBuildingPolygons).toHaveBeenNthCalledWith(callsBefore + 1, "SGW");
     });
 
     it("does not switch campus when already on the closest campus", () => {

@@ -1255,7 +1255,7 @@ describe("IndoorMapView", () => {
 
       // Assert — wait for async route planning to complete
       await waitFor(() => {
-        expect(mockPlanRoute).toHaveBeenCalledWith("H-820", "MBS2.210", false);
+        expect(mockPlanRoute).toHaveBeenCalledWith("H-820", "MBS2.210", false, "walk");
         expect(getByTestId("story-exit-button")).toBeTruthy();
       });
     });
