@@ -97,8 +97,8 @@ export const fetchDirections = async (
         fetchDirections(origin, departureStop, "walk"),
         fetchDirections(arrivalStop, destination, "walk"),
       ]);
-    } catch {
-      // network unavailable — straight-line fallback applied below
+    } catch (error) {
+      console.warn('[directionsService] Failed to fetch shuttle walking legs — falling back to straight-line segments:', error);
     }
 
     const walkToCoords =
