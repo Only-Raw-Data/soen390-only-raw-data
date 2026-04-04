@@ -1555,6 +1555,106 @@ describe("IndoorMapView", () => {
         expect(getByTestId("story-indoor-polyline").props.accessibilityLabel).toBe("polyline-2-coords");
       });
     });
+
+    describe("transport mode switching", () => {
+      const crossBuildingContext = {
+        ...defaultContextValue,
+        isCrossBuilding: true,
+        startRoomRef: "H820",
+        destinationRoomRef: "MBS2.210",
+        startSearchQuery: "H-820",
+        destinationSearchQuery: "MBS2.210",
+      };
+
+      const indoorStep = {
+        kind: "indoor" as const,
+        buildingCode: "H",
+        buildingName: "Hall Building",
+        path: [{ id: "room:H820:8", lat: 45.497, lng: -73.578, floor: 8, type: "room" as any, ref: "H820" }],
+        startLabel: "H820",
+        endLabel: "Exit",
+      };
+
+      it("re-plans route with new mode and stays on current step when mode chip is pressed", async () => {
+        // Arrange
+        const updatedSteps = [{ ...indoorStep, startLabel: "Updated" }];
+        mockPlanRoute.mockResolvedValueOnce([indoorStep]).mockResolvedValueOnce(updatedSteps);
+        mockUseIndoorMap.mockReturnValue(crossBuildingContext);
+
+        // Act — enter story mode then switch to transit
+        const { getByTestId } = renderWithProvider(<IndoorMapView />);
+        fireEvent.press(getByTestId("cross-building-directions-button"));
+        await waitFor(() => expect(getByTestId("story-exit-button")).toBeTruthy());
+
+        fireEvent.press(getByTestId("transport-mode-transit"));
+
+        // Assert — route re-planned; step index stays at 0
+        await waitFor(() => {
+          expect(mockPlanRoute).toHaveBeenCalledWith("H-820", "MBS2.210", false, "transit");
+          expect(getByTestId("story-step-indicator")).toBeTruthy();
+        });
+      });
+
+      it("keeps story mode active when mode switch returns empty steps", async () => {
+        // Arrange
+        mockPlanRoute.mockResolvedValueOnce([indoorStep]).mockResolvedValueOnce([]);
+        mockUseIndoorMap.mockReturnValue(crossBuildingContext);
+
+        // Act
+        const { getByTestId } = renderWithProvider(<IndoorMapView />);
+        fireEvent.press(getByTestId("cross-building-directions-button"));
+        await waitFor(() => expect(getByTestId("story-exit-button")).toBeTruthy());
+
+        fireEvent.press(getByTestId("transport-mode-car"));
+
+        // Assert — route re-planned with new mode; story mode stays active
+        await waitFor(() => {
+          expect(mockPlanRoute).toHaveBeenCalledWith("H-820", "MBS2.210", false, "car");
+          expect(getByTestId("story-exit-button")).toBeTruthy();
+        });
+      });
+
+      it("keeps story mode active when mode switch throws", async () => {
+        // Arrange
+        mockPlanRoute.mockResolvedValueOnce([indoorStep]).mockRejectedValueOnce(new Error("Network error"));
+        mockUseIndoorMap.mockReturnValue(crossBuildingContext);
+
+        // Act
+        const { getByTestId } = renderWithProvider(<IndoorMapView />);
+        fireEvent.press(getByTestId("cross-building-directions-button"));
+        await waitFor(() => expect(getByTestId("story-exit-button")).toBeTruthy());
+
+        fireEvent.press(getByTestId("transport-mode-shuttle"));
+
+        // Assert — route was attempted; story mode stays active despite the error
+        await waitFor(() => {
+          expect(mockPlanRoute).toHaveBeenCalledWith("H-820", "MBS2.210", false, "shuttle");
+          expect(getByTestId("story-exit-button")).toBeTruthy();
+        });
+      });
+
+      it("shows mode-switching spinner while re-planning", async () => {
+        // Arrange — second plan call hangs so we can observe the loading state
+        let resolveSecond!: (v: any) => void;
+        mockPlanRoute
+          .mockResolvedValueOnce([indoorStep])
+          .mockReturnValueOnce(new Promise((res) => { resolveSecond = res; }));
+        mockUseIndoorMap.mockReturnValue(crossBuildingContext);
+
+        // Act
+        const { getByTestId } = renderWithProvider(<IndoorMapView />);
+        fireEvent.press(getByTestId("cross-building-directions-button"));
+        await waitFor(() => expect(getByTestId("story-exit-button")).toBeTruthy());
+
+        fireEvent.press(getByTestId("transport-mode-transit"));
+
+        // Assert — spinner visible while request is in flight
+        await waitFor(() => expect(getByTestId("mode-switching-indicator")).toBeTruthy());
+
+        // Cleanup
+        resolveSecond([]);
+      });
+    });
   });
 
   describe("debug logging branches", () => {
