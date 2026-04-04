@@ -565,6 +565,30 @@ function computeRoomStyle(
   return ROOM_STYLE_DEFAULT;
 }
 
+function computeFloorFeatures(
+  building: ReturnType<typeof useIndoorMap>["selectedBuilding"],
+  floor: number | null,
+): ReturnType<typeof getFeaturesForFloor> {
+  if (!building || floor === null) return [];
+  const geoJson = getGeoJsonForBuilding(building);
+  if (!geoJson) return [];
+  return getFeaturesForFloor(geoJson, floor);
+}
+
+function applyRouteStepsResult(
+  steps: NavigationStep[] | null,
+  setStorySteps: (s: NavigationStep[]) => void,
+  setStoryIndex: (i: number) => void,
+  setStoryError: (e: string) => void,
+): void {
+  if (steps && steps.length > 0) {
+    setStorySteps(steps);
+    setStoryIndex(0);
+  } else {
+    setStoryError("Could not compute route");
+  }
+}
+
 async function planStoryModeRoute(params: {
   useCurrentLocation: boolean;
   location: ReturnType<typeof useUserLocation>["location"];
@@ -695,12 +719,10 @@ export default function IndoorMapView() {
   }, [selectedBuilding, selectedFloor]);
 
   // Get floor features for current building + floor
-  const floorFeatures = useMemo(() => {
-    if (!selectedBuilding || selectedFloor === null) return [];
-    const geoJson = getGeoJsonForBuilding(selectedBuilding);
-    if (!geoJson) return [];
-    return getFeaturesForFloor(geoJson, selectedFloor);
-  }, [selectedBuilding, selectedFloor]);
+  const floorFeatures = useMemo(
+    () => computeFloorFeatures(selectedBuilding, selectedFloor),
+    [selectedBuilding, selectedFloor],
+  );
 
   // Filter to only polygon features (rooms/areas), excluding amenity POIs when shown separately
   const polygonFeatures = useMemo(() => {
@@ -817,12 +839,7 @@ export default function IndoorMapView() {
         startSearchQuery,
         accessible,
       });
-      if (steps && steps.length > 0) {
-        setStorySteps(steps);
-        setStoryIndex(0);
-      } else {
-        setStoryError("Could not compute route");
-      }
+      applyRouteStepsResult(steps, setStorySteps, setStoryIndex, setStoryError);
     } catch {
       setStoryError("Error computing route");
     } finally {

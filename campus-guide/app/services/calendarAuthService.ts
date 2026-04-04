@@ -7,7 +7,7 @@ import {
   statusCodes,
 } from "@react-native-google-signin/google-signin";
 import { GOOGLE_CALENDAR_SCOPES } from "@constants/calendarAuth";
-import { CLASS_PREFIXES, isClassEvent } from "@utils/classEventFilter";
+import { isClassEvent } from "@utils/classEventFilter";
 export { CLASS_PREFIXES, isClassEvent } from "@utils/classEventFilter";
 
 const STORAGE_KEY_CONNECTED = "calendar_connected";
