@@ -589,6 +589,30 @@ function applyRouteStepsResult(
   }
 }
 
+function computePathCoordinates(
+  currentPath: GraphNode[] | null,
+  selectedFloor: number | null,
+): { latitude: number; longitude: number }[] {
+  if (!currentPath || selectedFloor === null) return [];
+  const onFloor = currentPath
+    .filter((node) => node.floor === selectedFloor)
+    .filter((c) => Number.isFinite(c.lat) && Number.isFinite(c.lng));
+  const filtered = onFloor.filter((n) => n.type !== NodeType.Room);
+  const chosen = filtered.length >= 2 ? filtered : onFloor;
+  return chosen.map((node) => ({ latitude: node.lat, longitude: node.lng }));
+}
+
+function bounceIosMapPadding(
+  setIosMapPadding: (p: { top: number; right: number; bottom: number; left: number }) => void,
+  timerRef: React.MutableRefObject<ReturnType<typeof setTimeout> | null>,
+): void {
+  setIosMapPadding({ top: 0, right: 0, bottom: 1, left: 0 });
+  if (timerRef.current) clearTimeout(timerRef.current);
+  timerRef.current = setTimeout(() => {
+    setIosMapPadding({ top: 0, right: 0, bottom: 0, left: 0 });
+  }, 300);
+}
+
 async function planStoryModeRoute(params: {
   useCurrentLocation: boolean;
   location: ReturnType<typeof useUserLocation>["location"];
@@ -738,11 +762,7 @@ export default function IndoorMapView() {
   // after polygon features change (building/floor selection).
   useEffect(() => {
     if (Platform.OS === "ios" && polygonFeatures.length > 0) {
-      setIosMapPadding({ top: 0, right: 0, bottom: 1, left: 0 });
-      if (iosPaddingTimer.current) clearTimeout(iosPaddingTimer.current);
-      iosPaddingTimer.current = setTimeout(() => {
-        setIosMapPadding({ top: 0, right: 0, bottom: 0, left: 0 });
-      }, 300);
+      bounceIosMapPadding(setIosMapPadding, iosPaddingTimer);
     }
   }, [polygonFeatures.length]);
 
@@ -896,20 +916,10 @@ export default function IndoorMapView() {
   // Filter path nodes to the current floor for per-floor polyline rendering.
   // Prefer showing only corridor/staircase/elevator waypoints (keeps line in hallways).
   // Fall back to including Room nodes if fewer than 2 waypoints remain.
-  const pathCoordinates = useMemo(() => {
-    if (!currentPath || selectedFloor === null) return [];
-
-    const onFloor = currentPath
-      .filter((node) => node.floor === selectedFloor)
-      .filter((c) => Number.isFinite(c.lat) && Number.isFinite(c.lng));
-
-    // Exclude Room centroid nodes so the line stays in hallways.
-    // Start/destination rooms are already highlighted by colored polygons.
-    const filtered = onFloor.filter((n) => n.type !== NodeType.Room);
-    const chosen = filtered.length >= 2 ? filtered : onFloor;
-
-    return chosen.map((node) => ({ latitude: node.lat, longitude: node.lng }));
-  }, [currentPath, selectedFloor]);
+  const pathCoordinates = useMemo(
+    () => computePathCoordinates(currentPath, selectedFloor),
+    [currentPath, selectedFloor],
+  );
 
   const transitionPoints = useMemo(
     () => computeTransitionPoints(currentPath, selectedFloor),
