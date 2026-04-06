@@ -24,7 +24,7 @@ export default function BottomNav({ currentScreen, onScreenChange }: BottomNavPr
     {
       id: "indoor" as Screen,
       icon: "business-outline" as const,
-      label: "Indoor",
+      label: "Room Search",
     },
     { id: "poi" as Screen, icon: "location-outline" as const, label: "POI" },
   ];

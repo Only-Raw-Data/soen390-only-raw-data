@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  Animated,
 } from "react-native";
 import BuildingSearchHeader from "./BuildingSearchComponent";
 import { Ionicons } from "@expo/vector-icons";
@@ -461,6 +462,19 @@ export default function MapViewApp({
   // Tracks the latest map region so the POI toggle always fetches at the visible center
   const currentRegionRef = useRef(CAMPUS_REGIONS[selectedCampus]);
 
+  const tooltipOpacity = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (!showSearch) return;
+    const timer = setTimeout(() => {
+      Animated.timing(tooltipOpacity, {
+        toValue: 0,
+        duration: 400,
+        useNativeDriver: true,
+      }).start();
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, []);
+
   const allBuildingsList = [...SGW_BUILDINGS, ...LOYOLA_BUILDINGS];
 
   useMapUsabilityTasks(enableUsabilityTaskTracking, selectedCampus, infoBuilding);
@@ -596,7 +610,6 @@ export default function MapViewApp({
 
   const directionsButtonLabel = startBuilding ? "Set as Destination" : "Set as Start";
   const showClearSelections = Boolean(startBuilding || destinationBuilding);
-  const poiToggleIconColor = showPOIs ? "#FFFFFF" : "#8B5CF6";
 
   // Fit route in view when it changes (and when shuttle, only if within service hours)
   React.useEffect(() => {
@@ -769,7 +782,7 @@ export default function MapViewApp({
 
       {showPOIs && poisLoading && (
         <View style={styles.poiLoadingIndicator}>
-          <ActivityIndicator size="small" color="#8B5CF6" />
+          <ActivityIndicator size="small" color="#912338" />
         </View>
       )}
 
@@ -777,16 +790,27 @@ export default function MapViewApp({
         style={[
           styles.poiToggleButton,
           showPOIs ? styles.poiToggleButtonActive : undefined,
+          !showSearch && styles.poiToggleButtonNoSearch,
         ]}
         onPress={handlePOIToggle}
         testID="poi-toggle-button"
       >
         <Ionicons
-          name="restaurant"
-          size={24}
-          color={poiToggleIconColor}
+          name="location-outline"
+          size={18}
+          color={showPOIs ? "#FFFFFF" : "#912338"}
         />
+        <Text style={[styles.poiToggleLabel, showPOIs && styles.poiToggleLabelActive]}>
+          Explore Nearby
+        </Text>
       </TouchableOpacity>
+
+      {showSearch && (
+        <Animated.View style={[styles.poiTooltip, { opacity: tooltipOpacity }]} pointerEvents="none">
+          <Text style={styles.poiTooltipText}>Tap here to discover nearby spots</Text>
+          <View style={styles.poiTooltipArrow} />
+        </Animated.View>
+      )}
 
       <LocateMeButton
         onLocate={getCurrentLocation}
@@ -1140,27 +1164,75 @@ const styles = StyleSheet.create({
   },
   poiToggleButton: {
     position: "absolute",
-    bottom: 80,
-    right: 16,
+    top: 160,
+    left: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     backgroundColor: "#FFFFFF",
-    padding: 12,
-    borderRadius: 50,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.15,
     shadowRadius: 4,
     elevation: 5,
     zIndex: 100,
-    borderWidth: 2,
-    borderColor: "#8B5CF6",
+    borderWidth: 1.5,
+    borderColor: "#912338",
   },
   poiToggleButtonActive: {
-    backgroundColor: "#8B5CF6",
+    backgroundColor: "#912338",
+  },
+  poiToggleButtonNoSearch: {
+    top: 76,
+  },
+  poiTooltip: {
+    position: "absolute",
+    top: 210,
+    left: 16,
+    backgroundColor: "#912338",
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    zIndex: 101,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 6,
+  },
+  poiTooltipText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "500",
+  },
+  poiTooltipArrow: {
+    position: "absolute",
+    top: -6,
+    left: 18,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 6,
+    borderRightWidth: 6,
+    borderBottomWidth: 6,
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
+    borderBottomColor: "#912338",
+  },
+  poiToggleLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#912338",
+  },
+  poiToggleLabelActive: {
+    color: "#FFFFFF",
   },
   poiLoadingIndicator: {
     position: "absolute",
-    bottom: 144,
-    right: 20,
+    top: 214,
+    left: 16,
     backgroundColor: "rgba(255,255,255,0.8)",
     padding: 8,
     borderRadius: 20,

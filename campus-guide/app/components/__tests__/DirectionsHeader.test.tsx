@@ -70,8 +70,8 @@ describe('DirectionsHeader', () => {
 
         //Assert
         expect(getByTestId('directions-title')).toBeTruthy();
-        expect(getByPlaceholderText('Start location')).toBeTruthy();
-        expect(getByPlaceholderText('Destination')).toBeTruthy();
+        expect(getByPlaceholderText('Start location (e.g. Henry F. Hall Building)')).toBeTruthy();
+        expect(getByPlaceholderText('Destination (e.g. Administration Building)')).toBeTruthy();
     });
 
     it('shows selected building names', () => {

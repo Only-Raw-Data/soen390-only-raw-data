@@ -455,7 +455,7 @@ describe("IndoorMapView", () => {
     const searchStartRoom = jest.fn();
     const setStartSearchQuery = jest.fn();
     const clearCurrentLocationStart = jest.fn();
-    mockGetRoomSuggestions.mockReturnValue(["H801"]);
+    mockGetRoomSuggestions.mockReturnValue([{ room: "H801", buildingName: "Henry F. Hall Building" }]);
     mockUseIndoorMap.mockReturnValue({
       ...defaultContextValue,
       startSearchQuery: "H",
@@ -479,7 +479,7 @@ describe("IndoorMapView", () => {
     // Arrange
     const searchDestinationRoom = jest.fn();
     const setDestinationSearchQuery = jest.fn();
-    mockGetRoomSuggestions.mockReturnValue(["H801"]);
+    mockGetRoomSuggestions.mockReturnValue([{ room: "H801", buildingName: "Henry F. Hall Building" }]);
     mockUseIndoorMap.mockReturnValue({
       ...defaultContextValue,
       destinationSearchQuery: "H",

@@ -245,9 +245,10 @@ const MAX_SUGGESTIONS = 6;
 
 function collectRoomPrefixMatches(
   geoJson: IndoorGeoJSON,
+  buildingName: string,
   normalized: string,
   seen: Set<string>,
-  results: string[],
+  results: { room: string; buildingName: string }[],
   max: number,
 ): boolean {
   for (const feature of geoJson.features) {
@@ -260,18 +261,18 @@ function collectRoomPrefixMatches(
     if (seen.has(refNormalized)) continue;
 
     seen.add(refNormalized);
-    results.push(ref);
+    results.push({ room: ref, buildingName });
     if (results.length >= max) return true;
   }
   return false;
 }
 
-export function getRoomSuggestions(query: string): string[] {
+export function getRoomSuggestions(query: string): { room: string; buildingName: string }[] {
   const normalized = query.replaceAll(/[\s-]/g, "").toUpperCase();
   if (normalized.length < 1) return [];
 
   const seen = new Set<string>();
-  const results: string[] = [];
+  const results: { room: string; buildingName: string }[] = [];
 
   for (const building of INDOOR_BUILDINGS) {
     const geoJson = getGeoJsonForBuilding(building);
@@ -279,6 +280,7 @@ export function getRoomSuggestions(query: string): string[] {
     if (
       collectRoomPrefixMatches(
         geoJson,
+        building.name,
         normalized,
         seen,
         results,

@@ -137,7 +137,7 @@ export default function DirectionsHeader() {
               <TextInput
                 testID="start-input"
                 style={styles.input}
-                placeholder="Start location"
+                placeholder="Start location (e.g. Henry F. Hall Building)"
                 value={startDisplayValue}
                 onFocus={() => {
                   setIsSearchingStart(true);
@@ -157,9 +157,14 @@ export default function DirectionsHeader() {
                   <Ionicons name="navigate" size={20} color="#912338" />
                 )}
               </TouchableOpacity>
-              <TouchableOpacity testID="swap-button" onPress={swapLocations}>
-                <Ionicons name="swap-vertical-outline" size={20} color="#3B82F6" />
+            </View>
+
+            <View style={styles.swapRow}>
+              <View style={styles.swapDivider} />
+              <TouchableOpacity testID="swap-button" onPress={swapLocations} style={styles.swapButton}>
+                <Ionicons name="swap-vertical-outline" size={22} color="#912338" />
               </TouchableOpacity>
+              <View style={styles.swapDivider} />
             </View>
 
             <View style={styles.inputWrapper}>
@@ -167,7 +172,7 @@ export default function DirectionsHeader() {
               <TextInput
                 testID="dest-input"
                 style={styles.input}
-                placeholder="Destination"
+                placeholder="Destination (e.g. Administration Building)"
                 value={isSearchingDest ? searchQuery : (destinationBuilding?.name || '')}
                 onFocus={() => {
                   setIsSearchingDest(true);
@@ -312,32 +317,49 @@ const styles = StyleSheet.create({
     elevation: 10,
     zIndex: 100,
   },
-  content: { padding: 20 },
+  content: { padding: 14 },
   titleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 10,
   },
-  title: { fontSize: 20, fontWeight: '600', color: '#111827' },
-  inputsContainer: { gap: 12, marginBottom: 20 },
+  title: { fontSize: 17, fontWeight: '600', color: '#111827' },
+  inputsContainer: { gap: 6, marginBottom: 14 },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    height: 48,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    height: 42,
     backgroundColor: '#F9FAFB',
   },
   inputIcon: { marginRight: 8 },
   locateButton: { marginRight: 8 },
-  input: { flex: 1, fontSize: 15, color: '#374151' },
-  modesContainer: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
+  swapRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  swapDivider: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#E5E7EB',
+  },
+  swapButton: {
+    marginHorizontal: 12,
+    padding: 6,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: '#912338',
+    backgroundColor: '#FFFFFF',
+  },
+  input: { flex: 1, fontSize: 13, color: '#374151' },
+  modesContainer: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14 },
   modeButton: {
     flex: 1,
-    aspectRatio: 1.2,
+    aspectRatio: 1.4,
     backgroundColor: '#F3F4F6',
     borderRadius: 12,
     justifyContent: 'center',
@@ -350,7 +372,7 @@ const styles = StyleSheet.create({
   getDirectionsButton: {
     backgroundColor: '#912338',
     flexDirection: 'row',
-    height: 48,
+    height: 42,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',

@@ -5,6 +5,7 @@ import IndoorMapProvider, {
   INDOOR_BUILDINGS,
   getGeoJsonForBuilding,
   getFeaturesForFloor,
+  getRoomSuggestions,
 } from "@app/context/IndoorMapContext";
 import * as indoorPathService from "@app/services/indoorPathService";
 
@@ -872,6 +873,31 @@ describe("IndoorMapContext", () => {
       });
 
       expect(result.current.currentPath).toBeNull();
+    });
+  });
+
+  describe("getRoomSuggestions", () => {
+    it("returns empty array for empty query", () => {
+      const results = getRoomSuggestions("");
+      expect(results).toEqual([]);
+    });
+
+    it("returns suggestions with room and buildingName for a matching query", () => {
+      const results = getRoomSuggestions("H8");
+      expect(results.length).toBeGreaterThan(0);
+      expect(results[0]).toHaveProperty("room");
+      expect(results[0]).toHaveProperty("buildingName");
+      expect(results[0].buildingName).toBe("Henry F. Hall Building");
+    });
+
+    it("caps results at max suggestions and returns early", () => {
+      const results = getRoomSuggestions("H");
+      expect(results.length).toBeLessThanOrEqual(6);
+    });
+
+    it("returns empty array when no rooms match the query", () => {
+      const results = getRoomSuggestions("ZZZZZ");
+      expect(results).toEqual([]);
     });
   });
 });
