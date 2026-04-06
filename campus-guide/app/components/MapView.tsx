@@ -596,7 +596,6 @@ export default function MapViewApp({
 
   const directionsButtonLabel = startBuilding ? "Set as Destination" : "Set as Start";
   const showClearSelections = Boolean(startBuilding || destinationBuilding);
-  const poiToggleIconColor = showPOIs ? "#FFFFFF" : "#8B5CF6";
 
   // Fit route in view when it changes (and when shuttle, only if within service hours)
   React.useEffect(() => {
@@ -769,7 +768,7 @@ export default function MapViewApp({
 
       {showPOIs && poisLoading && (
         <View style={styles.poiLoadingIndicator}>
-          <ActivityIndicator size="small" color="#8B5CF6" />
+          <ActivityIndicator size="small" color="#912338" />
         </View>
       )}
 
@@ -782,10 +781,13 @@ export default function MapViewApp({
         testID="poi-toggle-button"
       >
         <Ionicons
-          name="restaurant"
-          size={24}
-          color={poiToggleIconColor}
+          name="location-outline"
+          size={18}
+          color={showPOIs ? "#FFFFFF" : "#912338"}
         />
+        <Text style={[styles.poiToggleLabel, showPOIs && styles.poiToggleLabelActive]}>
+          Explore Nearby
+        </Text>
       </TouchableOpacity>
 
       <LocateMeButton
@@ -1140,27 +1142,39 @@ const styles = StyleSheet.create({
   },
   poiToggleButton: {
     position: "absolute",
-    bottom: 80,
-    right: 16,
+    top: 160,
+    left: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     backgroundColor: "#FFFFFF",
-    padding: 12,
-    borderRadius: 50,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.15,
     shadowRadius: 4,
     elevation: 5,
     zIndex: 100,
-    borderWidth: 2,
-    borderColor: "#8B5CF6",
+    borderWidth: 1.5,
+    borderColor: "#912338",
   },
   poiToggleButtonActive: {
-    backgroundColor: "#8B5CF6",
+    backgroundColor: "#912338",
+  },
+  poiToggleLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#912338",
+  },
+  poiToggleLabelActive: {
+    color: "#FFFFFF",
   },
   poiLoadingIndicator: {
     position: "absolute",
-    bottom: 144,
-    right: 20,
+    top: 214,
+    left: 16,
     backgroundColor: "rgba(255,255,255,0.8)",
     padding: 8,
     borderRadius: 20,

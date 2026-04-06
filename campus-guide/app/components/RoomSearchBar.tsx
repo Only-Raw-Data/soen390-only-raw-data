@@ -17,7 +17,7 @@ interface RoomSearchBarProps {
   readonly error?: string | null;
   readonly placeholder?: string;
   readonly testIDPrefix?: string;
-  readonly suggestions?: string[];
+  readonly suggestions?: { room: string; buildingName: string }[];
   readonly onSelectSuggestion?: (room: string) => void;
 }
 
@@ -67,16 +67,19 @@ export default function RoomSearchBar({
         <View style={styles.suggestionsContainer}>
           <FlatList
             data={suggestions}
-            keyExtractor={(item) => item}
+            keyExtractor={(item) => item.room}
             keyboardShouldPersistTaps="handled"
             renderItem={({ item }) => (
               <TouchableOpacity
                 style={styles.suggestionItem}
-                onPress={() => onSelectSuggestion?.(item)}
-                testID={`${testIDPrefix}-suggestion-${item}`}
+                onPress={() => onSelectSuggestion?.(item.room)}
+                testID={`${testIDPrefix}-suggestion-${item.room}`}
               >
                 <Ionicons name="location-outline" size={16} color="#912338" style={styles.suggestionIcon} />
-                <Text style={styles.suggestionText}>{item}</Text>
+                <View style={styles.suggestionTextContainer}>
+                  <Text style={styles.suggestionText}>{item.room}</Text>
+                  <Text style={styles.suggestionBuilding}>{item.buildingName}</Text>
+                </View>
               </TouchableOpacity>
             )}
           />
@@ -142,9 +145,17 @@ const styles = StyleSheet.create({
   suggestionIcon: {
     marginRight: 8,
   },
+  suggestionTextContainer: {
+    flex: 1,
+  },
   suggestionText: {
     fontSize: 15,
     color: "#1F2937",
     fontWeight: "500",
+  },
+  suggestionBuilding: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginTop: 1,
   },
 });

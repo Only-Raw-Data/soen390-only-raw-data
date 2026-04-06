@@ -137,7 +137,7 @@ export default function DirectionsHeader() {
               <TextInput
                 testID="start-input"
                 style={styles.input}
-                placeholder="Start location"
+                placeholder="Start location (e.g. Henry F. Hall Building)"
                 value={startDisplayValue}
                 onFocus={() => {
                   setIsSearchingStart(true);
@@ -167,7 +167,7 @@ export default function DirectionsHeader() {
               <TextInput
                 testID="dest-input"
                 style={styles.input}
-                placeholder="Destination"
+                placeholder="Destination (e.g. Administration Building)"
                 value={isSearchingDest ? searchQuery : (destinationBuilding?.name || '')}
                 onFocus={() => {
                   setIsSearchingDest(true);
