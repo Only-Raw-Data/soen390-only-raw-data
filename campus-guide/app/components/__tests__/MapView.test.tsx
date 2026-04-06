@@ -1204,4 +1204,16 @@ describe("MapViewApp", () => {
       expect(screen.getByText("Destination")).toBeTruthy();
     });
   });
+
+  describe("POI tooltip", () => {
+    it("renders tooltip on home screen (showSearch=true)", () => {
+      const screen = renderWithProvider(<MapViewApp showSearch />);
+      expect(screen.getByText("Tap here to discover nearby spots")).toBeTruthy();
+    });
+
+    it("does not render tooltip when showSearch is false", () => {
+      const screen = renderWithProvider(<MapViewApp showSearch={false} />);
+      expect(screen.queryByText("Tap here to discover nearby spots")).toBeNull();
+    });
+  });
 });
