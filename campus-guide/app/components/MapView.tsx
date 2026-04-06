@@ -776,6 +776,7 @@ export default function MapViewApp({
         style={[
           styles.poiToggleButton,
           showPOIs ? styles.poiToggleButtonActive : undefined,
+          !showSearch && styles.poiToggleButtonNoSearch,
         ]}
         onPress={handlePOIToggle}
         testID="poi-toggle-button"
@@ -1162,6 +1163,9 @@ const styles = StyleSheet.create({
   },
   poiToggleButtonActive: {
     backgroundColor: "#912338",
+  },
+  poiToggleButtonNoSearch: {
+    top: 76,
   },
   poiToggleLabel: {
     fontSize: 13,
