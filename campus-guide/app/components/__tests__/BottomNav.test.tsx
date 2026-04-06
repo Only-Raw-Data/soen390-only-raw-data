@@ -20,7 +20,7 @@ describe("BottomNav", () => {
     expect(getByText("Map")).toBeTruthy();
     expect(getByText("Directions")).toBeTruthy();
     expect(getByText("Schedule")).toBeTruthy();
-    expect(getByText("Indoor")).toBeTruthy();
+    expect(getByText("Room Search")).toBeTruthy();
     expect(getByText("POI")).toBeTruthy();
   });
 
@@ -48,7 +48,7 @@ describe("BottomNav", () => {
       { label: "Map", screen: "map" },
       { label: "Directions", screen: "directions" },
       { label: "Schedule", screen: "schedule" },
-      { label: "Indoor", screen: "indoor" },
+      { label: "Room Search", screen: "indoor" },
       { label: "POI", screen: "poi" },
     ];
 
@@ -75,7 +75,7 @@ describe("BottomNav", () => {
 
     fireEvent.press(getByText("Directions"));
     fireEvent.press(getByText("Schedule"));
-    fireEvent.press(getByText("Indoor"));
+    fireEvent.press(getByText("Room Search"));
 
     expect(mockOnScreenChange).toHaveBeenCalledTimes(3);
     expect(mockOnScreenChange).toHaveBeenNthCalledWith(1, "directions");
