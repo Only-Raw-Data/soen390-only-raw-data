@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  Animated,
 } from "react-native";
 import BuildingSearchHeader from "./BuildingSearchComponent";
 import { Ionicons } from "@expo/vector-icons";
@@ -461,6 +462,19 @@ export default function MapViewApp({
   // Tracks the latest map region so the POI toggle always fetches at the visible center
   const currentRegionRef = useRef(CAMPUS_REGIONS[selectedCampus]);
 
+  const tooltipOpacity = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (!showSearch) return;
+    const timer = setTimeout(() => {
+      Animated.timing(tooltipOpacity, {
+        toValue: 0,
+        duration: 400,
+        useNativeDriver: true,
+      }).start();
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, []);
+
   const allBuildingsList = [...SGW_BUILDINGS, ...LOYOLA_BUILDINGS];
 
   useMapUsabilityTasks(enableUsabilityTaskTracking, selectedCampus, infoBuilding);
@@ -790,6 +804,13 @@ export default function MapViewApp({
           Explore Nearby
         </Text>
       </TouchableOpacity>
+
+      {showSearch && (
+        <Animated.View style={[styles.poiTooltip, { opacity: tooltipOpacity }]} pointerEvents="none">
+          <Text style={styles.poiTooltipText}>Tap here to discover nearby spots</Text>
+          <View style={styles.poiTooltipArrow} />
+        </Animated.View>
+      )}
 
       <LocateMeButton
         onLocate={getCurrentLocation}
@@ -1166,6 +1187,39 @@ const styles = StyleSheet.create({
   },
   poiToggleButtonNoSearch: {
     top: 76,
+  },
+  poiTooltip: {
+    position: "absolute",
+    top: 210,
+    left: 16,
+    backgroundColor: "#912338",
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    zIndex: 101,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 6,
+  },
+  poiTooltipText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "500",
+  },
+  poiTooltipArrow: {
+    position: "absolute",
+    top: -6,
+    left: 18,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 6,
+    borderRightWidth: 6,
+    borderBottomWidth: 6,
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
+    borderBottomColor: "#912338",
   },
   poiToggleLabel: {
     fontSize: 13,
